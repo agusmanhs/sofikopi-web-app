@@ -466,20 +466,51 @@ class AbsensiService extends BaseService
 
         // Hari Aktif (Hadir/Telat/Izin yang Sah)
         $daysActive = $absensis->filter(function($item) {
-            // Semua jenis izin/cuti/sakit yang ada di database
             $allIzinTypes = ['Izin', 'Sakit', 'Cuti', 'Izin Pribadi', 'Cuti Tahunan', 'Cuti Melahirkan', 'Cuti Menikah', 'Cuti Duka', 'Dinas Luar Kota'];
             if (in_array($item->status, $allIzinTypes)) return true;
             
-            // Hadir/Telat harus ada jam_pulang (Tuntas)
-            // KECUALI kalau hari ini, Masuk saja sudah cukup untuk tidak Alpha (sedang berjalan)
-            return !is_null($item->jam_pulang) || $item->tanggal->isToday();
+            // Hadir/Telat harus ada jam_pulang (Tuntas) ATAU masih dalam toleransi jam kerja (belum 2 jam dari batas pulang)
+            if (!is_null($item->jam_pulang)) return true;
+            
+            if (!is_null($item->jam_masuk) && $item->shift) {
+                // Tentukan batas kepulangan (2 jam setelah shift selesai)
+                $batasPulang = \Carbon\Carbon::parse($item->tanggal->format('Y-m-d') . ' ' . $item->shift->jam_pulang->format('H:i:s'));
+                if ($item->shift->is_cross_day) {
+                    $batasPulang->addDay();
+                }
+                $batasPulang->addHours(2);
+                
+                // Jika SEKARANG belum melewati batas kepulangan, anggap sebagai Hadir sementara (Active)
+                if (now()->lte($batasPulang)) return true;
+                
+                // Jika sudah melewati batas dan belum absen pulang, berarti tidak dihitung hadir (Alpha)
+            }
+            return false;
         })->unique(fn($i) => $i->tanggal->format('Y-m-d'))->count();
 
-        // Hitung Alpha (Hari Kerja yang tidak ada di rekaman absensi dan bukan izin)
+        // Hitung Alpha (Hari Kerja yang tidak ada di rekaman absensi MASUK dan PULANG yang lengkap)
         $datesWithPresence = $absensis->filter(function($item) {
             $allIzinTypes = ['Izin', 'Sakit', 'Cuti', 'Izin Pribadi', 'Cuti Tahunan', 'Cuti Melahirkan', 'Cuti Menikah', 'Cuti Duka', 'Dinas Luar Kota'];
+            // 1. Jika statusnya izin/cuti resmi yang sah, dianggap hadir (bukan alpha)
             if (in_array($item->status, $allIzinTypes)) return true;
-            return !is_null($item->jam_masuk);
+            
+            // 2. Jika sudah ada absen pulang, aman.
+            if (!is_null($item->jam_pulang)) return true;
+            
+            // 3. Jika baru absen masuk SAJA form hari sebelumnya atau hari ini, cek toleransi kepulangan
+            if (!is_null($item->jam_masuk) && $item->shift) {
+                $batasPulang = \Carbon\Carbon::parse($item->tanggal->format('Y-m-d') . ' ' . $item->shift->jam_pulang->format('H:i:s'));
+                if ($item->shift->is_cross_day) {
+                    $batasPulang->addDay();
+                }
+                $batasPulang->addHours(2); // Toleransi 2 jam
+                
+                // Jika sekarang belum melewati batas pulang, JANGAN hitung Alpha dulu (Dianggap Hadir/Pending)
+                if (now()->lte($batasPulang)) return true;
+            }
+            
+            // Jika sudah lewat toleransi pulang dan dia belum klik absen pulang, GUGUR (Alpha)
+            return false;
         })->pluck('tanggal')->map(fn($d) => $d->format('Y-m-d'))->toArray();
 
         // Cari tanggal yang harusnya kerja tapi tidak ada di datesWithPresence
@@ -491,14 +522,50 @@ class AbsensiService extends BaseService
         }
         $alphaCount = count($alphaDates);
         
-        $tepatWaktu = $absensis->filter(fn($item) => in_array($item->status, ['Tepat Waktu', 'Hadir']) && (!is_null($item->jam_pulang) || $item->tanggal->isToday()))->unique(fn($i) => $i->tanggal->format('Y-m-d'))->count();
-        $terlambat = $absensis->filter(fn($item) => $item->status === 'Terlambat' && (!is_null($item->jam_pulang) || $item->tanggal->isToday()))->unique(fn($i) => $i->tanggal->format('Y-m-d'))->count();
+        $tepatWaktu = $absensis->filter(function($item) {
+            if (!in_array($item->status, ['Tepat Waktu', 'Hadir'])) return false;
+            if (!is_null($item->jam_pulang)) return true; // Udah pulang ya dihitung hadir
+            
+            // Cek toleransi jika gantung
+            if (!is_null($item->jam_masuk) && $item->shift) {
+                $batasPulang = \Carbon\Carbon::parse($item->tanggal->format('Y-m-d') . ' ' . $item->shift->jam_pulang->format('H:i:s'));
+                if ($item->shift->is_cross_day) $batasPulang->addDay();
+                $batasPulang->addHours(2);
+                if (now()->lte($batasPulang)) return true; // Masih aktif
+            }
+            return false;
+        })->unique(fn($i) => $i->tanggal->format('Y-m-d'))->count();
+
+        $terlambat = $absensis->filter(function($item) {
+            if ($item->status !== 'Terlambat') return false;
+            if (!is_null($item->jam_pulang)) return true;
+            
+            // Cek toleransi
+            if (!is_null($item->jam_masuk) && $item->shift) {
+                $batasPulang = \Carbon\Carbon::parse($item->tanggal->format('Y-m-d') . ' ' . $item->shift->jam_pulang->format('H:i:s'));
+                if ($item->shift->is_cross_day) $batasPulang->addDay();
+                $batasPulang->addHours(2);
+                if (now()->lte($batasPulang)) return true;
+            }
+            return false;
+        })->unique(fn($i) => $i->tanggal->format('Y-m-d'))->count();
+        
         $dinasWork = $absensis->filter(fn($item) => in_array($item->status, ['Dinas Luar Kota', 'Tugas']))->unique(fn($i) => $i->tanggal->format('Y-m-d'))->count();
         
         // Sesuai Request: Record yang ada Jam Masuk (meskipun statusnya Izin/Info) harus masuk hitungan Hadir
         $othersWithJam = $absensis->filter(function($item) {
             $sudahDihitung = in_array($item->status, ['Tepat Waktu', 'Hadir', 'Terlambat', 'Dinas Luar Kota', 'Tugas']);
-            return !$sudahDihitung && !is_null($item->jam_masuk);
+            if ($sudahDihitung || is_null($item->jam_masuk)) return false;
+            
+            // Cek syarat lengkap (ada pulang atau masih toleransi)
+            if (!is_null($item->jam_pulang)) return true;
+            if ($item->shift) {
+                $batasPulang = \Carbon\Carbon::parse($item->tanggal->format('Y-m-d') . ' ' . $item->shift->jam_pulang->format('H:i:s'));
+                if ($item->shift->is_cross_day) $batasPulang->addDay();
+                $batasPulang->addHours(2);
+                if (now()->lte($batasPulang)) return true;
+            }
+            return false;
         })->unique(fn($i) => $i->tanggal->format('Y-m-d'))->count();
 
         return [

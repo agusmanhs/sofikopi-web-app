@@ -48,36 +48,21 @@
             $isReguler = $pegawai->shift && $pegawai->shift->ikut_libur;
             $hariAktifTarget = $isReguler ? $hariEfektifReguler : $hariEfektifFull;
 
-            $absensis = $pegawai->absensis;
+            // Kita bisa pakai properti statistik yang sudah disuntikkan dari controller
+            $statistik = $pegawai->statistik ?? [
+                'hadir' => 0,
+                'tepat_waktu' => 0,
+                'terlambat' => 0,
+                'izin' => 0,
+                'alfa' => $hariAktifTarget,
+            ];
 
-            // Hadir: Total unique days present (Tepat Waktu, Hadir, Terlambat, Dinas, or Any with Jam Masuk)
-            $hadirCount = $absensis
-                ->filter(function ($i) {
-                    $isHadir = in_array($i->status, ['Tepat Waktu', 'Hadir', 'Terlambat', 'Dinas Luar Kota', 'Tugas']);
-                    $hasClockIn = !is_null($i->jam_masuk);
-                    return ($isHadir || $hasClockIn) && (!is_null($i->jam_pulang) || $i->tanggal->isToday());
-                })
-                ->unique(fn($i) => $i->tanggal->format('Y-m-d'))
-                ->count();
+            $absensis = $pegawai->absensis ?? collect([]);
 
-            // Tepat Waktu / Hadir Murni (Tanpa Telat)
-            $tepatWaktuCount = $absensis
-                ->filter(function ($i) {
-                    if ($i->status === 'Terlambat') {
-                        return false;
-                    }
-                    $isHadir = in_array($i->status, ['Tepat Waktu', 'Hadir', 'Dinas Luar Kota', 'Tugas']);
-                    $hasClockIn = !is_null($i->jam_masuk);
-                    return ($isHadir || $hasClockIn) && (!is_null($i->jam_pulang) || $i->tanggal->isToday());
-                })
-                ->unique(fn($i) => $i->tanggal->format('Y-m-d'))
-                ->count();
-
-            // Telat: Total sessions with Terlambat status
-            $terlambatCount = $absensis
-                ->filter(fn($i) => $i->status === 'Terlambat' && (!is_null($i->jam_pulang) || $i->tanggal->isToday()))
-                ->unique(fn($i) => $i->tanggal->format('Y-m-d'))
-                ->count();
+            $hadirCount = $statistik['hadir'] ?? 0;
+            $tepatWaktuCount = $statistik['tepat_waktu'] ?? 0;
+            $terlambatCount = $statistik['terlambat'] ?? 0;
+            $alphaCount = $statistik['alfa'] ?? 0;
 
             // Izin counts per type
             $izinCounts = [];
@@ -89,27 +74,17 @@
             }
 
             // Total unique days covered (Hadir + any Izin/Sakit/Cuti)
-            $daysActive = $absensis
-                ->filter(function ($item) {
-                    if (
-                        in_array($item->status, [
-                            'Izin',
-                            'Sakit',
-                            'Cuti',
-                            'Izin Pribadi',
-                            'Cuti Tahunan',
-                            'Dinas Luar Kota',
-                        ])
-                    ) {
-                        return true;
-                    }
-                    return !is_null($item->jam_pulang) || $item->tanggal->isToday();
-                })
-                ->unique(fn($i) => $i->tanggal->format('Y-m-d'))
-                ->count();
+            $daysActive = $hadirCount + ($statistik['izin'] ?? 0);
 
-            // Alpha (Absen)
-            $alphaCount = max(0, $hariAktifTarget - $daysActive);
+            // Percentage
+            $persentase =
+                $hariAktifTarget > 0 ? round((($hariAktifTarget - $alphaCount) / $hariAktifTarget) * 100, 2) : 0;
+            if ($persentase > 100) {
+                $persentase = 100;
+            }
+            if ($persentase < 0) {
+                $persentase = 0;
+            }
 
             // Percentage
             $persentase = $hariAktifTarget > 0 ? round(($daysActive / $hariAktifTarget) * 100, 2) : 0;

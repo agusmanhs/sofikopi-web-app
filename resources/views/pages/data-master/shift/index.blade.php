@@ -56,6 +56,7 @@
                      <th>Nama Shift</th>
                      <th>Jam Masuk</th>
                      <th>Jam Pulang</th>
+                     <th>Hari Kerja</th>
                      <th>Ikut Libur</th>
                      <th>Status</th>
                      <th class="text-center">Aksi</th>
@@ -69,6 +70,17 @@
                         <td><strong>{{ $item->nama }}</strong></td>
                         <td><span class="badge bg-label-primary">{{ $item->jam_masuk->format('H:i') }}</span></td>
                         <td><span class="badge bg-label-secondary">{{ $item->jam_pulang->format('H:i') }}</span></td>
+                        <td>
+                           @if ($item->hari_kerja)
+                              @php $days = ['Monday' => 'Sen', 'Tuesday' => 'Sel', 'Wednesday' => 'Rab', 'Thursday' => 'Kam', 'Friday' => 'Jum', 'Saturday' => 'Sab', 'Sunday' => 'Min']; @endphp
+                              @foreach ($item->hari_kerja as $day)
+                                 <span class="badge bg-label-info p-1"
+                                    style="font-size: 0.65rem;">{{ $days[$day] ?? $day }}</span>
+                              @endforeach
+                           @else
+                              <span class="text-muted small">-</span>
+                           @endif
+                        </td>
                         <td>
                            @if ($item->ikut_libur)
                               <span class="badge bg-label-warning">Ya</span>
@@ -139,15 +151,36 @@
                         <input type="time" name="jam_pulang" id="jam_pulang" class="form-control" required>
                      </div>
                   </div>
+                  <div class="mb-3">
+                     <label class="form-label d-block text-primary fw-bold mb-2">Jadwal Hari Kerja</label>
+                     <div class="d-flex flex-wrap gap-2">
+                        @foreach (['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as $day)
+                           @php $indo = ['Monday' => 'Senin', 'Tuesday' => 'Selasa', 'Wednesday' => 'Rabu', 'Thursday' => 'Kamis', 'Friday' => 'Jumat', 'Saturday' => 'Sabtu', 'Sunday' => 'Minggu']; @endphp
+                           <div class="form-check form-check-inline me-0">
+                              <input class="form-check-input check-hari" type="checkbox" name="hari_kerja[]"
+                                 id="day_{{ $day }}" value="{{ $day }}">
+                              <label class="form-check-label" for="day_{{ $day }}">{{ $indo[$day] }}</label>
+                           </div>
+                        @endforeach
+                     </div>
+                  </div>
                   <div class="row">
-                     <div class="col-md-6 mb-3">
+                     <div class="col-md-4 mb-3">
                         <div class="form-check form-switch pt-2">
                            <input class="form-check-input" type="checkbox" id="ikut_libur" name="ikut_libur"
                               value="1">
-                           <label class="form-check-label" for="ikut_libur">Ikuti Hari Libur</label>
+                           <label class="form-check-label" for="ikut_libur">Ikut Libur</label>
                         </div>
                      </div>
-                     <div class="col-md-6 mb-0">
+                     <div class="col-md-4 mb-3">
+                        <div class="form-check form-switch pt-2">
+                           <input class="form-check-input" type="checkbox" id="is_cross_day" name="is_cross_day"
+                              value="1">
+                           <label class="form-check-label" for="is_cross_day" data-bs-toggle="tooltip"
+                              title="Nyalakan jika shift berakhir di hari berikutnya (lewat jam 00:00)">Cross Day</label>
+                        </div>
+                     </div>
+                     <div class="col-md-4 mb-0">
                         <div class="form-check form-switch pt-2">
                            <input class="form-check-input" type="checkbox" id="is_aktif" name="is_aktif"
                               value="1" checked>
@@ -190,6 +223,12 @@
                buttons: []
             });
             $('div.head-label').html('<h5 class="card-title mb-0">Daftar Shift</h5>');
+
+            // Re-initialize tooltips
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function(tooltipTriggerEl) {
+               return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
          }
 
          const modalElement = document.getElementById('modalShift');
@@ -208,6 +247,9 @@
             formShift.reset();
             document.getElementById('shift_id').value = '';
             document.getElementById('modalTitle').textContent = 'Tambah Shift';
+
+            // Reset checkboxes
+            document.querySelectorAll('.check-hari').forEach(cb => cb.checked = false);
          };
 
          window.editShift = function(data) {
@@ -223,6 +265,15 @@
 
             document.getElementById('ikut_libur').checked = !!data.ikut_libur;
             document.getElementById('is_aktif').checked = !!data.is_aktif;
+            document.getElementById('is_cross_day').checked = !!data.is_cross_day;
+
+            // Handle Hari Kerja
+            if (data.hari_kerja && Array.isArray(data.hari_kerja)) {
+               data.hari_kerja.forEach(day => {
+                  const cb = document.getElementById(`day_${day}`);
+                  if (cb) cb.checked = true;
+               });
+            }
             const modal = getModalInstance();
             if (modal) modal.show();
          };

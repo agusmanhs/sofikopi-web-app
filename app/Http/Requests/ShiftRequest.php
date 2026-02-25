@@ -13,6 +13,9 @@ class ShiftRequest extends BaseRequest
             'jam_pulang' => 'required',
             'is_aktif' => 'nullable|boolean',
             'ikut_libur' => 'nullable|boolean',
+            'is_cross_day' => 'nullable|boolean',
+            'hari_kerja' => 'nullable|array',
+            'hari_kerja.*' => 'string|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
         ];
     }
 

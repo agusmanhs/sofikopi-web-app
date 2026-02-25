@@ -16,11 +16,15 @@ class Shift extends Model
         'jam_pulang',
         'is_aktif',
         'ikut_libur',
+        'hari_kerja',
+        'is_cross_day',
     ];
 
     protected $casts = [
         'is_aktif' => 'boolean',
         'ikut_libur' => 'boolean',
+        'is_cross_day' => 'boolean',
+        'hari_kerja' => 'array',
         'jam_masuk' => 'datetime:H:i',
         'jam_pulang' => 'datetime:H:i',
     ];

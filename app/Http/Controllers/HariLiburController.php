@@ -19,7 +19,8 @@ class HariLiburController extends Controller
     {
         $year = $request->get('year', now()->year);
         $data = $this->service->getPaginated($year);
-        return view('pages.data-master.hari-libur.index', compact('data', 'year'));
+        $divisis = \App\Models\Divisi::aktif()->get();
+        return view('pages.data-master.hari-libur.index', compact('data', 'year', 'divisis'));
     }
 
     public function sync(Request $request)
@@ -53,6 +54,10 @@ class HariLiburController extends Controller
     public function store(HariLiburRequest $request)
     {
         $data = $request->validated();
+        $data['is_nasional'] = $request->boolean('is_nasional', false);
+        $data['is_cuti_bersama'] = $request->boolean('is_cuti_bersama', false);
+        $data['is_all_divisi'] = $request->boolean('is_all_divisi', true);
+        $data['divisi_ids'] = $request->input('divisi_ids', []);
         $this->service->create($data);
 
         return redirect()->route('hari-libur.index')
@@ -74,7 +79,8 @@ class HariLiburController extends Controller
     public function edit($id)
     {
         $data = $this->service->find($id);
-        return view('pages.data-master.hari-libur.edit', compact('data'));
+        $divisis = \App\Models\Divisi::aktif()->get();
+        return view('pages.data-master.hari-libur.edit', compact('data', 'divisis'));
     }
 
     /**
@@ -83,6 +89,10 @@ class HariLiburController extends Controller
     public function update(HariLiburRequest $request, $id)
     {
         $data = $request->validated();
+        $data['is_nasional'] = $request->boolean('is_nasional', false);
+        $data['is_cuti_bersama'] = $request->boolean('is_cuti_bersama', false);
+        $data['is_all_divisi'] = $request->boolean('is_all_divisi', true);
+        $data['divisi_ids'] = $request->input('divisi_ids', []);
         $this->service->update($id, $data);
 
         return redirect()->route('hari-libur.index')

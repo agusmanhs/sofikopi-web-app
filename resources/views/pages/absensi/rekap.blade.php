@@ -139,72 +139,16 @@
                <tbody>
                   @foreach ($data as $index => $pegawai)
                      @php
-                        $isReguler = $pegawai->shift && $pegawai->shift->ikut_libur;
-                        $hariBerjalan = $isReguler ? $detailReguler['total'] : $detailFull['total'];
+                        $st = $pegawai->statistik;
+                        $hadirCount = $st['hadir'];
+                        $terlambatCount = $st['terlambat'];
+                        $izinCount = $st['izin'];
+                        $alphaCount = $st['alfa'];
+                        $hariBerjalan = $st['total_hari_kerja'];
+                        $daysActive = $hariBerjalan - $alphaCount;
 
+                        // Total work hours
                         $absensis = $pegawai->absensis;
-
-                        // 1. Hadir (Tepat Waktu + Dinas + Lainnya yang ada Jam Masuk)
-                        $hadirCount = $absensis
-                            ->filter(function ($i) {
-                                if ($i->status === 'Terlambat') {
-                                    return false;
-                                }
-                                $isHadir = in_array($i->status, ['Tepat Waktu', 'Hadir', 'Dinas Luar Kota', 'Tugas']);
-                                $hasClockIn = !is_null($i->jam_masuk);
-                                return ($isHadir || $hasClockIn) &&
-                                    (!is_null($i->jam_pulang) || $i->tanggal->isToday());
-                            })
-                            ->unique(fn($i) => $i->tanggal->format('Y-m-d'))
-                            ->count();
-
-                        // 2. Terlambat (Telat)
-                        $terlambatCount = $absensis
-                            ->filter(
-                                fn($i) => $i->status === 'Terlambat' &&
-                                    (!is_null($i->jam_pulang) || $i->tanggal->isToday()),
-                            )
-                            ->unique(fn($i) => $i->tanggal->format('Y-m-d'))
-                            ->count();
-
-                        // 3. Izin (Includ Sakit, Cuti, dll)
-                        $izinCount = $absensis
-                            ->whereIn('status', [
-                                'Izin',
-                                'Cuti',
-                                'Sakit',
-                                'Izin Pribadi',
-                                'Cuti Tahunan',
-                                'Dinas Luar Kota',
-                            ])
-                            ->unique(fn($i) => $i->tanggal->format('Y-m-d'))
-                            ->count();
-
-                        // 4. Days Active (untuk hitung Alpha & Persentase)
-                        // Menggunakan logic: Izin/Sakit/Cuti ATAU (Sudah Pulang) ATAU (Masuk hari ini)
-                        $daysActive = $absensis
-                            ->filter(function ($item) {
-                                if (
-                                    in_array($item->status, [
-                                        'Izin',
-                                        'Sakit',
-                                        'Cuti',
-                                        'Izin Pribadi',
-                                        'Cuti Tahunan',
-                                        'Dinas Luar Kota',
-                                    ])
-                                ) {
-                                    return true;
-                                }
-                                return !is_null($item->jam_pulang) || $item->tanggal->isToday();
-                            })
-                            ->unique(fn($i) => $i->tanggal->format('Y-m-d'))
-                            ->count();
-
-                        // 5. Alpha
-                        $alphaCount = max(0, $hariBerjalan - $daysActive);
-
-                        // Total work hours (based on actual duration)
                         $totalMenit = $absensis->sum('durasi_kerja_menit');
                         $totalJam = floor($totalMenit / 60);
                         $sisaMenit = $totalMenit % 60;
@@ -238,7 +182,19 @@
                         <td class="text-center text-success fw-bold">{{ $hadirCount }}</td>
                         <td class="text-center text-warning fw-bold">{{ $terlambatCount }}</td>
                         <td class="text-center text-info fw-bold">{{ $izinCount }}</td>
-                        <td class="text-center text-danger fw-bold">{{ $alphaCount }}</td>
+                        <td class="text-center">
+                           <span class="text-danger fw-bold d-block">{{ $alphaCount }}</span>
+                           @if ($alphaCount > 0 && isset($st['alpha_dates']))
+                              <div class="d-flex flex-wrap justify-content-center gap-1 mt-1">
+                                 @foreach ($st['alpha_dates'] as $d)
+                                    <span class="badge bg-danger p-0 px-1" style="font-size: 0.6rem;"
+                                       data-bs-toggle="tooltip" title="Alpha pada {{ $d }}">
+                                       {{ date('d', strtotime($d)) }}
+                                    </span>
+                                 @endforeach
+                              </div>
+                           @endif
+                        </td>
                         <td class="text-center"><span class="badge bg-label-secondary">{{ $absensis->count() }}</span>
                         </td>
                         <td class="text-center">
@@ -297,6 +253,12 @@
             $('div.head-label').html(
                '<h5 class="card-title mb-0">Rekap {{ \Carbon\Carbon::create()->month((int) $bulan)->locale('id')->isoFormat('MMMM') }} {{ $tahun }}</h5>'
             );
+
+            // Initialize tooltips for Alpha dates
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function(tooltipTriggerEl) {
+               return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
          }
       });
 

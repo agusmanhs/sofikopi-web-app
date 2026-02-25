@@ -141,6 +141,22 @@
                (termasuk hari bolos & lupa absen pulang). Target kerja bulan ini:
                <strong>{{ $statistik['total_hari_kerja'] }} hari</strong>.
             </span>
+
+            @if (isset($statistik['alfa']) && $statistik['alfa'] > 0)
+               <div class="mt-2 pt-2 border-top border-primary border-opacity-25">
+                  <span class="text-danger fw-bold d-block mb-1" style="font-size: 0.75rem;">
+                     DAFTAR TANGGAL ALPHA/BOLOS:
+                  </span>
+                  <div class="d-flex flex-wrap gap-1">
+                     @foreach ($statistik['alpha_dates'] as $date)
+                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25"
+                           style="font-size: 0.7rem;">
+                           {{ \Carbon\Carbon::parse($date)->locale('id')->isoFormat('D MMM') }}
+                        </span>
+                     @endforeach
+                  </div>
+               </div>
+            @endif
          </div>
       </div>
 

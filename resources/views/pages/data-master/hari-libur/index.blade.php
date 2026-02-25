@@ -76,7 +76,7 @@
                         <tr>
                            <th>Tanggal</th>
                            <th>Keterangan Libur</th>
-                           <th class="text-center">Tipe</th>
+                           <th class="text-center">Target</th>
                            <th class="text-center">Cuti Bersama</th>
                            <th class="text-center">Aksi</th>
                         </tr>
@@ -96,10 +96,13 @@
                                  @endif
                               </td>
                               <td class="text-center">
-                                 @if ($item->is_nasional)
-                                    <span class="badge bg-label-danger">Nasional</span>
+                                 @if ($item->is_all_divisi)
+                                    <span class="badge bg-label-success text-uppercase">Semua Divisi</span>
                                  @else
-                                    <span class="badge bg-label-secondary">Lokal</span>
+                                    <span class="badge bg-label-warning" data-bs-toggle="tooltip"
+                                       title="{{ $item->divisi_ids ? 'Target: ' . implode(', ', \App\Models\Divisi::whereIn('id', $item->divisi_ids)->pluck('nama')->toArray()) : 'Belum memilih divisi' }}">
+                                       {{ is_array($item->divisi_ids) ? count($item->divisi_ids) : 0 }} Divisi
+                                    </span>
                                  @endif
                               </td>
                               <td class="text-center">
@@ -171,16 +174,43 @@
                   <div class="col-6 mb-3">
                      <div class="form-check mt-3">
                         <input class="form-check-input" type="checkbox" name="is_nasional" value="1"
-                           id="is_nasional">
-                        <label class="form-check-label" for="is_nasional">Libur Nasional</label>
+                           id="is_nasional" checked>
+                        <label class="form-check-label fw-bold" for="is_nasional">Libur Nasional</label>
+                        <div class="form-text small" style="font-size: 0.75rem;">(Label) Menampilkan status Merah di
+                           kalender.</div>
                      </div>
                   </div>
                   <div class="col-6 mb-3">
                      <div class="form-check mt-3">
                         <input class="form-check-input" type="checkbox" name="is_cuti_bersama" value="1"
                            id="is_cuti_bersama">
-                        <label class="form-check-label" for="is_cuti_bersama">Cuti Bersama</label>
+                        <label class="form-check-label fw-bold" for="is_cuti_bersama">Cuti Bersama</label>
+                        <div class="form-text small" style="font-size: 0.75rem;">(Label) Menandai sebagai periode cuti
+                           bersama.</div>
                      </div>
+                  </div>
+               </div>
+
+               <hr class="my-3">
+
+               <div class="mb-3">
+                  <label class="form-label d-block fw-bold text-primary">Target Karyawan yang Libur</label>
+                  <div class="form-check form-switch mb-3">
+                     <input class="form-check-input" type="checkbox" name="is_all_divisi" id="is_all_divisi"
+                        value="1" checked onchange="toggleLiburTarget()">
+                     <label class="form-check-label fw-bold" for="is_all_divisi">Berlaku untuk SEMUA Divisi</label>
+                  </div>
+
+                  <div id="target_spesifik_area" style="display: none;">
+                     <div class="mb-3">
+                        <label class="form-label small fw-bold">Pilih Divisi yang Libur</label>
+                        <select name="divisi_ids[]" class="form-select select2" multiple>
+                           @foreach ($divisis as $divisi)
+                              <option value="{{ $divisi->id }}">{{ $divisi->nama }}</option>
+                           @endforeach
+                        </select>
+                     </div>
+
                   </div>
                </div>
             </div>
@@ -307,6 +337,25 @@
                }
             }
          });
+
+         // Initialize tooltips
+         const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+         tooltipTriggerList.map(function(tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+         });
       });
+
+      function toggleLiburTarget() {
+         const isAll = document.getElementById('is_all_divisi').checked;
+         const area = document.getElementById('target_spesifik_area');
+         area.style.display = isAll ? 'none' : 'block';
+
+         if (!isAll) {
+            // Re-initialize select2 if needed when shown
+            $('.select2').select2({
+               dropdownParent: $('#modalAdd')
+            });
+         }
+      }
    </script>
 @endsection

@@ -13,6 +13,9 @@ class HariLiburRequest extends BaseRequest
             'deskripsi' => 'nullable|string',
             'is_nasional' => 'boolean',
             'is_cuti_bersama' => 'boolean',
+            'is_all_divisi' => 'boolean',
+            'divisi_ids' => 'nullable|array',
+            'divisi_ids.*' => 'exists:divisis,id',
         ];
     }
 }

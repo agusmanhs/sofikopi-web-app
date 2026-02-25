@@ -105,8 +105,7 @@ class AbsensiService extends BaseService
         $hariLibur = \App\Models\HariLibur::whereDate('tanggal', today())->first();
         if ($hariLibur) {
             $isTargetLibur = $hariLibur->is_all_divisi || 
-                             (is_array($hariLibur->divisi_ids) && in_array($pegawai->divisi_id, $hariLibur->divisi_ids)) ||
-                             (is_array($hariLibur->shift_ids) && in_array($shift->id, $hariLibur->shift_ids));
+                             (is_array($hariLibur->divisi_ids) && in_array($pegawai->divisi_id, $hariLibur->divisi_ids));
             
             if ($isTargetLibur && $shift->ikut_libur) {
                 throw new \Exception("Hari ini libur: {$hariLibur->nama}. Shift '{$shift->nama}' tidak diizinkan absen.");
@@ -581,7 +580,8 @@ class AbsensiService extends BaseService
             'total' => 0,
             'holidays' => $holidays,
             'period_end' => $end,
-            'working_dates' => []
+            'working_dates' => [],
+            'sundays' => []
         ];
 
         $current = $start->copy();
@@ -591,6 +591,10 @@ class AbsensiService extends BaseService
             // Cek holiday (Global)
             $isHoliday = $holidays->where('tanggal', $current->startOfDay())->isNotEmpty();
             $isSunday = $current->isSunday();
+
+            if ($isSunday) {
+                $details['sundays'][] = $dateStr;
+            }
 
             if (!$isHoliday && !($excludeSundays && $isSunday)) {
                 $details['total']++;

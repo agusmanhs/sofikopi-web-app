@@ -248,6 +248,10 @@ class AbsensiController extends Controller
         $tahun = (int)$request->get('tahun', now()->year);
 
         $data = $this->pegawaiService->rekapAll($bulan, $tahun);
+        $data->transform(function($pegawai) use ($bulan, $tahun) {
+            $pegawai->statistik = $this->service->getStatistikPegawai($pegawai->id, $bulan, $tahun);
+            return $pegawai;
+        });
         $jenisIzins = \App\Models\JenisIzin::where('is_aktif', true)->get();
         
         $hariEfektifFull = $this->service->getHariKerjaEfektif($bulan, $tahun, false);

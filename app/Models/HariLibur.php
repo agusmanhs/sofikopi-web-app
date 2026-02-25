@@ -12,11 +12,15 @@ class HariLibur extends Model
         'deskripsi',
         'is_nasional',
         'is_cuti_bersama',
+        'is_all_divisi',
+        'divisi_ids',
     ];
 
     protected $casts = [
         'tanggal' => 'date',
         'is_nasional' => 'boolean',
         'is_cuti_bersama' => 'boolean',
+        'is_all_divisi' => 'boolean',
+        'divisi_ids' => 'array',
     ];
 }

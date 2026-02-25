@@ -101,10 +101,22 @@ class AbsensiService extends BaseService
         }
 
         // CEK HARI LIBUR
-        // REVISI: Hanya tolak absen jika shift tersebut dikonfigurasi mengikuti hari libur
+        // REVISI: Cek apakah hari ini libur untuk divisi/shift ini
         $hariLibur = \App\Models\HariLibur::whereDate('tanggal', today())->first();
-        if ($hariLibur && $shift->ikut_libur) {
-             throw new \Exception("Hari ini libur nasional/cuti bersama: {$hariLibur->nama}. Shift '{$shift->nama}' tidak diizinkan absen.");
+        if ($hariLibur) {
+            $isTargetLibur = $hariLibur->is_all_divisi || 
+                             (is_array($hariLibur->divisi_ids) && in_array($pegawai->divisi_id, $hariLibur->divisi_ids)) ||
+                             (is_array($hariLibur->shift_ids) && in_array($shift->id, $hariLibur->shift_ids));
+            
+            if ($isTargetLibur && $shift->ikut_libur) {
+                throw new \Exception("Hari ini libur: {$hariLibur->nama}. Shift '{$shift->nama}' tidak diizinkan absen.");
+            }
+        }
+
+        // CEK HARI KERJA (Sesuai kolom hari_kerja)
+        $namaHariIni = now()->format('l'); // Monday, Tuesday, etc.
+        if ($shift->hari_kerja && !in_array($namaHariIni, $shift->hari_kerja)) {
+            throw new \Exception("Hari ini ({$namaHariIni}) bukan jadwal hari kerja untuk shift '{$shift->nama}'.");
         }
 
         // VALIDASI WAKTU MASUK
@@ -113,24 +125,14 @@ class AbsensiService extends BaseService
         $jamPulang = Carbon::parse($shift->jam_pulang->format('H:i:s'));
 
         // Handle Cross-Day Shift (Misal: 20:00 - 04:00)
-        // REVISI: Karena aturan "Strict Same Day", kita abaikan cross-day logic untuk validasi tanggal.
-        // Tapi kita tetap butuh tahu range valid jam masuk.
+        $isCrossDay = $shift->is_cross_day;
         
-        $isCrossDay = $jamPulang->lt($jamMasuk);
-        // if ($isCrossDay) {
-        //      $jamPulang->addDay();
-        // }
-        // DISABLE CROSS DAY LOGIC sesuai permintaan user (hanya bisa absen di hari itu)
-
         // 1. Tidak boleh absen jika sudah lewat jam pulang (Waktu Shift Habis)
-        // Kita bandingkan jika sekarang sudah jauh melewati jam pulang
-        if ($now->gt($jamPulang)) {
+        if ($now->gt($jamPulang) && !$isCrossDay) {
              throw new \Exception('Waktu shift ini sudah berakhir.');
         }
 
         // 2. Tidak boleh absen terlalu awal (Misal: 2 Jam sebelum shift mulai)
-        // Jika cross-day (Masuk 20:00), maka batas awal 18:00.
-        // Jika sekarang jam 07:00 pagi, jelas belum bisa.
         $batasAwal = $jamMasuk->copy()->subHours(2);
         
         if ($now->lt($batasAwal)) {
@@ -206,8 +208,15 @@ class AbsensiService extends BaseService
 
         // VALIDASI STRICT SAME DAY
         // Jika tanggal absensi TIDAK sama dengan hari ini, tolak.
+        // KECUALI jika shift tersebut adalah CROSS DAY
         if (!$existing->tanggal->isToday()) {
-             throw new \Exception("Maaf, Anda tidak dapat melakukan absen pulang karena sudah berganti hari. Sesi tanggal " . $existing->tanggal->format('d-m-Y') . " dianggap tidak lengkap (Alpha).");
+            $shift = $existing->shift;
+            if (!$shift || !$shift->is_cross_day) {
+                throw new \Exception("Maaf, Anda tidak dapat melakukan absen pulang karena sudah berganti hari. Sesi tanggal " . $existing->tanggal->format('d-m-Y') . " dianggap tidak lengkap (Alpha).");
+            }
+            
+            // Untuk Cross Day, maksimal pulang adalah jam yang ditentukan (misal jam 01:00 pagi besoknya)
+            // Jadi jika ini hari Senin, dan dia masuk hari Minggu (Cross Day), ini valid.
         }
 
         // VALIDASI WAKTU PULANG
@@ -448,12 +457,13 @@ class AbsensiService extends BaseService
     public function getStatistikPegawai($pegawaiId, $bulan, $tahun)
     {
         $pegawai = Pegawai::with('shift')->find($pegawaiId);
-        $excludeSundays = $pegawai && $pegawai->shift && $pegawai->shift->ikut_libur;
+        $shift = $pegawai ? $pegawai->shift : null;
 
         $absensis = $this->repository->getByPegawaiBulan($pegawaiId, $bulan, $tahun);
         
         // Hitung total hari kerja efektif (Termasuk Hari Ini)
-        $totalHariKerja = $this->getHariKerjaEfektif($bulan, $tahun, $excludeSundays);
+        $detailHariKerja = $this->getDetailHariKerjaForEmployee($pegawai, $bulan, $tahun);
+        $totalHariKerja = $detailHariKerja['total'];
 
         // Hari Aktif (Hadir/Telat/Izin yang Sah)
         $daysActive = $absensis->filter(function($item) {
@@ -466,7 +476,21 @@ class AbsensiService extends BaseService
             return !is_null($item->jam_pulang) || $item->tanggal->isToday();
         })->unique(fn($i) => $i->tanggal->format('Y-m-d'))->count();
 
-        $alphaCount = max(0, $totalHariKerja - $daysActive);
+        // Hitung Alpha (Hari Kerja yang tidak ada di rekaman absensi dan bukan izin)
+        $datesWithPresence = $absensis->filter(function($item) {
+            $allIzinTypes = ['Izin', 'Sakit', 'Cuti', 'Izin Pribadi', 'Cuti Tahunan', 'Cuti Melahirkan', 'Cuti Menikah', 'Cuti Duka', 'Dinas Luar Kota'];
+            if (in_array($item->status, $allIzinTypes)) return true;
+            return !is_null($item->jam_masuk);
+        })->pluck('tanggal')->map(fn($d) => $d->format('Y-m-d'))->toArray();
+
+        // Cari tanggal yang harusnya kerja tapi tidak ada di datesWithPresence
+        $alphaDates = [];
+        foreach ($detailHariKerja['working_dates'] as $workingDate) {
+            if (!in_array($workingDate, $datesWithPresence)) {
+                $alphaDates[] = $workingDate;
+            }
+        }
+        $alphaCount = count($alphaDates);
         
         $tepatWaktu = $absensis->filter(fn($item) => in_array($item->status, ['Tepat Waktu', 'Hadir']) && (!is_null($item->jam_pulang) || $item->tanggal->isToday()))->unique(fn($i) => $i->tanggal->format('Y-m-d'))->count();
         $terlambat = $absensis->filter(fn($item) => $item->status === 'Terlambat' && (!is_null($item->jam_pulang) || $item->tanggal->isToday()))->unique(fn($i) => $i->tanggal->format('Y-m-d'))->count();
@@ -490,6 +514,7 @@ class AbsensiService extends BaseService
                 return $jam_pulang->lt($shift_pulang);
             })->count(),
             'alfa' => $alphaCount,
+            'alpha_dates' => $alphaDates,
             'total_hari_kerja' => $totalHariKerja,
         ];
     }
@@ -552,27 +577,78 @@ class AbsensiService extends BaseService
                 $end->format('Y-m-d')
             ])->get();
 
-        $holidayDates = $holidays->pluck('tanggal')->map(fn($d) => $d->format('Y-m-d'))->toArray();
-
         $details = [
             'total' => 0,
             'holidays' => $holidays,
-            'sundays' => [],
-            'period_end' => $end
+            'period_end' => $end,
+            'working_dates' => []
         ];
 
         $current = $start->copy();
         while ($current <= $end) {
             $dateStr = $current->format('Y-m-d');
-            $isHoliday = in_array($dateStr, $holidayDates);
+            
+            // Cek holiday (Global)
+            $isHoliday = $holidays->where('tanggal', $current->startOfDay())->isNotEmpty();
             $isSunday = $current->isSunday();
-
-            if ($isSunday) {
-                $details['sundays'][] = $current->copy();
-            }
 
             if (!$isHoliday && !($excludeSundays && $isSunday)) {
                 $details['total']++;
+                $details['working_dates'][] = $dateStr;
+            }
+            $current->addDay();
+        }
+
+        return $details;
+    }
+
+    /**
+     * Hitung detail hari kerja spesifik untuk satu orang pegawai
+     */
+    public function getDetailHariKerjaForEmployee($pegawai, $bulan, $tahun)
+    {
+        $start = Carbon::createFromDate($tahun, $bulan, 1)->startOfMonth();
+        $end = Carbon::createFromDate($tahun, $bulan, 1)->endOfMonth();
+        
+        if ($tahun == now()->year && $bulan == now()->month) {
+            $end = now();
+        }
+
+        $shift = $pegawai ? $pegawai->shift : null;
+        $hariKerjaSesuaiShift = $shift ? $shift->hari_kerja : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+        $holidays = \App\Models\HariLibur::whereBetween('tanggal', [
+                $start->format('Y-m-d'), 
+                $end->format('Y-m-d')
+            ])->get();
+
+        $details = [
+            'total' => 0,
+            'working_dates' => []
+        ];
+
+        $current = $start->copy();
+        while ($current <= $end) {
+            $dateStr = $current->format('Y-m-d');
+            
+            // 1. Cek apakah ini hari kerja di shift-nya
+            $namaHari = $current->format('l');
+            $isJadwalKerja = in_array($namaHari, $hariKerjaSesuaiShift);
+
+            if ($isJadwalKerja) {
+                // 2. Cek apakah ini hari libur untuk dia
+                $holidayToday = $holidays->where('tanggal', $current->startOfDay())->first();
+                $isHolidayForHim = false;
+
+                if ($holidayToday && $shift && $shift->ikut_libur) {
+                    $isHolidayForHim = $holidayToday->is_all_divisi || 
+                                       (is_array($holidayToday->divisi_ids) && in_array($pegawai->divisi_id, $holidayToday->divisi_ids));
+                }
+
+                if (!$isHolidayForHim) {
+                    $details['total']++;
+                    $details['working_dates'][] = $dateStr;
+                }
             }
             $current->addDay();
         }

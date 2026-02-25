@@ -223,7 +223,13 @@ class AbsensiController extends Controller
 
         $data = $this->pegawaiService->rekapPaginate($bulan, $tahun);
         
-        // Hitung detail hari efektif
+        // Compute statistics for each employee using service
+        $data->getCollection()->transform(function($pegawai) use ($bulan, $tahun) {
+            $pegawai->statistik = $this->service->getStatistikPegawai($pegawai->id, $bulan, $tahun);
+            return $pegawai;
+        });
+        
+        // Hitung detail hari efektif (General info for header)
         $detailFull = $this->service->getDetailHariKerja($bulan, $tahun, false);
         $detailReguler = $this->service->getDetailHariKerja($bulan, $tahun, true);
 

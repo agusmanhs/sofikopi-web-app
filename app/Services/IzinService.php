@@ -12,13 +12,16 @@ use Illuminate\Support\Facades\DB;
 class IzinService extends BaseService
 {
     protected FileUploadService $fileUploadService;
+    protected TelegramService $telegramService;
 
     public function __construct(
         IzinRepository $repository,
-        FileUploadService $fileUploadService
+        FileUploadService $fileUploadService,
+        TelegramService $telegramService
     ) {
         parent::__construct($repository);
         $this->fileUploadService = $fileUploadService;
+        $this->telegramService = $telegramService;
     }
 
     /**
@@ -96,7 +99,7 @@ class IzinService extends BaseService
             $filePath = $media->path;
         }
 
-        return $this->create([
+        $izin = $this->create([
             'pegawai_id' => $pegawaiId,
             'jenis_izin_id' => $data['jenis_izin_id'],
             'tgl_mulai' => $data['tgl_mulai'],
@@ -105,6 +108,11 @@ class IzinService extends BaseService
             'file_surat' => $filePath,
             'status_approval' => Izin::STATUS_PENDING,
         ]);
+
+        // Notify Telegram
+        $this->telegramService->notifyIzinCreated($izin);
+
+        return $izin;
     }
 
     /**
@@ -130,7 +138,12 @@ class IzinService extends BaseService
             // Generate record absensi untuk tanggal izin
             $this->generateAbsensiIzin($izin);
 
-            return $izin->fresh();
+            $izin = $izin->fresh();
+
+            // Notify Telegram
+            $this->telegramService->notifyIzinStatus($izin);
+
+            return $izin;
         });
     }
 
@@ -152,7 +165,12 @@ class IzinService extends BaseService
             'catatan_admin' => $catatan,
         ]);
 
-        return $izin->fresh();
+        $izin = $izin->fresh();
+
+        // Notify Telegram
+        $this->telegramService->notifyIzinStatus($izin);
+
+        return $izin;
     }
 
     /**

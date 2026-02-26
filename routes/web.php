@@ -13,7 +13,19 @@ use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProductsController;
+use App\Services\TelegramService;
 
+// Tes telegram
+// Route::get('test-telegram', function () {
+//     $telegramService = app(\App\Services\TelegramService::class);
+//     $success = $telegramService->sendMessage('Kiw Kiw - Tes Koneksi');
+    
+//     if ($success) {
+//         return "Berhasil mengirim pesan ke Telegram!";
+//     } else {
+//         return "Gagal mengirim pesan. Silakan cek file log (storage/logs/laravel.log jika ada) atau pastikan Chat ID dan Token benar.";
+//     }
+// })->name('test-telegram');
 // Auth Routes
 Route::middleware('guest')->group(function () {
     Route::get('login', [AuthController::class, 'showLogin'])->name('login');
@@ -109,5 +121,7 @@ Route::middleware(['auth'])->group(function () {
     // ============== INFORMASI ==============
     Route::resource('informasi', \App\Http\Controllers\InformasiController::class)
         ->middleware('check.permission:informasi');
+
+    
 });
 

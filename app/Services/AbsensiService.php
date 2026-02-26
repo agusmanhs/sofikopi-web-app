@@ -12,13 +12,16 @@ use Illuminate\Support\Facades\DB;
 class AbsensiService extends BaseService
 {
     protected FileUploadService $fileUploadService;
+    protected TelegramService $telegramService;
 
     public function __construct(
         AbsensiRepository $repository,
-        FileUploadService $fileUploadService
+        FileUploadService $fileUploadService,
+        TelegramService $telegramService
     ) {
         parent::__construct($repository);
         $this->fileUploadService = $fileUploadService;
+        $this->telegramService = $telegramService;
     }
 
     /**
@@ -177,7 +180,12 @@ class AbsensiService extends BaseService
             'status' => $status,
         ];
 
-        return $this->create($absensiData);
+        $absensi = $this->create($absensiData);
+
+        // Notify Telegram
+        $this->telegramService->notifyAbsenMasuk($absensi);
+
+        return $absensi;
     }
 
     /**
@@ -272,7 +280,12 @@ class AbsensiService extends BaseService
             'keterangan' => $data['keterangan'] ?? $existing->keterangan,
         ]);
 
-        return $existing->fresh();
+        $absensi = $existing->fresh();
+
+        // Notify Telegram
+        $this->telegramService->notifyAbsenPulang($absensi);
+
+        return $absensi;
     }
 
     /**

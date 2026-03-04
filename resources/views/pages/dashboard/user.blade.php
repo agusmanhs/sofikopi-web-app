@@ -123,7 +123,7 @@
 @endsection
 
 @section('content')
-   <div class="container-xxl flex-grow-1 container-p-y">
+   <div class="container-xxl grow container-p-y">
       <!-- Welcome Section -->
       <div class="card user-welcome-card mb-4">
          <div class="card-body p-4">
@@ -131,8 +131,7 @@
                <div class="col-md-7">
                   <div class="d-flex align-items-center mb-3">
                      <div class="avatar avatar-xl me-3 shadow">
-                        <img src="{{ $pegawai->foto_url }}" alt="User Avatar"
-                           class="rounded-circle border border-3 border-white">
+                        <img src="{{ $pegawai->foto_url }}" alt="User Avatar" class="rounded-circle border-3 border-white">
                      </div>
                      <div>
                         <h3 class="text-white fw-bold mb-1">Halo, {{ $pegawai->nama_lengkap }}!</h3>
@@ -361,13 +360,37 @@
                            $jamMasuk = \Carbon\Carbon::parse($shift->jam_masuk);
                            $jamPulang = \Carbon\Carbon::parse($shift->jam_pulang);
 
-                           // Cek apakah data absen spesifik untuk shift ini HANYA UNTUK HARI INI
-                           // Sesi kemarin yang lupa checkout diabaikan (dianggap Alpha) agar hari ini bisa absen lagi.
+                           // Ambil data absen terakhir untuk shift ini
                            $absenShift = \App\Models\Absensi::where('pegawai_id', $pegawai->id)
                                ->where('shift_id', $shift->id)
-                               ->whereDate('tanggal', today())
                                ->orderBy('tanggal', 'desc')
+                               ->orderBy('jam_masuk', 'desc')
                                ->first();
+
+                           // Logic Sesi Aktif vs Sesi Menggantung (Basi)
+                           if ($absenShift && !$absenShift->tanggal->isToday()) {
+                               if ($absenShift->jam_pulang) {
+                                   // Sudah selesai hari-hari sebelumnya, abaikan agar bisa masuk sesi baru hari ini
+                                   $absenShift = null;
+                               } else {
+                                   // Masih OPEN, cek apakah sudah basi (melewati deadline pulang)
+                                   $jamPulangShift = \Carbon\Carbon::parse(
+                                       $absenShift->tanggal->format('Y-m-d') .
+                                           ' ' .
+                                           $shift->jam_pulang->format('H:i:s'),
+                                   );
+                                   if ($shift->is_cross_day) {
+                                       $jamPulangShift->addDay();
+                                   }
+                                   $deadline = $jamPulangShift->copy()->addHours(2);
+
+                                   if ($now->gt($deadline)) {
+                                       // Sesi menggantung dan sudah basi, abaikan agar bisa masuk sesi baru hari ini
+                                       // Biarkan record lama ini tetap menggantung (hitung Alpha)
+                                       $absenShift = null;
+                                   }
+                               }
+                           }
 
                            // Logika tombol default
                            $isMasuk = false;
@@ -390,15 +413,19 @@
                                    $statusText = 'Sudah Selesai';
                                    $statusClass = 'text-success';
                                } elseif ($absenShift->jam_masuk) {
-                                   // Cek apakah sudah boleh pulang
-                                   $jamMasukShift = $jamMasuk->copy();
-                                   $jamPulangShift = $jamPulang->copy();
-                                   $isCrossDay = $jamPulang->lt($jamMasuk); // Recalculate for this context
+                                   // Perbaikan logic cross-day: jam pulang harus berbasis pada tanggal absen masuk
+                                   $jamMasukShift = \Carbon\Carbon::parse(
+                                       $absenShift->tanggal->format('Y-m-d') . ' ' . $shift->jam_masuk->format('H:i:s'),
+                                   );
+                                   $jamPulangShift = \Carbon\Carbon::parse(
+                                       $absenShift->tanggal->format('Y-m-d') .
+                                           ' ' .
+                                           $shift->jam_pulang->format('H:i:s'),
+                                   );
+                                   $isCrossDayShift = $jamPulang->lt($jamMasuk);
 
-                                   if ($isCrossDay) {
-                                       if ($now->format('H:i:s') > $jamMasukShift->format('H:i:s')) {
-                                           $jamPulangShift->addDay();
-                                       }
+                                   if ($isCrossDayShift) {
+                                       $jamPulangShift->addDay();
                                    }
 
                                    // Batas maksimal pulang: 2 jam setelah jam pulang shift

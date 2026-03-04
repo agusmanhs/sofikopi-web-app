@@ -193,7 +193,7 @@
 @endsection
 
 @section('content')
-   <div class="container-xxl flex-grow-1 container-p-y">
+   <div class="container-xxl grow container-p-y">
       <!-- Header Info -->
       <div class="absen-info-card">
          <div class="row align-items-center">
@@ -300,14 +300,19 @@
 
                      if ($shift && $absensiHariIni && $absensiHariIni->jam_masuk && !$absensiHariIni->jam_pulang) {
                          $now = now();
-                         $jamPulang = \Carbon\Carbon::parse($shift->jam_pulang->format('H:i:s'));
-                         $jamMasuk = \Carbon\Carbon::parse($shift->jam_masuk->format('H:i:s'));
 
-                         if ($jamMasuk->gt($jamPulang)) {
-                             if ($now->format('H:i:s') > $jamMasuk->format('H:i:s')) {
-                                 $jamPulang->addDay();
-                             }
+                         // Perbaikan logic cross-day: jam pulang harus berbasis pada tanggal absen masuk
+                         $jamPulang = \Carbon\Carbon::parse(
+                             $absensiHariIni->tanggal->format('Y-m-d') . ' ' . $shift->jam_pulang->format('H:i:s'),
+                         );
+                         $jamMasuk = \Carbon\Carbon::parse(
+                             $absensiHariIni->tanggal->format('Y-m-d') . ' ' . $shift->jam_masuk->format('H:i:s'),
+                         );
+
+                         if ($shift->is_cross_day || $jamMasuk->gt($jamPulang)) {
+                             $jamPulang->addDay();
                          }
+
                          $isEarly = $now->lt($jamPulang);
                          $targetJamPulang = $jamPulang->format('Y-m-d\TH:i:s');
 

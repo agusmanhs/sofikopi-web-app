@@ -675,8 +675,10 @@ class AbsensiService extends BaseService
         while ($current <= $end) {
             $dateStr = $current->format('Y-m-d');
             
-            // Cek holiday (Global)
-            $isHoliday = $holidays->where('tanggal', $current->startOfDay())->isNotEmpty();
+            // Cek holiday (Global) - Gunakan format string agar perbandingan collection mantap
+            $isHoliday = $holidays->filter(function($h) use ($current) {
+                return $h->tanggal->format('Y-m-d') == $current->format('Y-m-d');
+            })->isNotEmpty();
             $isSunday = $current->isSunday();
 
             if ($isSunday) {
@@ -728,12 +730,21 @@ class AbsensiService extends BaseService
 
             if ($isJadwalKerja) {
                 // 2. Cek apakah ini hari libur untuk dia
-                $holidayToday = $holidays->where('tanggal', $current->startOfDay())->first();
+                $holidayToday = $holidays->first(fn($h) => $h->tanggal->format('Y-m-d') == $dateStr);
                 $isHolidayForHim = false;
 
-                if ($holidayToday && $shift && $shift->ikut_libur) {
-                    $isHolidayForHim = $holidayToday->is_all_divisi || 
+                if ($holidayToday) {
+                    // Jika Libur Nasional (Semua Divisi), atau divisi pegawai masuk dalam daftar libur
+                    $isTargetHoliday = $holidayToday->is_all_divisi || 
                                        (is_array($holidayToday->divisi_ids) && in_array($pegawai->divisi_id, $holidayToday->divisi_ids));
+                    
+                    if ($isTargetHoliday) {
+                        // Jika pegawai punya shift, cek pengaturan ikut_libur. 
+                        // Jika tidak punya shift, default dianggap ikut libur nasional.
+                        if (!$shift || $shift->ikut_libur) {
+                            $isHolidayForHim = true;
+                        }
+                    }
                 }
 
                 if (!$isHolidayForHim) {

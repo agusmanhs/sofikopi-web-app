@@ -196,15 +196,42 @@ class IzinService extends BaseService
         $shiftId = $pegawai->shift_id;
 
         while ($current->lte($end)) {
+            $dateStr = $current->toDateString();
+            
+            // Cari apakah sudah ada absensi di hari tersebut (untuk di-override)
+            $existing = Absensi::where('pegawai_id', $izin->pegawai_id)
+                ->whereDate('tanggal', $dateStr)
+                ->first();
+
+            $logKeterangan = "Izin: {$jenisIzin->nama} - {$izin->alasan}";
+            
+            if ($existing && ($existing->jam_masuk || $existing->jam_pulang)) {
+                $origMasuk = $existing->jam_masuk ? $existing->jam_masuk->format('H:i') : '-';
+                $origPulang = $existing->jam_pulang ? $existing->jam_pulang->format('H:i') : '-';
+                $logKeterangan .= " (Sistem meng-override absensi sebelumnya: Masuk {$origMasuk}, Pulang {$origPulang})";
+            }
+
             Absensi::updateOrCreate(
                 [
                     'pegawai_id' => $izin->pegawai_id,
-                    'tanggal' => $current->toDateString(),
+                    'tanggal' => $dateStr,
                 ],
                 [
                     'shift_id' => $shiftId,
                     'status' => $status,
-                    'keterangan' => "Izin: {$jenisIzin->nama} - {$izin->alasan}",
+                    'jam_masuk' => null,
+                    'jam_pulang' => null,
+                    'foto_masuk' => null,
+                    'foto_pulang' => null,
+                    'latitude_masuk' => null,
+                    'longitude_masuk' => null,
+                    'latitude_pulang' => null,
+                    'longitude_pulang' => null,
+                    'lokasi_masuk' => null,
+                    'lokasi_pulang' => null,
+                    'device_masuk' => null,
+                    'device_pulang' => null,
+                    'keterangan' => $logKeterangan,
                 ]
             );
 

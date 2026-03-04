@@ -135,8 +135,12 @@
                      </div>
                      <div>
                         <h3 class="text-white fw-bold mb-1">Halo, {{ $pegawai->nama_lengkap }}!</h3>
-                        <p class="mb-0 text-white opacity-100 fw-medium">{{ $pegawai->jabatan }} —
-                           {{ $pegawai->divisi->nama }}</p>
+                        <p class="mb-0 text-white opacity-100 fw-medium">
+                           @if ($pegawai->nip)
+                              <span class="badge bg-white text-primary me-2 shadow-sm">{{ $pegawai->nip }}</span>
+                           @endif
+                           {{ $pegawai->jabatan ?? 'Pegawai' }} — {{ $pegawai->divisi->nama ?? '-' }}
+                        </p>
                      </div>
                   </div>
                   <div class="d-flex flex-wrap gap-3 mt-4">
@@ -159,12 +163,17 @@
                      @endphp
                      @if ($hariLibur)
                         @if (!$anyShiftWorkingToday)
-                           <div class="glass-badge bg-danger shadow-sm border-0 text-white">
+                           <div class="glass-badge bg-danger shadow-sm border-0 text-white" data-bs-toggle="tooltip"
+                              data-bs-placement="top"
+                              title="{{ $hariLibur->tanggal->locale('id')->isoFormat('dddd, D MMMM Y') }}">
                               <i class="ri-calendar-event-fill me-1"></i> Libur: {{ $hariLibur->nama }}
                            </div>
                         @else
-                           <div class="glass-badge bg-info shadow-sm border-0 text-white">
-                              <i class="ri-calendar-event-fill me-1"></i> Hari Ini: {{ $hariLibur->nama }} (Tetap Bertugas)
+                           <div class="glass-badge bg-info shadow-sm border-0 text-white" data-bs-toggle="tooltip"
+                              data-bs-placement="top"
+                              title="{{ $hariLibur->tanggal->locale('id')->isoFormat('dddd, D MMMM Y') }}">
+                              <i class="ri-calendar-event-fill me-1"></i> Hari Ini: {{ $hariLibur->nama }} (Tetap
+                              Bertugas)
                            </div>
                         @endif
                      @endif
@@ -172,7 +181,8 @@
                </div>
                <div class="col-md-5 text-md-end mt-4 mt-md-0">
                   <div class="time-display" id="clock">00:00:00</div>
-                  <div class="text-white opacity-100 fw-medium mt-2">{{ now()->locale('id')->isoFormat('dddd, D MMMM Y') }}
+                  <div class="text-white opacity-100 fw-medium mt-2">
+                     {{ now()->locale('id')->isoFormat('dddd, D MMMM Y') }}
                   </div>
                </div>
             </div>
@@ -203,12 +213,17 @@
                      <i class="ri-checkbox-circle-fill"></i>
                   </div>
                   <h6 class="card-title-premium mb-1">HADIR</h6>
-                  <div class="d-flex align-items-baseline">
+                  <div class="d-flex align-items-baseline mb-2">
                      <h3 class="mb-0 me-2 fw-bold text-success">{{ $statistik['hadir'] }}</h3>
                      <small class="text-muted fw-medium">hari</small>
                   </div>
-                  <div class="mt-2 pt-1">
-                     <div class="progress" style="height: 6px;">
+                  <div class="mt-2">
+                     <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="text-muted fs-tiny">Pencapaian</small>
+                        <small
+                           class="fw-bold text-success">{{ $statistik['total_hari_kerja'] > 0 ? round(($statistik['hadir'] / $statistik['total_hari_kerja']) * 100) : 0 }}%</small>
+                     </div>
+                     <div class="progress" style="height: 8px; border-radius: 10px;">
                         <div class="progress-bar bg-success"
                            style="width: {{ $statistik['total_hari_kerja'] > 0 ? ($statistik['hadir'] / $statistik['total_hari_kerja']) * 100 : 0 }}%">
                         </div>
@@ -615,7 +630,7 @@
                   <a href="{{ route('absensi.history') }}" class="btn btn-sm btn-link p-0">Lihat Semua</a>
                </div>
                <div class="card-body pt-1">
-                  @forelse($historyAbsensi->take(5) as $absen)
+                  @forelse($historyAbsensi->take(10) as $absen)
                      <div class="history-item">
                         <div>
                            <div class="fw-medium">{{ $absen->tanggal->locale('id')->isoFormat('dddd, D MMM') }}</div>
@@ -693,6 +708,12 @@
          }
          setInterval(updateClock, 1000);
          updateClock();
+
+         // Initialize Tooltips
+         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+         var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+         });
 
          // Initialize Swiper
          if (typeof Swiper !== 'undefined') {

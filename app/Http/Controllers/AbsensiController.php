@@ -243,7 +243,7 @@ class AbsensiController extends Controller
         $bulan = (int)$request->get('bulan', now()->month);
         $tahun = (int)$request->get('tahun', now()->year);
 
-        $data = $this->pegawaiService->rekapPaginate($bulan, $tahun);
+        $data = $this->pegawaiService->rekapPaginate($bulan, $tahun, 100);
         
         // Compute statistics for each employee using service
         $data->getCollection()->transform(function($pegawai) use ($bulan, $tahun) {

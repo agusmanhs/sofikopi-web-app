@@ -12,15 +12,26 @@
 
 @section('content')
    <div class="container-xxl flex-grow-1 container-p-y">
-      <div class="d-flex justify-content-between align-items-center mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-1">
          <h4 class="fw-bold mb-0">
-            <span class="text-muted fw-light">Absensi /</span> Riwayat
+            <span class="text-muted fw-light">Absensi /</span>
+            @if (isset($isAdminView))
+               Riwayat {{ $pegawai->nama_lengkap }}
+            @else
+               Riwayat Saya
+            @endif
          </h4>
          <a href="{{ isset($isAdminView) ? route('absensi.rekap') : route('absensi.index') }}"
             class="btn btn-outline-secondary">
             <i class="ri-arrow-left-line me-1"></i>Kembali
          </a>
       </div>
+      @if (isset($isAdminView))
+         <p class="text-muted mb-4">Melihat data absensi untuk: <strong>{{ $pegawai->nip ?? '-' }} -
+               {{ $pegawai->nama_lengkap }} ({{ $pegawai->divisi->nama ?? '-' }})</strong></p>
+      @else
+         <div class="mb-4"></div>
+      @endif
 
       <!-- Filter -->
       <div class="card mb-4">

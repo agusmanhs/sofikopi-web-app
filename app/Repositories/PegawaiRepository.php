@@ -64,7 +64,7 @@ class PegawaiRepository extends BaseRepository implements PegawaiRepositoryInter
             ->get();
     }
 
-    public function rekapPaginate($bulan, $tahun, $perPage = 10)
+    public function rekapPaginate($bulan, $tahun, $perPage = 100)
     {
         return $this->model->aktif()
             ->with(['divisi', 'shift', 'absensis' => function ($q) use ($bulan, $tahun) {

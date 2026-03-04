@@ -230,7 +230,14 @@ class AbsensiService extends BaseService
         $shift = $existing->shift;
         if ($shift) {
             $now = now();
-            $jamPulang = Carbon::parse($shift->jam_pulang->format('H:i:s'));
+            
+            // Perbaikan logic cross-day: jam pulang harus berbasis pada tanggal absen masuk
+            $jamPulang = Carbon::parse($existing->tanggal->format('Y-m-d') . ' ' . $shift->jam_pulang->format('H:i:s'));
+            
+            if ($shift->is_cross_day) {
+                // Jam pulang adalah besoknya dari tanggal jam masuk
+                $jamPulang->addDay();
+            }
             
             // VALIDASI BATAS MAKSIMAL: 2 jam setelah jam pulang shift
             $batasMaksimalPulang = $jamPulang->copy()->addHours(2);

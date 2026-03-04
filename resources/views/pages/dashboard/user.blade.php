@@ -123,7 +123,7 @@
 @endsection
 
 @section('content')
-   <div class="container-xxl flex-grow-1 container-p-y">
+   <div class="container-xxl grow container-p-y">
       <!-- Welcome Section -->
       <div class="card user-welcome-card mb-4">
          <div class="card-body p-4">
@@ -131,13 +131,16 @@
                <div class="col-md-7">
                   <div class="d-flex align-items-center mb-3">
                      <div class="avatar avatar-xl me-3 shadow">
-                        <img src="{{ $pegawai->foto_url }}" alt="User Avatar"
-                           class="rounded-circle border border-3 border-white">
+                        <img src="{{ $pegawai->foto_url }}" alt="User Avatar" class="rounded-circle border-3 border-white">
                      </div>
                      <div>
                         <h3 class="text-white fw-bold mb-1">Halo, {{ $pegawai->nama_lengkap }}!</h3>
-                        <p class="mb-0 text-white opacity-100 fw-medium">{{ $pegawai->jabatan }} —
-                           {{ $pegawai->divisi->nama }}</p>
+                        <p class="mb-0 text-white opacity-100 fw-medium">
+                           @if ($pegawai->nip)
+                              <span class="badge bg-white text-primary me-2 shadow-sm">{{ $pegawai->nip }}</span>
+                           @endif
+                           {{ $pegawai->jabatan ?? 'Pegawai' }} — {{ $pegawai->divisi->nama ?? '-' }}
+                        </p>
                      </div>
                   </div>
                   <div class="d-flex flex-wrap gap-3 mt-4">
@@ -160,12 +163,17 @@
                      @endphp
                      @if ($hariLibur)
                         @if (!$anyShiftWorkingToday)
-                           <div class="glass-badge bg-danger shadow-sm border-0 text-white">
+                           <div class="glass-badge bg-danger shadow-sm border-0 text-white" data-bs-toggle="tooltip"
+                              data-bs-placement="top"
+                              title="{{ $hariLibur->tanggal->locale('id')->isoFormat('dddd, D MMMM Y') }}">
                               <i class="ri-calendar-event-fill me-1"></i> Libur: {{ $hariLibur->nama }}
                            </div>
                         @else
-                           <div class="glass-badge bg-info shadow-sm border-0 text-white">
-                              <i class="ri-calendar-event-fill me-1"></i> Hari Ini: {{ $hariLibur->nama }} (Tetap Bertugas)
+                           <div class="glass-badge bg-info shadow-sm border-0 text-white" data-bs-toggle="tooltip"
+                              data-bs-placement="top"
+                              title="{{ $hariLibur->tanggal->locale('id')->isoFormat('dddd, D MMMM Y') }}">
+                              <i class="ri-calendar-event-fill me-1"></i> Hari Ini: {{ $hariLibur->nama }} (Tetap
+                              Bertugas)
                            </div>
                         @endif
                      @endif
@@ -173,7 +181,8 @@
                </div>
                <div class="col-md-5 text-md-end mt-4 mt-md-0">
                   <div class="time-display" id="clock">00:00:00</div>
-                  <div class="text-white opacity-100 fw-medium mt-2">{{ now()->locale('id')->isoFormat('dddd, D MMMM Y') }}
+                  <div class="text-white opacity-100 fw-medium mt-2">
+                     {{ now()->locale('id')->isoFormat('dddd, D MMMM Y') }}
                   </div>
                </div>
             </div>
@@ -204,12 +213,17 @@
                      <i class="ri-checkbox-circle-fill"></i>
                   </div>
                   <h6 class="card-title-premium mb-1">HADIR</h6>
-                  <div class="d-flex align-items-baseline">
+                  <div class="d-flex align-items-baseline mb-2">
                      <h3 class="mb-0 me-2 fw-bold text-success">{{ $statistik['hadir'] }}</h3>
                      <small class="text-muted fw-medium">hari</small>
                   </div>
-                  <div class="mt-2 pt-1">
-                     <div class="progress" style="height: 6px;">
+                  <div class="mt-2">
+                     <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="text-muted fs-tiny">Pencapaian</small>
+                        <small
+                           class="fw-bold text-success">{{ $statistik['total_hari_kerja'] > 0 ? round(($statistik['hadir'] / $statistik['total_hari_kerja']) * 100) : 0 }}%</small>
+                     </div>
+                     <div class="progress" style="height: 8px; border-radius: 10px;">
                         <div class="progress-bar bg-success"
                            style="width: {{ $statistik['total_hari_kerja'] > 0 ? ($statistik['hadir'] / $statistik['total_hari_kerja']) * 100 : 0 }}%">
                         </div>
@@ -361,13 +375,37 @@
                            $jamMasuk = \Carbon\Carbon::parse($shift->jam_masuk);
                            $jamPulang = \Carbon\Carbon::parse($shift->jam_pulang);
 
-                           // Cek apakah data absen spesifik untuk shift ini HANYA UNTUK HARI INI
-                           // Sesi kemarin yang lupa checkout diabaikan (dianggap Alpha) agar hari ini bisa absen lagi.
+                           // Ambil data absen terakhir untuk shift ini
                            $absenShift = \App\Models\Absensi::where('pegawai_id', $pegawai->id)
                                ->where('shift_id', $shift->id)
-                               ->whereDate('tanggal', today())
                                ->orderBy('tanggal', 'desc')
+                               ->orderBy('jam_masuk', 'desc')
                                ->first();
+
+                           // Logic Sesi Aktif vs Sesi Menggantung (Basi)
+                           if ($absenShift && !$absenShift->tanggal->isToday()) {
+                               if ($absenShift->jam_pulang) {
+                                   // Sudah selesai hari-hari sebelumnya, abaikan agar bisa masuk sesi baru hari ini
+                                   $absenShift = null;
+                               } else {
+                                   // Masih OPEN, cek apakah sudah basi (melewati deadline pulang)
+                                   $jamPulangShift = \Carbon\Carbon::parse(
+                                       $absenShift->tanggal->format('Y-m-d') .
+                                           ' ' .
+                                           $shift->jam_pulang->format('H:i:s'),
+                                   );
+                                   if ($shift->is_cross_day) {
+                                       $jamPulangShift->addDay();
+                                   }
+                                   $deadline = $jamPulangShift->copy()->addHours(2);
+
+                                   if ($now->gt($deadline)) {
+                                       // Sesi menggantung dan sudah basi, abaikan agar bisa masuk sesi baru hari ini
+                                       // Biarkan record lama ini tetap menggantung (hitung Alpha)
+                                       $absenShift = null;
+                                   }
+                               }
+                           }
 
                            // Logika tombol default
                            $isMasuk = false;
@@ -390,15 +428,19 @@
                                    $statusText = 'Sudah Selesai';
                                    $statusClass = 'text-success';
                                } elseif ($absenShift->jam_masuk) {
-                                   // Cek apakah sudah boleh pulang
-                                   $jamMasukShift = $jamMasuk->copy();
-                                   $jamPulangShift = $jamPulang->copy();
-                                   $isCrossDay = $jamPulang->lt($jamMasuk); // Recalculate for this context
+                                   // Perbaikan logic cross-day: jam pulang harus berbasis pada tanggal absen masuk
+                                   $jamMasukShift = \Carbon\Carbon::parse(
+                                       $absenShift->tanggal->format('Y-m-d') . ' ' . $shift->jam_masuk->format('H:i:s'),
+                                   );
+                                   $jamPulangShift = \Carbon\Carbon::parse(
+                                       $absenShift->tanggal->format('Y-m-d') .
+                                           ' ' .
+                                           $shift->jam_pulang->format('H:i:s'),
+                                   );
+                                   $isCrossDayShift = $jamPulang->lt($jamMasuk);
 
-                                   if ($isCrossDay) {
-                                       if ($now->format('H:i:s') > $jamMasukShift->format('H:i:s')) {
-                                           $jamPulangShift->addDay();
-                                       }
+                                   if ($isCrossDayShift) {
+                                       $jamPulangShift->addDay();
                                    }
 
                                    // Batas maksimal pulang: 2 jam setelah jam pulang shift
@@ -588,7 +630,7 @@
                   <a href="{{ route('absensi.history') }}" class="btn btn-sm btn-link p-0">Lihat Semua</a>
                </div>
                <div class="card-body pt-1">
-                  @forelse($historyAbsensi->take(5) as $absen)
+                  @forelse($historyAbsensi->take(10) as $absen)
                      <div class="history-item">
                         <div>
                            <div class="fw-medium">{{ $absen->tanggal->locale('id')->isoFormat('dddd, D MMM') }}</div>
@@ -666,6 +708,12 @@
          }
          setInterval(updateClock, 1000);
          updateClock();
+
+         // Initialize Tooltips
+         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+         var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+         });
 
          // Initialize Swiper
          if (typeof Swiper !== 'undefined') {

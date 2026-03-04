@@ -150,7 +150,8 @@
                   <div class="d-flex flex-wrap gap-1">
                      @foreach ($statistik['alpha_dates'] as $date)
                         <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25"
-                           style="font-size: 0.7rem;">
+                           style="font-size: 0.7rem;" data-bs-toggle="tooltip"
+                           title="{{ \Carbon\Carbon::parse($date)->locale('id')->isoFormat('dddd, D MMMM Y') }}">
                            {{ \Carbon\Carbon::parse($date)->locale('id')->isoFormat('D MMM') }}
                         </span>
                      @endforeach

@@ -38,12 +38,34 @@ class AbsensiController extends Controller
                 return redirect()->route('dashboard')->with('error', 'Shift tidak valid untuk divisi Anda.');
             }
             
-            // Ambil absensi spesifik untuk shift ini HANYA untuk hari ini
-            // Sesi kemarin yang lupa checkout akan diabaikan oleh UI agar user bisa masuk sesi baru hari ini
+            // Cari sesi absen yang aktif (belum pulang)
             $absensiHariIni = \App\Models\Absensi::where('pegawai_id', $pegawai->id)
                 ->where('shift_id', $shiftId)
-                ->whereDate('tanggal', today())
+                ->whereNull('jam_pulang')
+                ->orderBy('tanggal', 'desc')
                 ->first();
+
+            // Jika ada sesi "Menggantung" dari hari sebelumnya, cek apakah sudah basi
+            if ($absensiHariIni && !$absensiHariIni->tanggal->isToday()) {
+                $jamPulangShift = \Carbon\Carbon::parse($absensiHariIni->tanggal->format('Y-m-d') . ' ' . $shift->jam_pulang->format('H:i:s'));
+                if ($shift->is_cross_day) {
+                    $jamPulangShift->addDay();
+                }
+                $deadline = $jamPulangShift->copy()->addHours(2);
+                
+                if (now()->gt($deadline)) {
+                    // Sesi basi diabaikan agar user bisa masuk sesi baru hari ini
+                    $absensiHariIni = null;
+                }
+            }
+
+            // Jika tidak ada yang open/aktif, cari yang sudah selesai hari ini
+            if (!$absensiHariIni) {
+                $absensiHariIni = \App\Models\Absensi::where('pegawai_id', $pegawai->id)
+                    ->where('shift_id', $shiftId)
+                    ->whereDate('tanggal', today())
+                    ->first();
+            }
         } else {
             // Fallback ke logic lama (ambil absensi pertama hari ini) atau redirect ke dashboard
             // Agar konsisten dengan fitur baru, sebaiknya pegawai harus pilih shift dari dashboard

@@ -188,7 +188,8 @@
                               <div class="d-flex flex-wrap justify-content-center gap-1 mt-1">
                                  @foreach ($st['alpha_dates'] as $d)
                                     <span class="badge bg-danger p-0 px-1" style="font-size: 0.6rem;"
-                                       data-bs-toggle="tooltip" title="Alpha pada {{ $d }}">
+                                       data-bs-toggle="tooltip"
+                                       title="{{ \Carbon\Carbon::parse($d)->locale('id')->isoFormat('dddd, D MMMM Y') }}">
                                        {{ date('d', strtotime($d)) }}
                                     </span>
                                  @endforeach
@@ -204,12 +205,16 @@
                            @endif
                         </td>
                         <td class="text-center">
-                           <div class="d-flex align-items-center gap-2">
-                              <div class="progress w-100" style="height: 8px;">
+                           <div class="w-100">
+                              <div class="d-flex justify-content-between align-items-center mb-1">
+                                 <small
+                                    class="fw-bold {{ $progressClass == 'bg-success' ? 'text-success' : ($progressClass == 'bg-warning' ? 'text-warning' : 'text-danger') }}"
+                                    style="font-size: 0.7rem;">{{ $persentase }}%</small>
+                              </div>
+                              <div class="progress" style="height: 6px; border-radius: 10px;">
                                  <div class="progress-bar {{ $progressClass }}" style="width: {{ $persentase }}%">
                                  </div>
                               </div>
-                              <small class="fw-bold">{{ $persentase }}%</small>
                            </div>
                         </td>
                         <td class="text-center">

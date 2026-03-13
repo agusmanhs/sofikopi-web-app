@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\UserApiController;
 use App\Http\Controllers\Api\AuthApiController;
 use App\Http\Controllers\Api\AbsensiApiController;
+use App\Http\Controllers\TelegramWebhookController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -38,3 +39,6 @@ Route::prefix('users')->middleware('auth:sanctum')->group(function () {
     Route::get('/', [UserApiController::class, 'index']);
     Route::get('/{id}', [UserApiController::class, 'show']);
 });
+
+// Telegram Webhook
+Route::post('/telegram/webhook', [TelegramWebhookController::class, 'handle']);

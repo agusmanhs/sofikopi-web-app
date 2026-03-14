@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
-use App\Repositories\ProductsRepository;
+use App\Interfaces\Repositories\ProductsRepositoryInterface;
 
 class ProductsService extends BaseService
 {
-    public function __construct(ProductsRepository $repository)
+    public function __construct(ProductsRepositoryInterface $repository)
     {
         parent::__construct($repository);
     }

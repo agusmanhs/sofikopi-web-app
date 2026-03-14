@@ -64,6 +64,24 @@ class AppServiceProvider extends ServiceProvider
             \App\Interfaces\Repositories\InformasiRepositoryInterface::class,
             \App\Repositories\InformasiRepository::class
         );
+
+        // Product & Mitra Module Repositories
+        $this->app->bind(
+            \App\Interfaces\Repositories\ProductCategoryRepositoryInterface::class,
+            \App\Repositories\ProductCategoryRepository::class
+        );
+        $this->app->bind(
+            \App\Interfaces\Repositories\ProductSubCategoryRepositoryInterface::class,
+            \App\Repositories\ProductSubCategoryRepository::class
+        );
+        $this->app->bind(
+            \App\Interfaces\Repositories\MitraCategoryRepositoryInterface::class,
+            \App\Repositories\MitraCategoryRepository::class
+        );
+        $this->app->bind(
+            \App\Interfaces\Repositories\MitraRepositoryInterface::class,
+            \App\Repositories\MitraRepository::class
+        );
     }
 
     /**

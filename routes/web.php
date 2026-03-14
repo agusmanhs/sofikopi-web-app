@@ -46,8 +46,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('permission', [\App\Http\Controllers\PermissionController::class, 'index'])->name('permission.index')->middleware('check.permission:permission.index');
     Route::put('permission', [\App\Http\Controllers\PermissionController::class, 'update'])->name('permission.update')->middleware('check.permission:permission.index');
 
-    // Products CRUD routes
-    Route::resource('products', ProductsController::class)->middleware('check.permission:products.index');
+
 
     // Activity Log
     Route::get('activity-log', [\App\Http\Controllers\ActivityLogController::class, 'index'])->name('activity-log.index');
@@ -75,6 +74,19 @@ Route::middleware(['auth'])->group(function () {
     Route::post('hari-libur/sync', [\App\Http\Controllers\HariLiburController::class, 'sync'])->name('hari-libur.sync')->middleware('check.permission:hari-libur.index');
     Route::resource('hari-libur', \App\Http\Controllers\HariLiburController::class)->middleware('check.permission:hari-libur.index');
     Route::get('api/hari-libur/events', [\App\Http\Controllers\HariLiburController::class, 'getEvents'])->name('api.hari-libur.events');
+
+    // Product & Mitra Module (DATA MASTER)
+    Route::prefix('master')->group(function () {
+        // Product Management
+        Route::resource('product-category', \App\Http\Controllers\ProductCategoryController::class);
+        Route::resource('product-sub-category', \App\Http\Controllers\ProductSubCategoryController::class);
+        Route::resource('products', \App\Http\Controllers\ProductsController::class);
+        Route::get('api/product-sub-categories/by-category/{categoryId}', [\App\Http\Controllers\ProductSubCategoryController::class, 'getByCategory']);
+
+        // Mitra Management
+        Route::resource('mitra-category', \App\Http\Controllers\MitraCategoryController::class);
+        Route::resource('mitra', \App\Http\Controllers\MitraController::class);
+    });
 
     // ============== ABSENSI ==============
     Route::prefix('absensi')->name('absensi.')->group(function () {

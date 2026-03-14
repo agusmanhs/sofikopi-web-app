@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\ProductsService;
+use App\Helpers\ResponseHelper;
 use App\Http\Requests\ProductsRequest;
-use Illuminate\Http\Request;
-
+use App\Models\ProductCategory;
+use App\Models\ProductSubCategory;
 use App\Services\FileUploadService;
+use App\Services\ProductsService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ProductsController extends Controller
 {
@@ -15,108 +18,81 @@ class ProductsController extends Controller
         protected FileUploadService $fileUploadService
     ) {}
 
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function index(Request $request)
     {
-        $data = $this->service->all();
-        return view('pages.products.index', compact('data'));
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        return view('pages.products.create');
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(ProductsRequest $request)
-    {
-        $data = $request->validated();
-        $data['is_active'] = $request->boolean('is_active');
-        if ($request->hasFile('cover')) {
-            $media = $this->fileUploadService->upload($request->file('cover'), 'products', 'public', [
-                'width' => 500,
-                'height' => 500,
-                'crop' => true
-            ]);
-            $data['cover'] = $media->path;
+        // For standard page load
+        if (!$request->wantsJson()) {
+            $data = $this->service->all();
+            $categories = ProductCategory::aktif()->get();
+            $subCategories = ProductSubCategory::aktif()->with('category')->get();
+            return view('pages.products.index', compact('data', 'categories', 'subCategories'));
         }
 
-        $this->service->create($data);
-
-        return redirect()->route('products.index')
-            ->with('success', 'Produk berhasil ditambahkan!');
+        // For AJAX list
+        $data = $this->service->all();
+        return ResponseHelper::success($data);
     }
 
-    /**
-     * Display the specified resource.
-     */
+    public function store(ProductsRequest $request)
+    {
+        return DB::transaction(function () use ($request) {
+            $data = $request->validated();
+            $data['is_active'] = $request->boolean('is_active', true);
+
+            if ($request->hasFile('cover')) {
+                $media = $this->fileUploadService->upload($request->file('cover'), 'products', 'public', [
+                    'width' => 500,
+                    'height' => 500,
+                    'crop' => true
+                ]);
+                $data['cover'] = $media->path;
+            }
+
+            $result = $this->service->create($data);
+            return ResponseHelper::success($result, 'Produk berhasil ditambahkan');
+        });
+    }
+
     public function show($id)
     {
         $data = $this->service->find($id);
-        return view('pages.products.show', compact('data'));
+        return ResponseHelper::success($data);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit($id)
-    {
-        $data = $this->service->find($id);
-        return view('pages.products.edit', compact('data'));
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(ProductsRequest $request, $id)
     {
-        $data = $request->validated();
-        $data['is_active'] = $request->boolean('is_active');
-        if ($request->hasFile('cover')) {
-            $media = $this->fileUploadService->upload($request->file('cover'), 'products', 'public', [
-                'width' => 500,
-                'height' => 500,
-                'crop' => true
-            ]);
-            $data['cover'] = $media->path;
-        }
+        return DB::transaction(function () use ($request, $id) {
+            $data = $request->validated();
+            $data['is_active'] = $request->boolean('is_active', true);
 
-        $this->service->update($id, $data);
+            if ($request->hasFile('cover')) {
+                $media = $this->fileUploadService->upload($request->file('cover'), 'products', 'public', [
+                    'width' => 500,
+                    'height' => 500,
+                    'crop' => true
+                ]);
+                $data['cover'] = $media->path;
+            }
 
-        return redirect()->route('products.index')
-            ->with('success', 'Produk berhasil diperbarui!');
+            $result = $this->service->update($id, $data);
+            return ResponseHelper::success($result, 'Produk berhasil diperbarui');
+        });
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy($id)
     {
-        $product = $this->service->find($id);
-        
-        // Delete cover image if exists
-        if ($product->cover) {
-            // Find media by path
-            $media = \App\Models\Media::where('path', $product->cover)->first();
-            if ($media) {
-                $this->fileUploadService->delete($media);
+        return DB::transaction(function () use ($id) {
+            $product = $this->service->find($id);
+            
+            if ($product->cover) {
+                $media = \App\Models\Media::where('path', $product->cover)->first();
+                if ($media) {
+                    $this->fileUploadService->delete($media);
+                }
             }
-        }
 
-        $this->service->delete($id);
-
-        if (request()->wantsJson()) {
-            return \App\Helpers\ResponseHelper::success(null, 'Produk berhasil dihapus!');
-        }
-
-        return redirect()->route('products.index')
-            ->with('success', 'Produk berhasil dihapus!');
+            $this->service->delete($id);
+            return ResponseHelper::success(null, 'Produk berhasil dihapus');
+        });
     }
 }

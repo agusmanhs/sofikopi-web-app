@@ -189,7 +189,7 @@
                <tbody>
                   @forelse($data as $absen)
                      <tr>
-                        <td>
+                        <td data-order="{{ $absen->tanggal->format('Y-m-d') }}">
                            <strong>{{ $absen->tanggal->locale('id')->isoFormat('ddd, D MMM Y') }}</strong>
                         </td>
                         <td>
@@ -464,6 +464,9 @@
                responsive: true,
                displayLength: 10,
                lengthMenu: [10, 25, 50, 75, 100],
+               order: [
+                  [0, 'desc']
+               ],
                language: {
                   paginate: {
                      next: '<i class="ri-arrow-right-s-line"></i>',

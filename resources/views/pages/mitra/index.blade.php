@@ -31,6 +31,12 @@
                   <i class="ri-contacts-book-line me-1"></i> Kategori Mitra
                </button>
             </li>
+            <li class="nav-item">
+               <button type="button" class="nav-link" role="tab" data-bs-toggle="tab" data-bs-target="#navs-wilayah"
+                  aria-controls="navs-wilayah" aria-selected="false">
+                  <i class="ri-map-pin-line me-1"></i> Sinkronisasi Wilayah
+               </button>
+            </li>
          </ul>
          <div class="tab-content">
             <!-- TAB: MITRA -->
@@ -50,6 +56,7 @@
                            <th>Kategori</th>
                            <th>PIC / No HP</th>
                            <th>Alamat</th>
+                           <th>Wilayah</th>
                            <th>Status</th>
                            <th class="text-center">Aksi</th>
                         </tr>
@@ -75,6 +82,39 @@
                            <th class="text-center">Aksi</th>
                         </tr>
                      </thead>
+                  </table>
+               </div>
+            </div>
+
+            <!-- TAB: WILAYAH SYNC -->
+            <div class="tab-pane fade" id="navs-wilayah" role="tabpanel">
+               <div class="d-flex justify-content-between align-items-center mb-4">
+                  <h5 class="mb-0">Sinkronisasi Data Wilayah Indonesia</h5>
+                  <button class="btn btn-primary" onclick="window.syncProvinces()">
+                     <i class="ri-refresh-line me-1"></i> Sinkronkan Provinsi
+                  </button>
+               </div>
+               <div class="alert alert-primary d-flex align-items-center mb-4" role="alert">
+                  <span class="alert-icon text-primary me-2">
+                     <i class="ri-information-line"></i>
+                  </span>
+                  <div>
+                     Penting: Sinkronkan Provinsi terlebih dahulu. Setelah itu, sinkronkan Kabupaten/Kota dan Kecamatan
+                     sesuai kebutuhan wilayah operasional Mitra Anda.
+                  </div>
+               </div>
+               <div class="table-responsive">
+                  <table class="table table-hover" id="table-wilayah-sync">
+                     <thead>
+                        <tr>
+                           <th>Provinsi</th>
+                           <th>Status Download</th>
+                           <th class="text-end">Aksi Sinkronisasi</th>
+                        </tr>
+                     </thead>
+                     <tbody id="list-provinces-sync">
+                        <!-- Loaded via JS -->
+                     </tbody>
                   </table>
                </div>
             </div>
@@ -107,8 +147,8 @@
                         </div>
                         <div class="mb-3">
                            <label class="form-label">Kode Mitra <span class="text-danger">*</span></label>
-                           <input type="text" name="code" id="mitra_code" class="form-control" placeholder="MTR-001"
-                              required>
+                           <input type="text" name="code" id="mitra_code" class="form-control"
+                              placeholder="MTR-001" required>
                         </div>
                         <div class="mb-3">
                            <label class="form-label">Nama Mitra <span class="text-danger">*</span></label>
@@ -130,6 +170,20 @@
                         <div class="mb-3">
                            <label class="form-label">Alamat</label>
                            <textarea name="address" id="mitra_address" class="form-control" rows="2" placeholder="Alamat lengkap..."></textarea>
+                        </div>
+                        <div class="row g-2">
+                           <div class="col-md-6 mb-3">
+                              <label class="form-label">Kabupaten / Kota</label>
+                              <select name="regency_code" id="mitra_regency_code" class="form-select select2">
+                                 <option value="">Pilih Kab/Kota</option>
+                              </select>
+                           </div>
+                           <div class="col-md-6 mb-3">
+                              <label class="form-label">Kecamatan</label>
+                              <select name="district_code" id="mitra_district_code" class="form-select select2">
+                                 <option value="">Pilih Kecamatan</option>
+                              </select>
+                           </div>
                         </div>
                         <div class="mb-3">
                            <label class="form-label" for="titik_lokasi">Titik Lokasi (Google Maps)</label>
@@ -206,7 +260,204 @@
 
          initTables();
          initGeolocation();
+         initRegionalSync();
+         initRegionalCascading();
       });
+
+      function initRegionalSync() {
+         window.loadSyncStatus = async function() {
+            const resp = await fetch("{{ route('wilayah.provinces') }}");
+            const provinces = await resp.json();
+            const $tbody = $('#list-provinces-sync');
+            $tbody.empty();
+
+            if (provinces.length === 0) {
+               $tbody.append(
+                  '<tr><td colspan="3" class="text-center">Belum ada data provinsi. Silakan sinkronkan.</td></tr>'
+               );
+               return;
+            }
+
+            provinces.forEach(p => {
+               $tbody.append(`
+                  <tr>
+                     <td><strong>${p.name}</strong></td>
+                     <td><span class="badge bg-label-secondary">Ready</span></td>
+                     <td class="text-end">
+                        <button class="btn btn-sm btn-outline-primary me-2" onclick="window.syncRegencies('${p.code}')">
+                           <i class="ri-refresh-line"></i> Sync Kab/Kota
+                        </button>
+                        <button class="btn btn-sm btn-outline-info" onclick="window.syncDistrictsByProvince('${p.code}')">
+                           <i class="ri-refresh-line"></i> Sync Semua Kecamatan
+                        </button>
+                     </td>
+                  </tr>
+               `);
+            });
+         };
+
+         window.syncProvinces = async function() {
+            window.AlertHandler.confirm('Sinkronkan Provinsi?', 'Ini akan mengambil data semua provinsi dari API.',
+               'Ya, Sinkronkan!', async () => {
+                  const resp = await fetch("{{ route('wilayah.sync-provinces') }}", {
+                     method: 'POST',
+                     headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                     }
+                  });
+                  const data = await resp.json();
+                  window.AlertHandler.handle(data);
+                  if (data.success) window.loadSyncStatus();
+               });
+         };
+
+         window.syncRegencies = async function(provinceCode) {
+            window.AlertHandler.swal.fire({
+               title: 'Menyinkronkan Kab/Kota...',
+               html: 'Mohon tunggu, sedang mengambil data dari API.',
+               allowOutsideClick: false,
+               customClass: {
+                  confirmButton: 'btn btn-primary'
+               },
+               buttonsStyling: false,
+               didOpen: () => {
+                  window.AlertHandler.swal.showLoading();
+               }
+            });
+
+            try {
+               const resp = await fetch("{{ route('wilayah.sync-regencies') }}", {
+                  method: 'POST',
+                  body: JSON.stringify({
+                     province_code: provinceCode
+                  }),
+                  headers: {
+                     'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                     'Content-Type': 'application/json',
+                     'Accept': 'application/json'
+                  }
+               });
+               const data = await resp.json();
+               window.AlertHandler.swal.close();
+               window.AlertHandler.handle(data);
+            } catch (err) {
+               window.AlertHandler.swal.close();
+               window.AlertHandler.showError('Gagal menyinkronkan data. Cek koneksi internet.');
+            }
+         };
+
+         window.syncDistrictsByProvince = async function(provinceCode) {
+            const respReg = await fetch(`{{ url('master/wilayah/regencies') }}/${provinceCode}`);
+            const regencies = await respReg.json();
+
+            if (regencies.length === 0) {
+               window.AlertHandler.showError('Sinkronkan Kabupaten/Kota untuk provinsi ini terlebih dahulu.');
+               return;
+            }
+
+            window.AlertHandler.swal.fire({
+               title: 'Menyinkronkan Kecamatan...',
+               html: `Memproses 0 / ${regencies.length} Kabupaten/Kota`,
+               allowOutsideClick: false,
+               customClass: {
+                  confirmButton: 'btn btn-primary'
+               },
+               buttonsStyling: false,
+               didOpen: () => {
+                  window.AlertHandler.swal.showLoading();
+               }
+            });
+
+            let successCount = 0;
+            for (let i = 0; i < regencies.length; i++) {
+               const htmlContainer = window.AlertHandler.swal.getHtmlContainer();
+               if (htmlContainer) {
+                  htmlContainer.textContent = `Memproses ${i + 1} / ${regencies.length} — ${regencies[i].name}`;
+               }
+               try {
+                  const respDist = await fetch("{{ route('wilayah.sync-districts') }}", {
+                     method: 'POST',
+                     body: JSON.stringify({
+                        regency_code: regencies[i].code
+                     }),
+                     headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                     }
+                  });
+                  const resDistrict = await respDist.json();
+                  if (resDistrict.success) successCount++;
+               } catch (err) {
+                  console.error('Sync district error:', err);
+               }
+            }
+
+            window.AlertHandler.swal.close();
+            window.AlertHandler.showSuccess(
+               `Berhasil menyinkronkan kecamatan untuk ${successCount} dari ${regencies.length} Kab/Kota.`);
+         };
+
+         // Load status when tab is active
+         $('button[data-bs-target="#navs-wilayah"]').on('shown.bs.tab', function() {
+            window.loadSyncStatus();
+         });
+      }
+
+      function initRegionalCascading() {
+         const $reg = $('#mitra_regency_code');
+         const $dist = $('#mitra_district_code');
+
+         // Listen for Select2 change event
+         $reg.on('change', async function() {
+            const code = $(this).val();
+
+            // Reset district dropdown
+            $dist.empty().append('<option value="">Pilih Kecamatan</option>');
+            $dist.val('').trigger('change.select2');
+
+            if (code) {
+               try {
+                  const resp = await fetch(`{{ url('master/wilayah/districts') }}/${code}`);
+                  const data = await resp.json();
+                  data.forEach(item => {
+                     $dist.append(new Option(item.name, item.code, false, false));
+                  });
+                  $dist.trigger('change.select2');
+               } catch (err) {
+                  console.error('Load districts error:', err);
+               }
+            }
+         });
+
+         window.loadRegional = async function(selectedReg = null, selectedDist = null) {
+            try {
+               const resp = await fetch("{{ url('master/wilayah/regencies/73') }}");
+               const data = await resp.json();
+
+               $reg.empty().append('<option value="">Pilih Kab/Kota</option>');
+               data.forEach(item => {
+                  $reg.append(new Option(item.name, item.code, false, false));
+               });
+               $reg.trigger('change.select2');
+
+               if (selectedReg) {
+                  $reg.val(selectedReg).trigger('change');
+                  // Wait for districts to load before setting the value
+                  if (selectedDist) {
+                     setTimeout(() => {
+                        $dist.val(selectedDist).trigger('change.select2');
+                     }, 800);
+                  }
+               }
+            } catch (err) {
+               console.error('Load regencies error:', err);
+            }
+         };
+
+         // Initial load for SulSel
+         window.loadRegional();
+      }
 
       function initGeolocation() {
          const btn = document.getElementById('btn-get-location');
@@ -275,6 +526,15 @@
                   }
                },
                {
+                  data: 'id',
+                  render: (data, type, row) => {
+                     let res = [];
+                     if (row.regency) res.push(row.regency.name);
+                     if (row.district) res.push(row.district.name);
+                     return res.length > 0 ? res.join(', ') : '-';
+                  }
+               },
+               {
                   data: 'is_active',
                   render: data =>
                      `<span class="badge bg-label-${data ? 'success' : 'secondary'}">${data ? 'Aktif' : 'Non-Aktif'}</span>`
@@ -318,6 +578,7 @@
          $('#formMitra')[0].reset();
          $('#mitra_id').val('');
          $('#mitra_category_id').val('').trigger('change');
+         window.loadRegional();
          $('#modalMitraTitle').text('Tambah Mitra');
          new bootstrap.Modal($('#modalMitra')).show();
       }
@@ -334,6 +595,10 @@
          $('#mitra_pic').val(data.pic);
          $('#mitra_phone').val(data.phone);
          $('#mitra_address').val(data.address);
+
+         // Load regional data
+         window.loadRegional(data.regency_code, data.district_code);
+
          if (data.latitude && data.longitude) {
             $('#mitra_titik_lokasi').val(`${data.latitude}, ${data.longitude}`);
          } else {
@@ -346,7 +611,7 @@
 
       window.openCategoryModal = function() {
          $('#formCategory')[0].reset();
-         $('#category_id').val('');
+         $('#category_id').val('')
          $('#modalCategoryTitle').text('Tambah Kategori Mitra');
          new bootstrap.Modal($('#modalCategory')).show();
       }

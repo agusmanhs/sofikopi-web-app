@@ -16,6 +16,8 @@ class Mitra extends Model
         'name',
         'phone',
         'address',
+        'regency_code',
+        'district_code',
         'latitude',
         'longitude',
         'is_active',
@@ -28,6 +30,16 @@ class Mitra extends Model
     public function category()
     {
         return $this->belongsTo(MitraCategory::class, 'mitra_category_id');
+    }
+
+    public function regency()
+    {
+        return $this->belongsTo(Regency::class, 'regency_code', 'code');
+    }
+
+    public function district()
+    {
+        return $this->belongsTo(District::class, 'district_code', 'code');
     }
 
     public function getTitikLokasiAttribute()

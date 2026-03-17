@@ -90,8 +90,11 @@
             <div class="tab-pane fade" id="navs-wilayah" role="tabpanel">
                <div class="d-flex justify-content-between align-items-center mb-4">
                   <h5 class="mb-0">Sinkronisasi Data Wilayah Indonesia</h5>
-                  <button class="btn btn-primary" onclick="window.syncProvinces()">
+                  <button class="btn btn-primary me-2" onclick="window.syncProvinces()">
                      <i class="ri-refresh-line me-1"></i> Sinkronkan Provinsi
+                  </button>
+                  <button class="btn btn-outline-primary" onclick="window.syncAllRegional()">
+                     <i class="ri-global-line me-1"></i> Sync Semua Kab/Kota
                   </button>
                </div>
                <div class="alert alert-primary d-flex align-items-center mb-4" role="alert">
@@ -172,13 +175,19 @@
                            <textarea name="address" id="mitra_address" class="form-control" rows="2" placeholder="Alamat lengkap..."></textarea>
                         </div>
                         <div class="row g-2">
-                           <div class="col-md-6 mb-3">
+                           <div class="col-md-4 mb-3">
+                              <label class="form-label">Provinsi</label>
+                              <select name="province_code" id="mitra_province_code" class="form-select select2">
+                                 <option value="">Pilih Provinsi</option>
+                              </select>
+                           </div>
+                           <div class="col-md-4 mb-3">
                               <label class="form-label">Kabupaten / Kota</label>
                               <select name="regency_code" id="mitra_regency_code" class="form-select select2">
                                  <option value="">Pilih Kab/Kota</option>
                               </select>
                            </div>
-                           <div class="col-md-6 mb-3">
+                           <div class="col-md-4 mb-3">
                               <label class="form-label">Kecamatan</label>
                               <select name="district_code" id="mitra_district_code" class="form-select select2">
                                  <option value="">Pilih Kecamatan</option>
@@ -398,6 +407,64 @@
                `Berhasil menyinkronkan kecamatan untuk ${successCount} dari ${regencies.length} Kab/Kota.`);
          };
 
+         window.syncAllRegional = async function() {
+            window.AlertHandler.confirm('Sync Semua Wilayah?',
+               'Ini akan mengambil data Provinsi, Kab/Kota, dan Kecamatan (Mungkin butuh waktu lama).',
+               'Ya, Sync Semua!', async () => {
+                  window.AlertHandler.swal.fire({
+                     title: 'Sinkronisasi Global...',
+                     html: 'Memulai sinkronisasi provinsi...',
+                     allowOutsideClick: false,
+                     didOpen: () => {
+                        window.AlertHandler.swal.showLoading();
+                     }
+                  });
+
+                  try {
+                     // 1. Sync Provinces
+                     const respP = await fetch("{{ route('wilayah.sync-provinces') }}", {
+                        method: 'POST',
+                        headers: {
+                           'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        }
+                     });
+                     const dataP = await respP.json();
+                     if (!dataP.success) throw new Error(dataP.message);
+
+                     // 2. Get Provinces list
+                     const respList = await fetch("{{ route('wilayah.provinces') }}");
+                     const provinces = await respList.json();
+
+                     for (let i = 0; i < provinces.length; i++) {
+                        const p = provinces[i];
+                        window.AlertHandler.swal.getHtmlContainer().textContent =
+                           `[${i+1}/${provinces.length}] Sync Kab/Kota: ${p.name}`;
+
+                        const respR = await fetch("{{ route('wilayah.sync-regencies') }}", {
+                           method: 'POST',
+                           body: JSON.stringify({
+                              province_code: p.code
+                           }),
+                           headers: {
+                              'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                              'Content-Type': 'application/json'
+                           }
+                        });
+                        const dataR = await respR.json();
+                     }
+
+                     window.AlertHandler.swal.close();
+                     window.AlertHandler.showSuccess(
+                        'Sinkronisasi Provinsi & Kab/Kota Selesai. Kecamatan silakan disinkronkan per Provinsi jika dibutuhkan.'
+                     );
+                     if (window.loadSyncStatus) window.loadSyncStatus();
+                  } catch (err) {
+                     window.AlertHandler.swal.close();
+                     window.AlertHandler.showError(err.message);
+                  }
+               });
+         };
+
          // Load status when tab is active
          $('button[data-bs-target="#navs-wilayah"]').on('shown.bs.tab', function() {
             window.loadSyncStatus();
@@ -405,14 +472,35 @@
       }
 
       function initRegionalCascading() {
+         const $prov = $('#mitra_province_code');
          const $reg = $('#mitra_regency_code');
          const $dist = $('#mitra_district_code');
 
-         // Listen for Select2 change event
+         // Cascade Province -> Regency
+         $prov.on('change', async function() {
+            const code = $(this).val();
+            $reg.empty().append('<option value="">Pilih Kab/Kota</option>');
+            $dist.empty().append('<option value="">Pilih Kecamatan</option>');
+            $reg.val('').trigger('change.select2');
+            $dist.val('').trigger('change.select2');
+
+            if (code) {
+               try {
+                  const resp = await fetch(`{{ url('master/wilayah/regencies') }}/${code}`);
+                  const data = await resp.json();
+                  data.forEach(item => {
+                     $reg.append(new Option(item.name, item.code, false, false));
+                  });
+                  $reg.trigger('change.select2');
+               } catch (err) {
+                  console.error('Load regencies error:', err);
+               }
+            }
+         });
+
+         // Cascade Regency -> District
          $reg.on('change', async function() {
             const code = $(this).val();
-
-            // Reset district dropdown
             $dist.empty().append('<option value="">Pilih Kecamatan</option>');
             $dist.val('').trigger('change.select2');
 
@@ -430,33 +518,45 @@
             }
          });
 
-         window.loadRegional = async function(selectedReg = null, selectedDist = null) {
+         window.loadRegional = async function(selectedProv = null, selectedReg = null, selectedDist = null) {
             try {
-               const resp = await fetch("{{ url('master/wilayah/regencies/73') }}");
-               const data = await resp.json();
+               // Initial load Provinces
+               const respP = await fetch("{{ route('wilayah.provinces') }}");
+               const provinces = await respP.json();
 
-               $reg.empty().append('<option value="">Pilih Kab/Kota</option>');
-               data.forEach(item => {
-                  $reg.append(new Option(item.name, item.code, false, false));
+               $prov.empty().append('<option value="">Pilih Provinsi</option>');
+               provinces.forEach(p => {
+                  $prov.append(new Option(p.name, p.code, false, false));
                });
-               $reg.trigger('change.select2');
+               $prov.trigger('change.select2');
 
-               if (selectedReg) {
-                  $reg.val(selectedReg).trigger('change');
-                  // Wait for districts to load before setting the value
-                  if (selectedDist) {
-                     setTimeout(() => {
-                        $dist.val(selectedDist).trigger('change.select2');
-                     }, 800);
+               if (selectedProv) {
+                  $prov.val(selectedProv).trigger('change.select2');
+
+                  // Load Regencies manually to set value
+                  const respR = await fetch(`{{ url('master/wilayah/regencies') }}/${selectedProv}`);
+                  const regencies = await respR.json();
+                  $reg.empty().append('<option value="">Pilih Kab/Kota</option>');
+                  regencies.forEach(r => {
+                     $reg.append(new Option(r.name, r.code, false, false));
+                  });
+                  $reg.val(selectedReg).trigger('change.select2');
+
+                  if (selectedReg) {
+                     // Load Districts manually to set value
+                     const respD = await fetch(`{{ url('master/wilayah/districts') }}/${selectedReg}`);
+                     const districts = await respD.json();
+                     $dist.empty().append('<option value="">Pilih Kecamatan</option>');
+                     districts.forEach(d => {
+                        $dist.append(new Option(d.name, d.code, false, false));
+                     });
+                     $dist.val(selectedDist).trigger('change.select2');
                   }
                }
             } catch (err) {
-               console.error('Load regencies error:', err);
+               console.error('Load regional error:', err);
             }
          };
-
-         // Initial load for SulSel
-         window.loadRegional();
       }
 
       function initGeolocation() {
@@ -529,6 +629,7 @@
                   data: 'id',
                   render: (data, type, row) => {
                      let res = [];
+                     if (row.province) res.push(row.province.name);
                      if (row.regency) res.push(row.regency.name);
                      if (row.district) res.push(row.district.name);
                      return res.length > 0 ? res.join(', ') : '-';
@@ -597,7 +698,7 @@
          $('#mitra_address').val(data.address);
 
          // Load regional data
-         window.loadRegional(data.regency_code, data.district_code);
+         window.loadRegional(data.province_code, data.regency_code, data.district_code);
 
          if (data.latitude && data.longitude) {
             $('#mitra_titik_lokasi').val(`${data.latitude}, ${data.longitude}`);

@@ -14,6 +14,6 @@ class MitraRepository extends BaseRepository implements MitraRepositoryInterface
 
     public function all()
     {
-        return $this->model->with(['category', 'regency', 'district'])->get();
+        return $this->model->with(['category', 'province', 'regency', 'district'])->get();
     }
 }

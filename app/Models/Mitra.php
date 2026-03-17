@@ -16,6 +16,7 @@ class Mitra extends Model
         'name',
         'phone',
         'address',
+        'province_code',
         'regency_code',
         'district_code',
         'latitude',
@@ -30,6 +31,11 @@ class Mitra extends Model
     public function category()
     {
         return $this->belongsTo(MitraCategory::class, 'mitra_category_id');
+    }
+
+    public function province()
+    {
+        return $this->belongsTo(Province::class, 'province_code', 'code');
     }
 
     public function regency()

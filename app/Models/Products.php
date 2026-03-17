@@ -38,6 +38,8 @@ class Products extends Model
         'gross_weight' => 'decimal:2',
     ];
 
+    protected $appends = ['cover_url'];
+
     public function subCategory()
     {
         return $this->belongsTo(ProductSubCategory::class, 'product_sub_category_id');
@@ -46,7 +48,7 @@ class Products extends Model
     public function getCoverUrlAttribute()
     {
         if ($this->cover) {
-            return Storage::url($this->cover);
+            return Storage::disk('public')->url($this->cover);
         }
         return asset('assets/img/illustrations/page-pricing-standard.png'); // Placeholder
     }

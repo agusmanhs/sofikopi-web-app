@@ -10,4 +10,9 @@ class ProductCategoryService extends BaseService
     {
         parent::__construct($repository);
     }
+
+    public function getAktif()
+    {
+        return $this->repository->getAktif();
+    }
 }

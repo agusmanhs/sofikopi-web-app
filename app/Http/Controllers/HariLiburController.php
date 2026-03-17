@@ -56,7 +56,7 @@ class HariLiburController extends Controller
         $data = $request->validated();
         $data['is_nasional'] = $request->boolean('is_nasional', false);
         $data['is_cuti_bersama'] = $request->boolean('is_cuti_bersama', false);
-        $data['is_all_divisi'] = $request->boolean('is_all_divisi', true);
+        $data['is_all_divisi'] = $request->boolean('is_all_divisi', false);
         $data['divisi_ids'] = $request->input('divisi_ids', []);
         $this->service->create($data);
 
@@ -91,7 +91,7 @@ class HariLiburController extends Controller
         $data = $request->validated();
         $data['is_nasional'] = $request->boolean('is_nasional', false);
         $data['is_cuti_bersama'] = $request->boolean('is_cuti_bersama', false);
-        $data['is_all_divisi'] = $request->boolean('is_all_divisi', true);
+        $data['is_all_divisi'] = $request->boolean('is_all_divisi', false);
         $data['divisi_ids'] = $request->input('divisi_ids', []);
         $this->service->update($id, $data);
 

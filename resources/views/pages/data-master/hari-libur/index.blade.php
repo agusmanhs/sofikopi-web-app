@@ -202,15 +202,34 @@
                   </div>
 
                   <div id="target_spesifik_area" style="display: none;">
-                     <div class="mb-3">
-                        <label class="form-label small fw-bold">Pilih Divisi yang Libur</label>
-                        <select name="divisi_ids[]" class="form-select select2" multiple>
-                           @foreach ($divisis as $divisi)
-                              <option value="{{ $divisi->id }}">{{ $divisi->nama }}</option>
-                           @endforeach
-                        </select>
+                     <div class="card bg-label-secondary border-0 shadow-none bg-light">
+                        <div class="card-body p-3">
+                           <label class="form-label d-flex justify-content-between align-items-center mb-3">
+                              <span class="fw-bold text-dark">Pilih Divisi yang Libur</span>
+                              <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2"
+                                 id="btnCheckAllAdd">
+                                 Pilih Semua
+                              </button>
+                           </label>
+                           <div class="row g-2 mx-0">
+                              @foreach ($divisis as $divisi)
+                                 <div class="col-12 col-sm-6">
+                                    <div class="p-2 bg-white rounded border d-flex align-items-center h-100 shadow-sm">
+                                       <div class="form-check mb-0">
+                                          <input class="form-check-input check-divisi-add me-2" type="checkbox"
+                                             name="divisi_ids[]" value="{{ $divisi->id }}"
+                                             id="divisi_add_{{ $divisi->id }}">
+                                          <label class="form-check-label h6 mb-0 cursor-pointer text-dark small"
+                                             for="divisi_add_{{ $divisi->id }}">
+                                             {{ $divisi->nama }}
+                                          </label>
+                                       </div>
+                                    </div>
+                                 </div>
+                              @endforeach
+                           </div>
+                        </div>
                      </div>
-
                   </div>
                </div>
             </div>
@@ -343,19 +362,22 @@
          tooltipTriggerList.map(function(tooltipTriggerEl) {
             return new bootstrap.Tooltip(tooltipTriggerEl);
          });
+         // Pilih Semua Handler (Modal Add)
+         $('#btnCheckAllAdd').on('click', function() {
+            const checkboxes = $('.check-divisi-add');
+            const allChecked = checkboxes.length && checkboxes.filter(':checked').length === checkboxes.length;
+
+            checkboxes.prop('checked', !allChecked);
+            $(this).text(allChecked ? 'Pilih Semua' : 'Batal Pilih Semua')
+               .toggleClass('btn-outline-primary', allChecked)
+               .toggleClass('btn-outline-secondary', !allChecked);
+         });
       });
 
       function toggleLiburTarget() {
          const isAll = document.getElementById('is_all_divisi').checked;
          const area = document.getElementById('target_spesifik_area');
          area.style.display = isAll ? 'none' : 'block';
-
-         if (!isAll) {
-            // Re-initialize select2 if needed when shown
-            $('.select2').select2({
-               dropdownParent: $('#modalAdd')
-            });
-         }
       }
    </script>
 @endsection

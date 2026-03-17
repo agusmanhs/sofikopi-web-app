@@ -86,6 +86,14 @@ Route::middleware(['auth'])->group(function () {
         // Mitra Management
         Route::resource('mitra-category', \App\Http\Controllers\MitraCategoryController::class);
         Route::resource('mitra', \App\Http\Controllers\MitraController::class);
+
+        // Wilayah (Regional Data)
+        Route::get('wilayah/provinces', [\App\Http\Controllers\WilayahController::class, 'provinces'])->name('wilayah.provinces');
+        Route::get('wilayah/regencies/{provinceCode}', [\App\Http\Controllers\WilayahController::class, 'regencies'])->name('wilayah.regencies');
+        Route::get('wilayah/districts/{regencyCode}', [\App\Http\Controllers\WilayahController::class, 'districts'])->name('wilayah.districts');
+        Route::post('wilayah/sync-provinces', [\App\Http\Controllers\WilayahController::class, 'syncProvinces'])->name('wilayah.sync-provinces');
+        Route::post('wilayah/sync-regencies', [\App\Http\Controllers\WilayahController::class, 'syncRegencies'])->name('wilayah.sync-regencies');
+        Route::post('wilayah/sync-districts', [\App\Http\Controllers\WilayahController::class, 'syncDistricts'])->name('wilayah.sync-districts');
     });
 
     // ============== ABSENSI ==============

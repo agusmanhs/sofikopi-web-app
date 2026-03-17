@@ -29,7 +29,7 @@ class ShiftController extends Controller
     public function store(ShiftRequest $request)
     {
         $data = $request->validated();
-        $data['is_aktif'] = $request->boolean('is_aktif', true);
+        $data['is_aktif'] = $request->boolean('is_aktif', false);
         $data['ikut_libur'] = $request->boolean('ikut_libur', false);
         $data['is_cross_day'] = $request->boolean('is_cross_day', false);
         $data['hari_kerja'] = $request->input('hari_kerja', []);
@@ -48,7 +48,7 @@ class ShiftController extends Controller
     public function update(ShiftRequest $request, $id)
     {
         $data = $request->validated();
-        $data['is_aktif'] = $request->boolean('is_aktif', true);
+        $data['is_aktif'] = $request->boolean('is_aktif', false);
         $data['ikut_libur'] = $request->boolean('ikut_libur', false);
         $data['is_cross_day'] = $request->boolean('is_cross_day', false);
         $data['hari_kerja'] = $request->input('hari_kerja', []);

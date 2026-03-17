@@ -73,26 +73,44 @@
                         </div>
 
                         <div id="target_spesifik_area" style="{{ $data->is_all_divisi ? 'display: none;' : '' }}">
-                           <div class="mb-0">
-                              <label class="form-label small fw-bold text-dark">Pilih Divisi yang Libur</label>
-                              <select name="divisi_ids[]" class="form-select select2" multiple
-                                 data-placeholder="Cari dan pilih divisi...">
-                                 @foreach ($divisis as $divisi)
-                                    <option value="{{ $divisi->id }}"
-                                       {{ is_array($data->divisi_ids) && in_array($divisi->id, $data->divisi_ids) ? 'selected' : '' }}>
-                                       {{ $divisi->nama }}
-                                    </option>
-                                 @endforeach
-                              </select>
-                              <div class="form-text text-info">Hanya karyawan pada divisi yang dipilih yang akan
-                                 diliburkan.</div>
+                           <div class="card bg-label-secondary border-0 shadow-none">
+                              <div class="card-body p-3">
+                                 <label class="form-label d-flex justify-content-between align-items-center mb-3">
+                                    <span class="fw-bold text-dark">Pilih Divisi yang Libur</span>
+                                    <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2"
+                                       id="btnCheckAll">
+                                       Pilih Semua
+                                    </button>
+                                 </label>
+                                 <div class="row g-2 mx-0">
+                                    @foreach ($divisis as $divisi)
+                                       <div class="col-12 col-sm-6 col-lg-4">
+                                          <div
+                                             class="p-2 bg-white rounded border d-flex align-items-center h-100 shadow-sm transition-hover">
+                                             <div class="form-check mb-0">
+                                                <input class="form-check-input check-divisi me-2" type="checkbox"
+                                                   name="divisi_ids[]" value="{{ $divisi->id }}"
+                                                   id="divisi_{{ $divisi->id }}"
+                                                   {{ is_array($data->divisi_ids) && in_array($divisi->id, $data->divisi_ids) ? 'checked' : '' }}>
+                                                <label class="form-check-label h6 mb-0 cursor-pointer text-dark"
+                                                   for="divisi_{{ $divisi->id }}">
+                                                   {{ $divisi->nama }}
+                                                </label>
+                                             </div>
+                                          </div>
+                                       </div>
+                                    @endforeach
+                                 </div>
+                                 <div class="form-text text-info mt-2"><i class="ri-information-line me-1"></i>Hanya
+                                    karyawan pada divisi yang dipilih yang akan diliburkan.</div>
+                              </div>
                            </div>
                         </div>
                      </div>
                   </div>
 
-                  <div class="col-12 text-end">
-                     <button type="submit" class="btn btn-primary btn-lg">
+                  <div class="col-12 text-center text-md-end mt-2">
+                     <button type="submit" class="btn btn-primary btn-lg w-100 w-md-auto">
                         <i class="ri-save-line me-1"></i> Simpan Perubahan
                      </button>
                   </div>
@@ -105,8 +123,22 @@
 
 @section('page-script')
    <script>
-      $(function() {
-         // Initialize Select2
+      document.addEventListener('DOMContentLoaded', function() {
+         const $ = window.jQuery;
+         if (!$) return;
+
+         // Pilih Semua Handler
+         $('#btnCheckAll').on('click', function() {
+            const checkboxes = $('.check-divisi');
+            const allChecked = checkboxes.length && checkboxes.filter(':checked').length === checkboxes.length;
+
+            checkboxes.prop('checked', !allChecked);
+            $(this).text(allChecked ? 'Pilih Semua' : 'Batal Pilih Semua')
+               .toggleClass('btn-outline-primary', allChecked)
+               .toggleClass('btn-outline-secondary', !allChecked);
+         });
+
+         // Initialize Select2 (keep existing)
          const select2 = $('.select2');
          if (select2.length) {
             select2.each(function() {
@@ -123,14 +155,6 @@
          const isAll = document.getElementById('is_all_divisi').checked;
          const area = document.getElementById('target_spesifik_area');
          area.style.display = isAll ? 'none' : 'block';
-
-         if (!isAll) {
-            // Re-check select2 just in case it's not initialized properly
-            $('.select2').select2({
-               placeholder: 'Cari dan pilih divisi...',
-               dropdownParent: $('#target_spesifik_area')
-            });
-         }
       }
    </script>
 @endsection

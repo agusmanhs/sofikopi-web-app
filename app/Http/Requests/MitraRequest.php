@@ -14,6 +14,8 @@ class MitraRequest extends BaseRequest
             'name' => 'required|string|max:255',
             'phone' => 'nullable|string|max:20',
             'address' => 'nullable|string',
+            'regency_code' => 'nullable|string|exists:regencies,code',
+            'district_code' => 'nullable|string|exists:districts,code',
             'titik_lokasi' => 'nullable|string',
             'latitude' => 'nullable|string',
             'longitude' => 'nullable|string',

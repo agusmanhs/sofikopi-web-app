@@ -13,6 +13,11 @@ class ProductSubCategoryService extends BaseService
 
     public function getByCategory($categoryId)
     {
-        return $this->repository->all()->where('product_category_id', $categoryId);
+        return $this->repository->getByCategory($categoryId);
+    }
+
+    public function getAktif()
+    {
+        return $this->repository->getAktif();
     }
 }

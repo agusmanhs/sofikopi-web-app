@@ -112,209 +112,201 @@
 
    <!-- Modal Category -->
    <div class="modal fade" id="modalCategory" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered">
-         <div class="modal-content">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+         <form id="formCategory" class="modal-content" onsubmit="saveCategory(event)">
+            @csrf
             <div class="modal-header">
                <h5 class="modal-title" id="modalCategoryTitle">Tambah Kategori</h5>
                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="formCategory" onsubmit="saveCategory(event)">
-               @csrf
-               <input type="hidden" name="id" id="category_id">
-               <div class="modal-body">
-                  <div class="mb-3">
-                     <label class="form-label">Nama Kategori <span class="text-danger">*</span></label>
-                     <input type="text" name="name" id="category_name" class="form-control"
-                        placeholder="CONTOH: Kopi" required>
-                  </div>
-                  <div class="form-check form-switch">
-                     <input class="form-check-input" type="checkbox" id="category_is_active" name="is_active"
-                        value="1" checked>
-                     <label class="form-check-label" for="category_is_active">Aktif</label>
-                  </div>
+            <input type="hidden" name="id" id="category_id">
+            <div class="modal-body">
+               <div class="mb-3">
+                  <label class="form-label">Nama Kategori <span class="text-danger">*</span></label>
+                  <input type="text" name="name" id="category_name" class="form-control" placeholder="CONTOH: Kopi"
+                     required>
                </div>
-               <div class="modal-footer">
-                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
-                  <button type="submit" class="btn btn-primary">Simpan</button>
+               <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="category_is_active" name="is_active" value="1"
+                     checked>
+                  <label class="form-check-label" for="category_is_active">Aktif</label>
                </div>
-            </form>
-         </div>
+            </div>
+            <div class="modal-footer">
+               <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+               <button type="submit" class="btn btn-primary">Simpan</button>
+            </div>
+         </form>
       </div>
    </div>
 
    <!-- Modal Sub Category -->
    <div class="modal fade" id="modalSubCategory" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered">
-         <div class="modal-content">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+         <form id="formSubCategory" class="modal-content" onsubmit="saveSubCategory(event)">
+            @csrf
             <div class="modal-header">
                <h5 class="modal-title" id="modalSubCategoryTitle">Tambah Sub Kategori</h5>
                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="formSubCategory" onsubmit="saveSubCategory(event)">
-               @csrf
-               <input type="hidden" name="id" id="sub_category_id">
-               <div class="modal-body">
-                  <div class="mb-3">
-                     <label class="form-label">Kategori Utama <span class="text-danger">*</span></label>
-                     <select name="product_category_id" id="sub_category_parent" class="form-select select2" required>
-                        <option value="">Pilih Kategori</option>
-                        @foreach ($categories as $cat)
-                           <option value="{{ $cat->id }}">{{ $cat->name }}</option>
-                        @endforeach
-                     </select>
-                  </div>
-                  <div class="mb-3">
-                     <label class="form-label">Nama Sub Kategori <span class="text-danger">*</span></label>
-                     <input type="text" name="name" id="sub_category_name" class="form-control"
-                        placeholder="CONTOH: Arabika" required>
-                  </div>
-                  <div class="form-check form-switch mb-3">
-                     <input class="form-check-input" type="checkbox" id="sub_category_is_active" name="is_active"
-                        value="1" checked>
-                     <label class="form-check-label" for="sub_category_is_active">Aktif</label>
-                  </div>
+            <input type="hidden" name="id" id="sub_category_id">
+            <div class="modal-body">
+               <div class="mb-3">
+                  <label class="form-label">Kategori Utama <span class="text-danger">*</span></label>
+                  <select name="product_category_id" id="sub_category_parent" class="form-select select2" required>
+                     <option value="">Pilih Kategori</option>
+                     @foreach ($categories as $cat)
+                        <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                     @endforeach
+                  </select>
                </div>
-               <div class="modal-footer">
-                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
-                  <button type="submit" class="btn btn-primary">Simpan</button>
+               <div class="mb-3">
+                  <label class="form-label">Nama Sub Kategori <span class="text-danger">*</span></label>
+                  <input type="text" name="name" id="sub_category_name" class="form-control"
+                     placeholder="CONTOH: Arabika" required>
                </div>
-            </form>
-         </div>
+               <div class="form-check form-switch mb-3">
+                  <input class="form-check-input" type="checkbox" id="sub_category_is_active" name="is_active"
+                     value="1" checked>
+                  <label class="form-check-label" for="sub_category_is_active">Aktif</label>
+               </div>
+            </div>
+            <div class="modal-footer">
+               <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+               <button type="submit" class="btn btn-primary">Simpan</button>
+            </div>
+         </form>
       </div>
    </div>
 
-   <!-- Modal Product -->
    <div class="modal fade" id="modalProduct" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-lg modal-dialog-scrollable">
-         <div class="modal-content">
+      <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+         <form id="formProduct" class="modal-content" onsubmit="saveProduct(event)" enctype="multipart/form-data">
+            @csrf
             <div class="modal-header">
                <h5 class="modal-title" id="modalProductTitle">Tambah Produk</h5>
                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="formProduct" onsubmit="saveProduct(event)">
-               @csrf
-               <input type="hidden" name="id" id="product_id">
-               <div class="modal-body">
-                  <div class="row g-3">
-                     <!-- Left Side: Basic Info -->
-                     <div class="col-md-6">
-                        <div class="mb-3">
-                           <label class="form-label">Sub Kategori <span class="text-danger">*</span></label>
-                           <select name="product_sub_category_id" id="product_sub_category_id"
-                              class="form-select select2" required onchange="window.handleSubCategoryChange(this.value)">
-                              <option value="">Pilih Sub Kategori</option>
-                              @foreach ($subCategories as $sub)
-                                 <option value="{{ $sub->id }}" data-category="{{ $sub->category->name }}">
-                                    {{ $sub->category->name }} - {{ $sub->name }}</option>
-                              @endforeach
-                           </select>
+            <input type="hidden" name="id" id="product_id">
+            <div class="modal-body">
+               <div class="row g-3">
+                  <!-- Left Side: Basic Info -->
+                  <div class="col-md-6">
+                     <div class="mb-3">
+                        <label class="form-label">Sub Kategori <span class="text-danger">*</span></label>
+                        <select name="product_sub_category_id" id="product_sub_category_id" class="form-select select2"
+                           required onchange="window.handleSubCategoryChange(this.value)">
+                           <option value="">Pilih Sub Kategori</option>
+                           @foreach ($subCategories as $sub)
+                              <option value="{{ $sub->id }}" data-category="{{ $sub->category->name }}">
+                                 {{ $sub->category->name }} - {{ $sub->name }}</option>
+                           @endforeach
+                        </select>
+                     </div>
+                     <div class="mb-3">
+                        <label class="form-label">SKU <span class="text-danger">*</span></label>
+                        <input type="text" name="sku" id="product_sku" class="form-control"
+                           placeholder="SKU-XXX" required>
+                     </div>
+                     <div class="mb-3">
+                        <label class="form-label">Nama Produk <span class="text-danger">*</span></label>
+                        <input type="text" name="name" id="product_name" class="form-control"
+                           placeholder="Nama Barang" required>
+                     </div>
+                     <div class="mb-3">
+                        <label class="form-label">Satuan <span class="text-danger">*</span></label>
+                        <select name="unit" id="product_unit" class="form-select" required>
+                           <option value="Pcs">Pcs</option>
+                           <option value="Bag">Bag</option>
+                           <option value="Bottle">Bottle</option>
+                           <option value="Gram">Gram</option>
+                           <option value="Kilogram">Kilogram</option>
+                           <option value="Mililiter">Mililiter</option>
+                           <option value="Liter">Liter</option>
+                           <option value="Pack">Pack</option>
+                        </select>
+                     </div>
+                     <div class="row">
+                        <div class="col-6 mb-3">
+                           <label class="form-label">Netto</label>
+                           <input type="number" step="0.01" name="netto" id="product_netto" class="form-control"
+                              placeholder="0.00">
                         </div>
-                        <div class="mb-3">
-                           <label class="form-label">SKU <span class="text-danger">*</span></label>
-                           <input type="text" name="sku" id="product_sku" class="form-control"
-                              placeholder="SKU-XXX" required>
-                        </div>
-                        <div class="mb-3">
-                           <label class="form-label">Nama Produk <span class="text-danger">*</span></label>
-                           <input type="text" name="name" id="product_name" class="form-control"
-                              placeholder="Nama Barang" required>
-                        </div>
-                        <div class="mb-3">
-                           <label class="form-label">Satuan <span class="text-danger">*</span></label>
-                           <select name="unit" id="product_unit" class="form-select" required>
-                              <option value="Pcs">Pcs</option>
-                              <option value="Bag">Bag</option>
-                              <option value="Bottle">Bottle</option>
-                              <option value="Gram">Gram</option>
-                              <option value="Kilogram">Kilogram</option>
-                              <option value="Mililiter">Mililiter</option>
-                              <option value="Liter">Liter</option>
-                              <option value="Pack">Pack</option>
-                           </select>
-                        </div>
-                        <div class="row">
-                           <div class="col-6 mb-3">
-                              <label class="form-label">Netto</label>
-                              <input type="number" step="0.01" name="netto" id="product_netto"
-                                 class="form-control" placeholder="0.00">
-                           </div>
-                           <div class="col-6 mb-3">
-                              <label class="form-label">Berat Kotor (Gross)</label>
-                              <input type="number" step="0.01" name="gross_weight" id="product_gross"
-                                 class="form-control" placeholder="0.00">
-                           </div>
+                        <div class="col-6 mb-3">
+                           <label class="form-label">Berat Kotor (Gross)</label>
+                           <input type="number" step="0.01" name="gross_weight" id="product_gross"
+                              class="form-control" placeholder="0.00">
                         </div>
                      </div>
+                  </div>
 
-                     <!-- Right Side: Pricing & Stock -->
-                     <div class="col-md-6">
-                        <div class="mb-3">
-                           <label class="form-label">Cover Produk</label>
-                           <input type="file" name="cover" id="product_cover" class="form-control"
-                              accept="image/*">
-                        </div>
-                        <div class="mb-3">
-                           <label class="form-label">Harga Beli <span class="text-danger">*</span></label>
-                           <div class="input-group">
-                              <span class="input-group-text">Rp</span>
-                              <input type="number" name="buying_price" id="product_buying_price" class="form-control"
-                                 placeholder="0" required>
-                           </div>
-                        </div>
-                        <div class="mb-3">
-                           <label class="form-label">Harga Jual <span class="text-danger">*</span></label>
-                           <div class="input-group">
-                              <span class="input-group-text">Rp</span>
-                              <input type="number" name="selling_price" id="product_selling_price"
-                                 class="form-control" placeholder="0" required>
-                           </div>
-                        </div>
-                        <div class="row">
-                           <div class="col-6 mb-3">
-                              <label class="form-label">Stok Sekarang <span class="text-danger">*</span></label>
-                              <input type="number" name="current_stock" id="product_stock" class="form-control"
-                                 value="0" required>
-                           </div>
-                           <div class="col-6 mb-3">
-                              <label class="form-label">Stok Aman <span class="text-danger">*</span></label>
-                              <input type="number" name="min_stock" id="product_min_stock" class="form-control"
-                                 value="0" required>
-                           </div>
-                        </div>
-                        <div class="form-check form-switch pt-2">
-                           <input class="form-check-input" type="checkbox" id="product_is_active" name="is_active"
-                              value="1" checked>
-                           <label class="form-check-label" for="product_is_active">Aktif</label>
+                  <!-- Right Side: Pricing & Stock -->
+                  <div class="col-md-6">
+                     <div class="mb-3">
+                        <label class="form-label">Cover Produk</label>
+                        <input type="file" name="cover" id="product_cover" class="form-control" accept="image/*">
+                     </div>
+                     <div class="mb-3">
+                        <label class="form-label">Harga Beli <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                           <span class="input-group-text">Rp</span>
+                           <input type="number" name="buying_price" id="product_buying_price" class="form-control"
+                              placeholder="0" required>
                         </div>
                      </div>
-
-                     <div class="col-12">
-                        <div class="mb-3">
-                           <label class="form-label">Deskripsi</label>
-                           <textarea name="description" id="product_description" class="form-control" rows="2"></textarea>
+                     <div class="mb-3">
+                        <label class="form-label">Harga Jual <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                           <span class="input-group-text">Rp</span>
+                           <input type="number" name="selling_price" id="product_selling_price" class="form-control"
+                              placeholder="0" required>
                         </div>
                      </div>
+                     <div class="row">
+                        <div class="col-6 mb-3">
+                           <label class="form-label">Stok Sekarang <span class="text-danger">*</span></label>
+                           <input type="number" name="current_stock" id="product_stock" class="form-control"
+                              value="0" required>
+                        </div>
+                        <div class="col-6 mb-3">
+                           <label class="form-label">Stok Aman <span class="text-danger">*</span></label>
+                           <input type="number" name="min_stock" id="product_min_stock" class="form-control"
+                              value="0" required>
+                        </div>
+                     </div>
+                     <div class="form-check form-switch pt-2">
+                        <input class="form-check-input" type="checkbox" id="product_is_active" name="is_active"
+                           value="1" checked>
+                        <label class="form-check-label" for="product_is_active">Aktif</label>
+                     </div>
+                  </div>
 
-                     <!-- DYNAMIC ATTRIBUTES AREA -->
-                     <div class="col-12">
-                        <hr>
-                        <h6 class="mb-3 text-primary"><i class="ri-list-settings-line me-1"></i> Atribut Spesifik <small
-                              class="text-muted">(Opsional, otomatis muncul sesuai kategori)</small></h6>
-                        <div id="dynamic-attributes-container" class="row g-3">
-                           <!-- JS will inject fields here -->
-                           <div class="col-12 text-center py-3 text-muted" id="placeholder-attributes">
-                              <small>Pilih Sub-Kategori untuk melihat atribut tambahan</small>
-                           </div>
+                  <div class="col-12">
+                     <div class="mb-3">
+                        <label class="form-label">Deskripsi</label>
+                        <textarea name="description" id="product_description" class="form-control" rows="2"></textarea>
+                     </div>
+                  </div>
+
+                  <!-- DYNAMIC ATTRIBUTES AREA -->
+                  <div class="col-12">
+                     <hr>
+                     <h6 class="mb-3 text-primary"><i class="ri-list-settings-line me-1"></i> Atribut Spesifik <small
+                           class="text-muted">(Opsional, otomatis muncul sesuai kategori)</small></h6>
+                     <div id="dynamic-attributes-container" class="row g-3">
+                        <!-- JS will inject fields here -->
+                        <div class="col-12 text-center py-3 text-muted" id="placeholder-attributes">
+                           <small>Pilih Sub-Kategori untuk melihat atribut tambahan</small>
                         </div>
                      </div>
                   </div>
                </div>
-               <div class="modal-footer">
-                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
-                  <button type="submit" class="btn btn-primary">Simpan</button>
-               </div>
-            </form>
-         </div>
+            </div>
+            <div class="modal-footer">
+               <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+               <button type="submit" class="btn btn-primary">Simpan</button>
+            </div>
+         </form>
       </div>
    </div>
 @endsection
@@ -384,7 +376,9 @@
                   render: function(data, type, row) {
                      return `<div class="d-flex align-items-center">
                             <div class="avatar avatar-sm me-2">
-                                <img src="${row.cover_url}" class="rounded-circle" style="object-fit:cover">
+                                <a href="${row.cover_url}" target="_blank">
+                                   <img src="${row.cover_url}" class="rounded-circle" style="object-fit:cover">
+                                </a>
                             </div>
                             <div>
                                 <span class="fw-bold">${data}</span><br>
@@ -531,6 +525,7 @@
       }
 
       window.editProduct = async function(id) {
+         $('#formProduct')[0].reset();
          const resp = await fetch(`{{ url('master/products') }}/${id}`, {
             headers: {
                'Accept': 'application/json'

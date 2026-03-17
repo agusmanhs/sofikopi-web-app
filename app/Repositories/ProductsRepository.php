@@ -14,6 +14,6 @@ class ProductsRepository extends BaseRepository implements ProductsRepositoryInt
 
     public function all()
     {
-        return $this->model->with('subCategory')->get();
+        return $this->model->with(['subCategory.category'])->get();
     }
 }

@@ -11,4 +11,9 @@ class ProductCategoryRepository extends BaseRepository implements ProductCategor
     {
         parent::__construct($model);
     }
+
+    public function getAktif()
+    {
+        return $this->model->aktif()->get();
+    }
 }

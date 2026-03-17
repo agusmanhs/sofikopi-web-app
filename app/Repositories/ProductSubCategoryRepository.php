@@ -16,4 +16,14 @@ class ProductSubCategoryRepository extends BaseRepository implements ProductSubC
     {
         return $this->model->with('category')->get();
     }
+
+    public function getByCategory($categoryId)
+    {
+        return $this->model->where('product_category_id', $categoryId)->get();
+    }
+
+    public function getAktif()
+    {
+        return $this->model->aktif()->with('category')->get();
+    }
 }

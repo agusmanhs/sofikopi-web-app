@@ -4,33 +4,43 @@ namespace App\Http\Controllers;
 
 use App\Helpers\ResponseHelper;
 use App\Http\Requests\ProductsRequest;
-use App\Models\ProductCategory;
-use App\Models\ProductSubCategory;
-use App\Services\FileUploadService;
+use App\Interfaces\Repositories\ProductsRepositoryInterface;
+use App\Interfaces\Repositories\ProductSubCategoryRepositoryInterface;
+use App\Interfaces\Repositories\ProductCategoryRepositoryInterface;
 use App\Services\ProductsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class ProductsController extends Controller
 {
+    protected $service;
+    protected $repository;
+    protected $subCategoryRepository;
+    protected $categoryRepository;
+
     public function __construct(
-        protected ProductsService $service,
-        protected FileUploadService $fileUploadService
-    ) {}
+        ProductsService $service,
+        ProductsRepositoryInterface $repository,
+        ProductSubCategoryRepositoryInterface $subCategoryRepository,
+        ProductCategoryRepositoryInterface $categoryRepository
+    ) {
+        $this->service = $service;
+        $this->repository = $repository;
+        $this->subCategoryRepository = $subCategoryRepository;
+        $this->categoryRepository = $categoryRepository;
+    }
 
     public function index(Request $request)
     {
-        // For standard page load
-        if (!$request->wantsJson()) {
-            $data = $this->service->all();
-            $categories = ProductCategory::aktif()->get();
-            $subCategories = ProductSubCategory::aktif()->with('category')->get();
-            return view('pages.products.index', compact('data', 'categories', 'subCategories'));
+        if ($request->ajax()) {
+            $data = $this->repository->all();
+            return ResponseHelper::success($data);
         }
 
-        // For AJAX list
-        $data = $this->service->all();
-        return ResponseHelper::success($data);
+        $subCategories = $this->subCategoryRepository->all();
+        $categories = $this->categoryRepository->all();
+        
+        return view('pages.products.index', compact('subCategories', 'categories'));
     }
 
     public function store(ProductsRequest $request)
@@ -39,16 +49,7 @@ class ProductsController extends Controller
             $data = $request->validated();
             $data['is_active'] = $request->boolean('is_active', true);
 
-            if ($request->hasFile('cover')) {
-                $media = $this->fileUploadService->upload($request->file('cover'), 'products', 'public', [
-                    'width' => 500,
-                    'height' => 500,
-                    'crop' => true
-                ]);
-                $data['cover'] = $media->path;
-            }
-
-            $result = $this->service->create($data);
+            $result = $this->service->storeProduct($data, $request->file('cover'));
             return ResponseHelper::success($result, 'Produk berhasil ditambahkan');
         });
     }
@@ -65,34 +66,14 @@ class ProductsController extends Controller
             $data = $request->validated();
             $data['is_active'] = $request->boolean('is_active', true);
 
-            if ($request->hasFile('cover')) {
-                $media = $this->fileUploadService->upload($request->file('cover'), 'products', 'public', [
-                    'width' => 500,
-                    'height' => 500,
-                    'crop' => true
-                ]);
-                $data['cover'] = $media->path;
-            }
-
-            $result = $this->service->update($id, $data);
+            $result = $this->service->updateProduct($id, $data, $request->file('cover'));
             return ResponseHelper::success($result, 'Produk berhasil diperbarui');
         });
     }
 
     public function destroy($id)
     {
-        return DB::transaction(function () use ($id) {
-            $product = $this->service->find($id);
-            
-            if ($product->cover) {
-                $media = \App\Models\Media::where('path', $product->cover)->first();
-                if ($media) {
-                    $this->fileUploadService->delete($media);
-                }
-            }
-
-            $this->service->delete($id);
-            return ResponseHelper::success(null, 'Produk berhasil dihapus');
-        });
+        $this->service->delete($id);
+        return ResponseHelper::success(null, 'Produk berhasil dihapus');
     }
 }

@@ -85,7 +85,7 @@ class FileUploadService
      */
     protected function processImage(UploadedFile $file, string $path, string $disk, array $options): void
     {
-        $image = $this->imageManager->read($file);
+        $image = $this->imageManager->read($file->getRealPath());
 
         // Resize
         if (isset($options['width']) || isset($options['height'])) {
@@ -102,7 +102,7 @@ class FileUploadService
         // Quality optimization
         $encoded = $image->toJpeg($options['quality'] ?? 80);
 
-        Storage::disk($disk)->put($path, (string) $encoded);
+        Storage::disk($disk)->put($path, $encoded->toString());
     }
 
     /**

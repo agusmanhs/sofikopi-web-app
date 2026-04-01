@@ -27,12 +27,25 @@ class AuthController extends Controller
         $remember = $request->has('remember');
 
         if (Auth::attempt($credentials, $remember)) {
+            $user = Auth::user();
+            
+            // Debugging: Log status login (Bisa dihapus nanti jika sudah oke)
+            \Illuminate\Support\Facades\Log::info("Login Attempt: {$user->email} | Has Pegawai: " . ($user->pegawai ? 'Yes' : 'No') . " | Status Opt: " . ($user->pegawai?->status_aktif === false ? 'Non-Aktif' : 'Aktif'));
+
+            // Check if user is an employee and is active
+            if ($user->pegawai && $user->pegawai->status_aktif == false) {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+                return back()->with('error', 'Akun Anda telah dinonaktifkan. Silakan hubungi administrator untuk informasi lebih lanjut.')->onlyInput('email');
+            }
+
             $request->session()->regenerate();
             
             // Log aktivitas login
             $this->activityLogService->logLogin();
             
-            // Redirect ke dashboard (dashboard akan menampilkan konten sesuai role)
+            // Redirect ke dashboard
             return redirect()->intended('/');
         }
 

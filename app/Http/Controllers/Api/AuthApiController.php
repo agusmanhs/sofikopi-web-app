@@ -71,6 +71,11 @@ class AuthApiController extends Controller
             return ResponseHelper::error('Invalid credentials', 401);
         }
 
+        // Check if user is an employee and its status_aktif is false
+        if ($user->pegawai && !$user->pegawai->status_aktif) {
+            return ResponseHelper::error('Akun Anda telah dinonaktifkan. Silakan hubungi administrator.', 403);
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return ResponseHelper::success([

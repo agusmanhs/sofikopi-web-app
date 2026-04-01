@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\MitraTemplateExport;
 use App\Helpers\ResponseHelper;
 use App\Http\Requests\MitraRequest;
+use App\Imports\MitraImport;
 use App\Models\MitraCategory;
 use App\Services\MitraService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Maatwebsite\Excel\Facades\Excel;
 
 class MitraController extends Controller
 {
@@ -23,6 +27,31 @@ class MitraController extends Controller
 
         $data = $this->service->all();
         return ResponseHelper::success($data);
+    }
+
+    /**
+     * Import mitra from Excel
+     */
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xls,xlsx,csv|max:2048',
+        ]);
+
+        try {
+            Excel::import(new MitraImport, $request->file('file'));
+            return ResponseHelper::success(null, 'Data Mitra berhasil di-import');
+        } catch (\Exception $e) {
+            return ResponseHelper::error('Gagal import: ' . $e->getMessage(), 400);
+        }
+    }
+
+    /**
+     * Download import template
+     */
+    public function downloadTemplate()
+    {
+        return Excel::download(new MitraTemplateExport, 'template_import_mitra.xlsx');
     }
 
     public function store(MitraRequest $request)

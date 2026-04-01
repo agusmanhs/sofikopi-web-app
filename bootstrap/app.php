@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'check.permission' => \App\Http\Middleware\CheckPermission::class,
+            'check.pegawai.status' => \App\Http\Middleware\CheckPegawaiStatus::class,
         ]);
 
         $middleware->redirectTo(

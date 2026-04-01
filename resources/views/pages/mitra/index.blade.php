@@ -43,9 +43,14 @@
             <div class="tab-pane fade show active" id="navs-mitra" role="tabpanel">
                <div class="d-flex justify-content-between align-items-center mb-4">
                   <h5 class="mb-0">Daftar Mitra (Supplier, Reseller, Customer)</h5>
-                  <button class="btn btn-primary" onclick="window.openMitraModal()">
-                     <i class="ri-user-add-line me-1"></i> Tambah Mitra
-                  </button>
+                  <div class="d-flex gap-2">
+                     <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalImportMitra">
+                        <i class="ri-upload-2-line me-1"></i> Import Excel
+                     </button>
+                     <button class="btn btn-primary" onclick="window.openMitraModal()">
+                        <i class="ri-user-add-line me-1"></i> Tambah Mitra
+                     </button>
+                  </div>
                </div>
                <div class="card-datatable table-responsive">
                   <table class="table table-hover" id="table-mitra">
@@ -90,29 +95,33 @@
             <div class="tab-pane fade" id="navs-wilayah" role="tabpanel">
                <div class="d-flex justify-content-between align-items-center mb-4">
                   <h5 class="mb-0">Sinkronisasi Data Wilayah Indonesia</h5>
-                  <button class="btn btn-primary me-2" onclick="window.syncProvinces()">
-                     <i class="ri-refresh-line me-1"></i> Sinkronkan Provinsi
-                  </button>
-                  <button class="btn btn-outline-primary" onclick="window.syncAllRegional()">
-                     <i class="ri-global-line me-1"></i> Sync Semua Kab/Kota
-                  </button>
+                  <div class="d-flex gap-2">
+                     <button class="btn btn-primary" onclick="window.syncProvinces()">
+                        <i class="ri-refresh-line me-1"></i> Sinkronkan Provinsi
+                     </button>
+                     <button class="btn btn-outline-primary" onclick="window.syncAllRegional()">
+                        <i class="ri-global-line me-1"></i> Sync Seluruh Kab/Kota
+                     </button>
+                  </div>
                </div>
                <div class="alert alert-primary d-flex align-items-center mb-4" role="alert">
                   <span class="alert-icon text-primary me-2">
                      <i class="ri-information-line"></i>
                   </span>
                   <div>
-                     Penting: Sinkronkan Provinsi terlebih dahulu. Setelah itu, sinkronkan Kabupaten/Kota dan Kecamatan
-                     sesuai kebutuhan wilayah operasional Mitra Anda.
+                     <strong>Penting:</strong> Sinkronkan <strong>Provinsi</strong> terlebih dahulu. Setelah itu, jalankan
+                     <strong>Sync Semua Kab/Kota</strong>.
+                     <br><small class="text-muted">Proses Sinkronisasi Kecamatan dilakukan per-Provinsi melalui tabel di
+                        bawah untuk menjaga stabilitas koneksi.</small>
                   </div>
                </div>
                <div class="table-responsive">
                   <table class="table table-hover" id="table-wilayah-sync">
                      <thead>
                         <tr>
-                           <th>Provinsi</th>
-                           <th>Status Download</th>
-                           <th class="text-end">Aksi Sinkronisasi</th>
+                           <th>Provinsi (Indonesia)</th>
+                           <th>Data Downloaded</th>
+                           <th class="text-end">Aksi (Kabupaten & Kecamatan)</th>
                         </tr>
                      </thead>
                      <tbody id="list-provinces-sync">
@@ -127,7 +136,7 @@
 
    <!-- Modal Mitra -->
    <div class="modal fade" id="modalMitra" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-dialog modal-xl modal-dialog-centered">
          <div class="modal-content">
             <div class="modal-header border-bottom">
                <h5 class="modal-title" id="modalMitraTitle">Tambah Mitra</h5>
@@ -158,6 +167,7 @@
                            <input type="text" name="name" id="mitra_name" class="form-control"
                               placeholder="Nama Usaha / Individu" required>
                         </div>
+
                         <div class="mb-3">
                            <label class="form-label">PIC (Person In Charge)</label>
                            <input type="text" name="pic" id="mitra_pic" class="form-control"
@@ -174,6 +184,7 @@
                            <label class="form-label">Alamat</label>
                            <textarea name="address" id="mitra_address" class="form-control" rows="2" placeholder="Alamat lengkap..."></textarea>
                         </div>
+
                         <div class="row g-2">
                            <div class="col-md-4 mb-3">
                               <label class="form-label">Provinsi</label>
@@ -187,12 +198,12 @@
                                  <option value="">Pilih Kab/Kota</option>
                               </select>
                            </div>
-                           <div class="col-md-4 mb-3">
-                              <label class="form-label">Kecamatan</label>
+                           {{-- <div class="col-md-4 mb-3">
+                              <label class="form-label">Kecamatan (Opsional)</label>
                               <select name="district_code" id="mitra_district_code" class="form-select select2">
                                  <option value="">Pilih Kecamatan</option>
                               </select>
-                           </div>
+                           </div> --}}
                         </div>
                         <div class="mb-3">
                            <label class="form-label" for="titik_lokasi">Titik Lokasi (Google Maps)</label>
@@ -254,29 +265,79 @@
          </div>
       </div>
    </div>
+   <!-- Modal Import -->
+   <div class="modal fade" id="modalImportMitra" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+         <div class="modal-content">
+            <div class="modal-header border-bottom">
+               <h5 class="modal-title">Import Data Mitra</h5>
+               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formImportMitra" onsubmit="window.importMitra(event)">
+               @csrf
+               <div class="modal-body">
+                  <div class="alert alert-primary mb-4" role="alert">
+                     <h6 class="alert-heading mb-1 d-flex align-items-center">
+                        <i class="ri-information-line me-2"></i> Panduan Pengisian Excel
+                     </h6>
+                     <ul class="mb-0 small ps-3">
+                        <li>Gunakan file template resmi yang tersedia di bawah ini.</li>
+                        <li><strong>Kode Mitra</strong>: Boleh dikosongkan (sistem akan generate otomatis).</li>
+                        <li><strong>Nama Mitra</strong>: Wajib diisi (format akan otomatis menjadi Capitalize).</li>
+                        <li><strong>Kategori</strong>: Jika belum ada di sistem, kategori baru akan otomatis dibuat.</li>
+                        <li><strong>Standardisasi</strong>: Semua teks (Nama, PIC, Alamat) otomatis diseragamkan formatnya.</li>
+                        <li><strong>Data Wilayah</strong>: Biarkan kosong untuk proses import ini.</li>
+                     </ul>
+                  </div>
+
+                  <div class="mb-4">
+                     <label class="form-label fw-semibold">Pilih File Excel (.xlsx, .xls)</label>
+                     <input type="file" name="file" class="form-control" accept=".xlsx, .xls" required>
+                  </div>
+                  
+                  <div class="d-grid mb-2">
+                     <a href="{{ route('mitra.template') }}" class="btn btn-sm btn-label-secondary">
+                        <i class="ri-download-line me-1"></i> Download Template Excel
+                     </a>
+                  </div>
+               </div>
+               <div class="modal-footer border-top">
+                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                  <button type="submit" class="btn btn-primary" id="btn-submit-import">Mulai Import</button>
+               </div>
+            </form>
+         </div>
+      </div>
+   </div>
 @endsection
 
 @section('page-script')
    <script type="module">
-      $(function() {
-         $('.select2').each(function() {
-            var $this = $(this);
-            $this.wrap('<div class="position-relative"></div>').select2({
-               placeholder: 'Pilih Opsian',
-               dropdownParent: $this.parent()
-            });
-         });
+      // --- HELPERS ---
+      const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-         initTables();
-         initGeolocation();
-         initRegionalSync();
-         initRegionalCascading();
-      });
+      async function fetchWithRetry(url, options = {}, retries = 3, backoff = 1000) {
+         try {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+               const errorData = await response.json().catch(() => ({}));
+               throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+            }
+            return await response.json();
+         } catch (error) {
+            if (retries > 0) {
+               console.warn(`Fetch failed for ${url}, retrying in ${backoff}ms... (${retries} left)`, error);
+               await sleep(backoff);
+               return fetchWithRetry(url, options, retries - 1, backoff * 1.5);
+            }
+            throw error;
+         }
+      }
 
-      function initRegionalSync() {
-         window.loadSyncStatus = async function() {
-            const resp = await fetch("{{ route('wilayah.provinces') }}");
-            const provinces = await resp.json();
+      // --- REGIONAL SYNC FUNCTIONS ---
+      window.loadSyncStatus = async function() {
+         try {
+            const provinces = await fetchWithRetry("{{ route('wilayah.provinces') }}");
             const $tbody = $('#list-provinces-sync');
             $tbody.empty();
 
@@ -303,62 +364,73 @@
                   </tr>
                `);
             });
-         };
+         } catch (err) {
+            console.error('Load sync status error:', err);
+         }
+      };
 
-         window.syncProvinces = async function() {
-            window.AlertHandler.confirm('Sinkronkan Provinsi?', 'Ini akan mengambil data semua provinsi dari API.',
-               'Ya, Sinkronkan!', async () => {
-                  const resp = await fetch("{{ route('wilayah.sync-provinces') }}", {
+      window.syncProvinces = async function() {
+         window.AlertHandler.confirm('Sinkronkan Provinsi?', 'Mengambil data semua provinsi dari API.',
+            'Ya, Sinkronkan!', async () => {
+               window.AlertHandler.swal.fire({
+                  title: 'Menyinkronkan Provinsi...',
+                  html: 'Mohon tunggu, sedang mengambil data.',
+                  allowOutsideClick: false,
+                  didOpen: () => {
+                     window.AlertHandler.swal.showLoading();
+                  }
+               });
+
+               try {
+                  const data = await fetchWithRetry("{{ route('wilayah.sync-provinces') }}", {
                      method: 'POST',
                      headers: {
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                      }
                   });
-                  const data = await resp.json();
+                  window.AlertHandler.swal.close();
                   window.AlertHandler.handle(data);
                   if (data.success) window.loadSyncStatus();
-               });
-         };
-
-         window.syncRegencies = async function(provinceCode) {
-            window.AlertHandler.swal.fire({
-               title: 'Menyinkronkan Kab/Kota...',
-               html: 'Mohon tunggu, sedang mengambil data dari API.',
-               allowOutsideClick: false,
-               customClass: {
-                  confirmButton: 'btn btn-primary'
-               },
-               buttonsStyling: false,
-               didOpen: () => {
-                  window.AlertHandler.swal.showLoading();
+               } catch (err) {
+                  window.AlertHandler.swal.close();
+                  window.AlertHandler.showError('Gagal sinkronisasi: ' + err.message);
                }
             });
+      };
 
-            try {
-               const resp = await fetch("{{ route('wilayah.sync-regencies') }}", {
-                  method: 'POST',
-                  body: JSON.stringify({
-                     province_code: provinceCode
-                  }),
-                  headers: {
-                     'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                     'Content-Type': 'application/json',
-                     'Accept': 'application/json'
-                  }
-               });
-               const data = await resp.json();
-               window.AlertHandler.swal.close();
-               window.AlertHandler.handle(data);
-            } catch (err) {
-               window.AlertHandler.swal.close();
-               window.AlertHandler.showError('Gagal menyinkronkan data. Cek koneksi internet.');
+      window.syncRegencies = async function(provinceCode) {
+         window.AlertHandler.swal.fire({
+            title: 'Menyinkronkan Kab/Kota...',
+            html: 'Mohon tunggu, sedang mengambil data.',
+            allowOutsideClick: false,
+            didOpen: () => {
+               window.AlertHandler.swal.showLoading();
             }
-         };
+         });
 
-         window.syncDistrictsByProvince = async function(provinceCode) {
-            const respReg = await fetch(`{{ url('master/wilayah/regencies') }}/${provinceCode}`);
-            const regencies = await respReg.json();
+         try {
+            const data = await fetchWithRetry("{{ route('wilayah.sync-regencies') }}", {
+               method: 'POST',
+               body: JSON.stringify({
+                  province_code: provinceCode
+               }),
+               headers: {
+                  'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json'
+               }
+            });
+            window.AlertHandler.swal.close();
+            window.AlertHandler.handle(data);
+         } catch (err) {
+            window.AlertHandler.swal.close();
+            window.AlertHandler.showError('Gagal menyinkronkan data.');
+         }
+      };
 
+      window.syncDistrictsByProvince = async function(provinceCode) {
+         try {
+            const regencies = await fetchWithRetry(`{{ url('master/wilayah/regencies') }}/${provinceCode}`);
             if (regencies.length === 0) {
                window.AlertHandler.showError('Sinkronkan Kabupaten/Kota untuk provinsi ini terlebih dahulu.');
                return;
@@ -368,115 +440,148 @@
                title: 'Menyinkronkan Kecamatan...',
                html: `Memproses 0 / ${regencies.length} Kabupaten/Kota`,
                allowOutsideClick: false,
-               customClass: {
-                  confirmButton: 'btn btn-primary'
-               },
-               buttonsStyling: false,
                didOpen: () => {
                   window.AlertHandler.swal.showLoading();
                }
             });
 
             let successCount = 0;
+            const htmlContainer = window.AlertHandler.swal.getHtmlContainer();
             for (let i = 0; i < regencies.length; i++) {
-               const htmlContainer = window.AlertHandler.swal.getHtmlContainer();
-               if (htmlContainer) {
-                  htmlContainer.textContent = `Memproses ${i + 1} / ${regencies.length} — ${regencies[i].name}`;
-               }
+               if (htmlContainer) htmlContainer.textContent =
+                  `Memproses ${i + 1} / ${regencies.length} — ${regencies[i].name}`;
                try {
-                  const respDist = await fetch("{{ route('wilayah.sync-districts') }}", {
+                  await fetchWithRetry("{{ route('wilayah.sync-districts') }}", {
                      method: 'POST',
                      body: JSON.stringify({
                         regency_code: regencies[i].code
                      }),
                      headers: {
                         'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
+                        'Content-Type': 'application/json'
                      }
                   });
-                  const resDistrict = await respDist.json();
-                  if (resDistrict.success) successCount++;
+                  successCount++;
+                  await sleep(300); // Backoff logic
                } catch (err) {
-                  console.error('Sync district error:', err);
+                  console.error(`Error syncing ${regencies[i].name}:`, err);
                }
             }
 
             window.AlertHandler.swal.close();
-            window.AlertHandler.showSuccess(
-               `Berhasil menyinkronkan kecamatan untuk ${successCount} dari ${regencies.length} Kab/Kota.`);
-         };
+            window.AlertHandler.showSuccess(`Berhasil menyinkronkan kecamatan untuk ${successCount} Kab/Kota.`);
+         } catch (err) {
+            window.AlertHandler.showError('Gagal mengambil data kabupaten.');
+         }
+      };
 
-         window.syncAllRegional = async function() {
-            window.AlertHandler.confirm('Sync Semua Wilayah?',
-               'Ini akan mengambil data Provinsi, Kab/Kota, dan Kecamatan (Mungkin butuh waktu lama).',
-               'Ya, Sync Semua!', async () => {
-                  window.AlertHandler.swal.fire({
-                     title: 'Sinkronisasi Global...',
-                     html: 'Memulai sinkronisasi provinsi...',
-                     allowOutsideClick: false,
-                     didOpen: () => {
-                        window.AlertHandler.swal.showLoading();
-                     }
-                  });
-
-                  try {
-                     // 1. Sync Provinces
-                     const respP = await fetch("{{ route('wilayah.sync-provinces') }}", {
-                        method: 'POST',
-                        headers: {
-                           'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                        }
-                     });
-                     const dataP = await respP.json();
-                     if (!dataP.success) throw new Error(dataP.message);
-
-                     // 2. Get Provinces list
-                     const respList = await fetch("{{ route('wilayah.provinces') }}");
-                     const provinces = await respList.json();
-
-                     for (let i = 0; i < provinces.length; i++) {
-                        const p = provinces[i];
-                        window.AlertHandler.swal.getHtmlContainer().textContent =
-                           `[${i+1}/${provinces.length}] Sync Kab/Kota: ${p.name}`;
-
-                        const respR = await fetch("{{ route('wilayah.sync-regencies') }}", {
-                           method: 'POST',
-                           body: JSON.stringify({
-                              province_code: p.code
-                           }),
-                           headers: {
-                              'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                              'Content-Type': 'application/json'
-                           }
-                        });
-                        const dataR = await respR.json();
-                     }
-
-                     window.AlertHandler.swal.close();
-                     window.AlertHandler.showSuccess(
-                        'Sinkronisasi Provinsi & Kab/Kota Selesai. Kecamatan silakan disinkronkan per Provinsi jika dibutuhkan.'
-                     );
-                     if (window.loadSyncStatus) window.loadSyncStatus();
-                  } catch (err) {
-                     window.AlertHandler.swal.close();
-                     window.AlertHandler.showError(err.message);
+      window.syncAllRegional = async function() {
+         window.AlertHandler.confirm('Sync Semua Wilayah?',
+            'Mengambil data Provinsi & Kab/Kota Indonesia (Mungkin butuh waktu).',
+            'Ya, Sync Semua!', async () => {
+               window.AlertHandler.swal.fire({
+                  title: 'Sinkronisasi Global...',
+                  html: 'Memulai sinkronisasi provinsi...',
+                  allowOutsideClick: false,
+                  didOpen: () => {
+                     window.AlertHandler.swal.showLoading();
                   }
                });
-         };
 
-         // Load status when tab is active
-         $('button[data-bs-target="#navs-wilayah"]').on('shown.bs.tab', function() {
-            window.loadSyncStatus();
+               try {
+                  const dataP = await fetchWithRetry("{{ route('wilayah.sync-provinces') }}", {
+                     method: 'POST',
+                     headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                     }
+                  });
+                  if (!dataP.success) throw new Error(dataP.message);
+
+                  const provinces = await fetchWithRetry("{{ route('wilayah.provinces') }}");
+                  const htmlContainer = window.AlertHandler.swal.getHtmlContainer();
+
+                  for (let i = 0; i < provinces.length; i++) {
+                     const p = provinces[i];
+                     if (htmlContainer) htmlContainer.textContent =
+                        `[${i+1}/${provinces.length}] Memproses Kab/Kota: ${p.name}`;
+
+                     await fetchWithRetry("{{ route('wilayah.sync-regencies') }}", {
+                        method: 'POST',
+                        body: JSON.stringify({
+                           province_code: p.code
+                        }),
+                        headers: {
+                           'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                           'Content-Type': 'application/json'
+                        }
+                     });
+
+                     await sleep(500); // Increased backoff delay for network stability
+                  }
+
+                  window.AlertHandler.swal.close();
+                  window.AlertHandler.showSuccess('Sinkronisasi Provinsi & Kabupaten Selesai.');
+                  window.loadSyncStatus();
+               } catch (err) {
+                  window.AlertHandler.swal.close();
+                  window.AlertHandler.showError('Terjadi gangguan jaringan: ' + err.message);
+               }
+            });
+      };
+
+      // --- CASCADING FUNCTIONS ---
+      window.loadRegional = async function(selectedProv = null, selectedReg = null, selectedDist = null) {
+         const $prov = $('#mitra_province_code');
+         const $reg = $('#mitra_regency_code');
+         const $dist = $('#mitra_district_code');
+         try {
+            const provinces = await fetchWithRetry("{{ route('wilayah.provinces') }}");
+            $prov.empty().append('<option value="">Pilih Provinsi</option>');
+            provinces.forEach(p => {
+               $prov.append(new Option(p.name, p.code, false, false));
+            });
+            $prov.trigger('change.select2');
+
+            if (selectedProv) {
+               $prov.val(selectedProv).trigger('change.select2');
+               const regencies = await fetchWithRetry(`{{ url('master/wilayah/regencies') }}/${selectedProv}`);
+               $reg.empty().append('<option value="">Pilih Kab/Kota</option>');
+               regencies.forEach(r => {
+                  $reg.append(new Option(r.name, r.code, false, false));
+               });
+               $reg.val(selectedReg).trigger('change.select2');
+
+               if (selectedReg) {
+                  const districts = await fetchWithRetry(`{{ url('master/wilayah/districts') }}/${selectedReg}`);
+                  $dist.empty().append('<option value="">Pilih Kecamatan</option>');
+                  districts.forEach(d => {
+                     $dist.append(new Option(d.name, d.code, false, false));
+                  });
+                  $dist.val(selectedDist).trigger('change.select2');
+               }
+            }
+         } catch (err) {
+            console.error('Load regional error:', err);
+         }
+      };
+
+      // --- MAIN INITIALIZATION ---
+      $(function() {
+         $('.select2').each(function() {
+            var $this = $(this);
+            $this.wrap('<div class="position-relative"></div>').select2({
+               placeholder: 'Pilih Opsian',
+               dropdownParent: $this.parent()
+            });
          });
-      }
 
-      function initRegionalCascading() {
+         initTables();
+         initGeolocation();
+
          const $prov = $('#mitra_province_code');
          const $reg = $('#mitra_regency_code');
          const $dist = $('#mitra_district_code');
 
-         // Cascade Province -> Regency
          $prov.on('change', async function() {
             const code = $(this).val();
             $reg.empty().append('<option value="">Pilih Kab/Kota</option>');
@@ -486,19 +591,15 @@
 
             if (code) {
                try {
-                  const resp = await fetch(`{{ url('master/wilayah/regencies') }}/${code}`);
-                  const data = await resp.json();
+                  const data = await fetchWithRetry(`{{ url('master/wilayah/regencies') }}/${code}`);
                   data.forEach(item => {
                      $reg.append(new Option(item.name, item.code, false, false));
                   });
                   $reg.trigger('change.select2');
-               } catch (err) {
-                  console.error('Load regencies error:', err);
-               }
+               } catch (err) {}
             }
          });
 
-         // Cascade Regency -> District
          $reg.on('change', async function() {
             const code = $(this).val();
             $dist.empty().append('<option value="">Pilih Kecamatan</option>');
@@ -506,89 +607,40 @@
 
             if (code) {
                try {
-                  const resp = await fetch(`{{ url('master/wilayah/districts') }}/${code}`);
-                  const data = await resp.json();
+                  const data = await fetchWithRetry(`{{ url('master/wilayah/districts') }}/${code}`);
                   data.forEach(item => {
                      $dist.append(new Option(item.name, item.code, false, false));
                   });
                   $dist.trigger('change.select2');
-               } catch (err) {
-                  console.error('Load districts error:', err);
-               }
+               } catch (err) {}
             }
          });
 
-         window.loadRegional = async function(selectedProv = null, selectedReg = null, selectedDist = null) {
-            try {
-               // Initial load Provinces
-               const respP = await fetch("{{ route('wilayah.provinces') }}");
-               const provinces = await respP.json();
+         window.loadRegional();
+      });
 
-               $prov.empty().append('<option value="">Pilih Provinsi</option>');
-               provinces.forEach(p => {
-                  $prov.append(new Option(p.name, p.code, false, false));
-               });
-               $prov.trigger('change.select2');
-
-               if (selectedProv) {
-                  $prov.val(selectedProv).trigger('change.select2');
-
-                  // Load Regencies manually to set value
-                  const respR = await fetch(`{{ url('master/wilayah/regencies') }}/${selectedProv}`);
-                  const regencies = await respR.json();
-                  $reg.empty().append('<option value="">Pilih Kab/Kota</option>');
-                  regencies.forEach(r => {
-                     $reg.append(new Option(r.name, r.code, false, false));
-                  });
-                  $reg.val(selectedReg).trigger('change.select2');
-
-                  if (selectedReg) {
-                     // Load Districts manually to set value
-                     const respD = await fetch(`{{ url('master/wilayah/districts') }}/${selectedReg}`);
-                     const districts = await respD.json();
-                     $dist.empty().append('<option value="">Pilih Kecamatan</option>');
-                     districts.forEach(d => {
-                        $dist.append(new Option(d.name, d.code, false, false));
-                     });
-                     $dist.val(selectedDist).trigger('change.select2');
-                  }
-               }
-            } catch (err) {
-               console.error('Load regional error:', err);
-            }
-         };
-      }
-
+      // --- OTHER FUNCTIONS ---
       function initGeolocation() {
          const btn = document.getElementById('btn-get-location');
          if (!btn) return;
-
          btn.addEventListener('click', function() {
             if (navigator.geolocation) {
                this.innerHTML = '<i class="ri-loader-4-line ri-spin"></i>';
                this.disabled = true;
-
                navigator.geolocation.getCurrentPosition(
                   (position) => {
                      const lat = position.coords.latitude.toFixed(8);
                      const lng = position.coords.longitude.toFixed(8);
                      document.getElementById('mitra_titik_lokasi').value = `${lat}, ${lng}`;
-                     this.innerHTML = '<i class="ri-check-line"></i>';
-                     setTimeout(() => {
-                        this.innerHTML = '<i class="ri-gps-line"></i>';
-                        this.disabled = false;
-                     }, 2000);
-                  },
-                  (error) => {
-                     window.AlertHandler.showError('Gagal mengambil lokasi: ' + error.message);
                      this.innerHTML = '<i class="ri-gps-line"></i>';
                      this.disabled = false;
-                  }, {
-                     enableHighAccuracy: true
+                  },
+                  (error) => {
+                     window.AlertHandler.showError('Gagal: ' + error.message);
+                     this.innerHTML = '<i class="ri-gps-line"></i>';
+                     this.disabled = false;
                   }
                );
-            } else {
-               window.AlertHandler.showError('Geolocation tidak didukung browser ini');
             }
          });
       }
@@ -601,7 +653,7 @@
                },
                {
                   data: 'name',
-                  render: (data, type, row) => `<strong>${data}</strong>`
+                  render: (data) => `<strong>${data}</strong>`
                },
                {
                   data: 'category.name',
@@ -609,19 +661,14 @@
                },
                {
                   data: 'pic',
-                  render: (data, type, row) => `
-                        <span>${data || '-'}</span><br>
-                        <small class="text-muted">${row.phone || '-'}</small>
-                    `
+                  render: (data, type, row) => `<span>${data || '-'}</span><br><small>${row.phone || '-'}</small>`
                },
                {
                   data: 'address',
                   render: (data, type, row) => {
                      let text = data ? (data.length > 50 ? data.substring(0, 50) + '...' : data) : '-';
-                     if (row.latitude && row.longitude) {
-                        text +=
-                           `<br><a href="https://www.google.com/maps?q=${row.latitude},${row.longitude}" target="_blank" class="badge bg-label-info mt-1"><i class="ri-map-pin-line small me-1"></i> Lihat Peta</a>`;
-                     }
+                     if (row.latitude && row.longitude) text +=
+                        `<br><a href="https://www.google.com/maps?q=${row.latitude},${row.longitude}" target="_blank" class="badge bg-label-info mt-1">Peta</a>`;
                      return text;
                   }
                },
@@ -642,12 +689,10 @@
                },
                {
                   data: 'id',
-                  render: (data, type, row) => `
-                        <div class="d-flex justify-content-center gap-2">
-                            <button class="btn btn-sm btn-icon btn-label-primary" onclick="window.editMitra(${row.id})"><i class="ri-pencil-line"></i></button>
-                            <button class="btn btn-sm btn-icon btn-label-danger" onclick="window.deleteRecord('mitra', ${row.id}, '${row.name}')"><i class="ri-delete-bin-line"></i></button>
-                        </div>
-                    `
+                  render: (data, type, row) => `<div class="d-flex justify-content-center gap-2">
+                     <button class="btn btn-sm btn-icon btn-label-primary" onclick="window.editMitra(${row.id})"><i class="ri-pencil-line"></i></button>
+                     <button class="btn btn-sm btn-icon btn-label-danger" onclick="window.deleteRecord('mitra', ${row.id}, '${row.name}')"><i class="ri-delete-bin-line"></i></button>
+                  </div>`
                }
             ]
          });
@@ -664,12 +709,10 @@
                },
                {
                   data: 'id',
-                  render: (data, type, row) => `
-                         <div class="d-flex justify-content-center gap-2">
-                            <button class="btn btn-sm btn-icon btn-label-primary" onclick="window.editCategory(${row.id})"><i class="ri-pencil-line"></i></button>
-                            <button class="btn btn-sm btn-icon btn-label-danger" onclick="window.deleteRecord('mitra-category', ${row.id}, '${row.name}')"><i class="ri-delete-bin-line"></i></button>
-                        </div>
-                    `
+                  render: (data, type, row) => `<div class="d-flex justify-content-center gap-2">
+                     <button class="btn btn-sm btn-icon btn-label-primary" onclick="window.editCategory(${row.id})"><i class="ri-pencil-line"></i></button>
+                     <button class="btn btn-sm btn-icon btn-label-danger" onclick="window.deleteRecord('mitra-category', ${row.id}, '${row.name}')"><i class="ri-delete-bin-line"></i></button>
+                  </div>`
                }
             ]
          });
@@ -685,29 +728,26 @@
       }
 
       window.editMitra = async function(id) {
-         const resp = await fetch(`{{ url('master/mitra') }}/${id}`);
-         const {
-            data
-         } = await resp.json();
-         $('#mitra_id').val(data.id);
-         $('#mitra_category_id').val(data.mitra_category_id).trigger('change');
-         $('#mitra_code').val(data.code);
-         $('#mitra_name').val(data.name);
-         $('#mitra_pic').val(data.pic);
-         $('#mitra_phone').val(data.phone);
-         $('#mitra_address').val(data.address);
-
-         // Load regional data
-         window.loadRegional(data.province_code, data.regency_code, data.district_code);
-
-         if (data.latitude && data.longitude) {
-            $('#mitra_titik_lokasi').val(`${data.latitude}, ${data.longitude}`);
-         } else {
-            $('#mitra_titik_lokasi').val('');
+         try {
+            const {
+               data
+            } = await fetchWithRetry(`{{ url('master/mitra') }}/${id}`);
+            $('#mitra_id').val(data.id);
+            $('#mitra_category_id').val(data.mitra_category_id).trigger('change');
+            $('#mitra_code').val(data.code);
+            $('#mitra_name').val(data.name);
+            $('#mitra_pic').val(data.pic);
+            $('#mitra_phone').val(data.phone);
+            $('#mitra_address').val(data.address);
+            window.loadRegional(data.province_code, data.regency_code, data.district_code);
+            $('#mitra_titik_lokasi').val(data.latitude && data.longitude ? `${data.latitude}, ${data.longitude}` :
+               '');
+            $('#mitra_is_active').prop('checked', !!data.is_active);
+            $('#modalMitraTitle').text('Edit Mitra');
+            new bootstrap.Modal($('#modalMitra')).show();
+         } catch (err) {
+            window.AlertHandler.showError('Gagal memuat data mitra.');
          }
-         $('#mitra_is_active').prop('checked', !!data.is_active);
-         $('#modalMitraTitle').text('Edit Mitra');
-         new bootstrap.Modal($('#modalMitra')).show();
       }
 
       window.openCategoryModal = function() {
@@ -718,19 +758,18 @@
       }
 
       window.editCategory = async function(id) {
-         const resp = await fetch(`{{ url('master/mitra-category') }}/${id}`, {
-            headers: {
-               'Accept': 'application/json'
-            }
-         });
-         const {
-            data
-         } = await resp.json();
-         $('#category_id').val(data.id);
-         $('#category_name').val(data.name);
-         $('#category_is_active').prop('checked', !!data.is_active);
-         $('#modalCategoryTitle').text('Edit Kategori Mitra');
-         new bootstrap.Modal($('#modalCategory')).show();
+         try {
+            const {
+               data
+            } = await fetchWithRetry(`{{ url('master/mitra-category') }}/${id}`);
+            $('#category_id').val(data.id);
+            $('#category_name').val(data.name);
+            $('#category_is_active').prop('checked', !!data.is_active);
+            $('#modalCategoryTitle').text('Edit Kategori Mitra');
+            new bootstrap.Modal($('#modalCategory')).show();
+         } catch (err) {
+            window.AlertHandler.showError('Gagal memuat kategori.');
+         }
       }
 
       window.saveMitra = function(e) {
@@ -747,55 +786,103 @@
       function submitForm(id, route, formData, modalSelector, tableSelector) {
          const url = id ? `{{ url('master') }}/${route}/${id}` : `{{ url('master') }}/${route}`;
          if (id) formData.append('_method', 'PUT');
-
          fetch(url, {
-               method: 'POST',
-               body: formData,
+            method: 'POST',
+            body: formData,
+            headers: {
+               'X-CSRF-TOKEN': '{{ csrf_token() }}',
+               'Accept': 'application/json'
+            }
+         }).then(async r => {
+            const data = await r.json();
+            window.AlertHandler.handle(data);
+            if (data.success) {
+               $(modalSelector).modal('hide');
+               $(tableSelector).DataTable().ajax.reload();
+            }
+         });
+      }
+
+      window.deleteRecord = function(route, id, name) {
+         window.AlertHandler.confirm('Hapus Data?', `Hapus "${name}"?`, 'Ya, Hapus!', () => {
+            fetch(`{{ url('master') }}/${route}/${id}`, {
+               method: 'DELETE',
                headers: {
                   'X-CSRF-TOKEN': '{{ csrf_token() }}',
                   'Accept': 'application/json'
                }
-            })
-            .then(async r => {
-               const data = await r.json();
-               if (!r.ok) {
-                  window.AlertHandler.handle(data);
-                  return;
-               }
-               if (data.success) {
-                  window.AlertHandler.handle(data);
-                  $(modalSelector).modal('hide');
-                  $(tableSelector).DataTable().ajax.reload();
-               }
-            })
-            .catch(err => {
-               console.error(err);
-               window.AlertHandler.showError('Terjadi kesalahan sistem');
+            }).then(r => r.json()).then(data => {
+               window.AlertHandler.handle(data);
+               if (data.success) $(`#table-${route == 'mitra' ? 'mitra' : 'categories'}`).DataTable().ajax
+                  .reload();
             });
+         });
       }
 
-      window.deleteRecord = function(route, id, name) {
-         window.AlertHandler.confirm(
-            'Hapus Data?',
-            `Apakah Anda yakin ingin menghapus "${name}"?`,
-            'Ya, Hapus!',
-            () => {
-               fetch(`{{ url('master') }}/${route}/${id}`, {
-                     method: 'DELETE',
-                     headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json'
-                     }
-                  })
-                  .then(r => r.json())
-                  .then(data => {
-                     window.AlertHandler.handle(data);
-                     if (data.success) {
-                        $(`#table-${route == 'mitra' ? 'mitra' : 'categories'}`).DataTable().ajax.reload();
-                     }
-                  });
+      window.importMitra = function(e) {
+         e.preventDefault();
+         const btn = $('#btn-submit-import');
+         const originalText = btn.html();
+         
+         btn.html('<i class="ri-loader-4-line ri-spin me-1"></i> Memproses...').prop('disabled', true);
+         
+         const formData = new FormData($('#formImportMitra')[0]);
+         
+         fetch("{{ route('mitra.import') }}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+               'X-CSRF-TOKEN': '{{ csrf_token() }}',
+               'Accept': 'application/json'
             }
-         );
+         }).then(async r => {
+            const data = await r.json();
+            btn.html(originalText).prop('disabled', false);
+            
+            window.AlertHandler.handle(data);
+            if (data.success) {
+               $('#modalImportMitra').modal('hide');
+               $('#table-mitra').DataTable().ajax.reload();
+               $('#formImportMitra')[0].reset();
+            }
+         }).catch(err => {
+            btn.html(originalText).prop('disabled', false);
+            window.AlertHandler.showError('Terjadi kesalahan jaringan.');
+         });
       }
+
+      window.importMitra = function(e) {
+         e.preventDefault();
+         const btn = $('#btn-submit-import');
+         const originalText = btn.html();
+         
+         btn.html('<i class="ri-loader-4-line ri-spin me-1"></i> Memproses...').prop('disabled', true);
+         
+         const formData = new FormData($('#formImportMitra')[0]);
+         
+         fetch("{{ route('mitra.import') }}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+               'X-CSRF-TOKEN': '{{ csrf_token() }}',
+               'Accept': 'application/json'
+            }
+         }).then(async r => {
+            const data = await r.json();
+            btn.html(originalText).prop('disabled', false);
+            
+            window.AlertHandler.handle(data);
+            if (data.success) {
+               $('#modalImportMitra').modal('hide');
+               $('#table-mitra').DataTable().ajax.reload();
+               $('#formImportMitra')[0].reset();
+            }
+         }).catch(err => {
+            btn.html(originalText).prop('disabled', false);
+            window.AlertHandler.showError('Terjadi kesalahan jaringan.');
+         });
+      }
+
+      $('button[data-bs-target="#navs-wilayah"]').on('shown.bs.tab', () => window.loadSyncStatus());
    </script>
 @endsection

@@ -33,7 +33,7 @@ Route::middleware('guest')->group(function () {
 });
 Route::post('logout', [AuthController::class, 'logout'])->name('logout');
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'check.pegawai.status'])->group(function () {
     // Dashboard as home page
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
@@ -84,6 +84,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('api/product-sub-categories/by-category/{categoryId}', [\App\Http\Controllers\ProductSubCategoryController::class, 'getByCategory']);
 
         // Mitra Management
+        Route::get('mitra/template', [\App\Http\Controllers\MitraController::class, 'downloadTemplate'])->name('mitra.template');
+        Route::post('mitra/import', [\App\Http\Controllers\MitraController::class, 'import'])->name('mitra.import');
         Route::resource('mitra-category', \App\Http\Controllers\MitraCategoryController::class);
         Route::resource('mitra', \App\Http\Controllers\MitraController::class);
 

@@ -43,9 +43,14 @@
             <div class="tab-pane fade show active" id="navs-mitra" role="tabpanel">
                <div class="d-flex justify-content-between align-items-center mb-4">
                   <h5 class="mb-0">Daftar Mitra (Supplier, Reseller, Customer)</h5>
-                  <button class="btn btn-primary" onclick="window.openMitraModal()">
-                     <i class="ri-user-add-line me-1"></i> Tambah Mitra
-                  </button>
+                  <div class="d-flex gap-2">
+                     <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalImportMitra">
+                        <i class="ri-upload-2-line me-1"></i> Import Excel
+                     </button>
+                     <button class="btn btn-primary" onclick="window.openMitraModal()">
+                        <i class="ri-user-add-line me-1"></i> Tambah Mitra
+                     </button>
+                  </div>
                </div>
                <div class="card-datatable table-responsive">
                   <table class="table table-hover" id="table-mitra">
@@ -255,6 +260,50 @@
                <div class="modal-footer">
                   <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
                   <button type="submit" class="btn btn-primary">Simpan</button>
+               </div>
+            </form>
+         </div>
+      </div>
+   </div>
+   <!-- Modal Import -->
+   <div class="modal fade" id="modalImportMitra" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+         <div class="modal-content">
+            <div class="modal-header border-bottom">
+               <h5 class="modal-title">Import Data Mitra</h5>
+               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formImportMitra" onsubmit="window.importMitra(event)">
+               @csrf
+               <div class="modal-body">
+                  <div class="alert alert-primary mb-4" role="alert">
+                     <h6 class="alert-heading mb-1 d-flex align-items-center">
+                        <i class="ri-information-line me-2"></i> Panduan Pengisian Excel
+                     </h6>
+                     <ul class="mb-0 small ps-3">
+                        <li>Gunakan file template resmi yang tersedia di bawah ini.</li>
+                        <li><strong>Kode Mitra</strong>: Boleh dikosongkan (sistem akan generate otomatis).</li>
+                        <li><strong>Nama Mitra</strong>: Wajib diisi (format akan otomatis menjadi Capitalize).</li>
+                        <li><strong>Kategori</strong>: Jika belum ada di sistem, kategori baru akan otomatis dibuat.</li>
+                        <li><strong>Standardisasi</strong>: Semua teks (Nama, PIC, Alamat) otomatis diseragamkan formatnya.</li>
+                        <li><strong>Data Wilayah</strong>: Biarkan kosong untuk proses import ini.</li>
+                     </ul>
+                  </div>
+
+                  <div class="mb-4">
+                     <label class="form-label fw-semibold">Pilih File Excel (.xlsx, .xls)</label>
+                     <input type="file" name="file" class="form-control" accept=".xlsx, .xls" required>
+                  </div>
+                  
+                  <div class="d-grid mb-2">
+                     <a href="{{ route('mitra.template') }}" class="btn btn-sm btn-label-secondary">
+                        <i class="ri-download-line me-1"></i> Download Template Excel
+                     </a>
+                  </div>
+               </div>
+               <div class="modal-footer border-top">
+                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                  <button type="submit" class="btn btn-primary" id="btn-submit-import">Mulai Import</button>
                </div>
             </form>
          </div>
@@ -767,6 +816,70 @@
                if (data.success) $(`#table-${route == 'mitra' ? 'mitra' : 'categories'}`).DataTable().ajax
                   .reload();
             });
+         });
+      }
+
+      window.importMitra = function(e) {
+         e.preventDefault();
+         const btn = $('#btn-submit-import');
+         const originalText = btn.html();
+         
+         btn.html('<i class="ri-loader-4-line ri-spin me-1"></i> Memproses...').prop('disabled', true);
+         
+         const formData = new FormData($('#formImportMitra')[0]);
+         
+         fetch("{{ route('mitra.import') }}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+               'X-CSRF-TOKEN': '{{ csrf_token() }}',
+               'Accept': 'application/json'
+            }
+         }).then(async r => {
+            const data = await r.json();
+            btn.html(originalText).prop('disabled', false);
+            
+            window.AlertHandler.handle(data);
+            if (data.success) {
+               $('#modalImportMitra').modal('hide');
+               $('#table-mitra').DataTable().ajax.reload();
+               $('#formImportMitra')[0].reset();
+            }
+         }).catch(err => {
+            btn.html(originalText).prop('disabled', false);
+            window.AlertHandler.showError('Terjadi kesalahan jaringan.');
+         });
+      }
+
+      window.importMitra = function(e) {
+         e.preventDefault();
+         const btn = $('#btn-submit-import');
+         const originalText = btn.html();
+         
+         btn.html('<i class="ri-loader-4-line ri-spin me-1"></i> Memproses...').prop('disabled', true);
+         
+         const formData = new FormData($('#formImportMitra')[0]);
+         
+         fetch("{{ route('mitra.import') }}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+               'X-CSRF-TOKEN': '{{ csrf_token() }}',
+               'Accept': 'application/json'
+            }
+         }).then(async r => {
+            const data = await r.json();
+            btn.html(originalText).prop('disabled', false);
+            
+            window.AlertHandler.handle(data);
+            if (data.success) {
+               $('#modalImportMitra').modal('hide');
+               $('#table-mitra').DataTable().ajax.reload();
+               $('#formImportMitra')[0].reset();
+            }
+         }).catch(err => {
+            btn.html(originalText).prop('disabled', false);
+            window.AlertHandler.showError('Terjadi kesalahan jaringan.');
          });
       }
 

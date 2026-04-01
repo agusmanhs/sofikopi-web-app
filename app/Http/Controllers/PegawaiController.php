@@ -46,7 +46,9 @@ class PegawaiController extends Controller
     public function store(PegawaiRequest $request)
     {
         $data = $request->validated();
-        $data['status_aktif'] = $request->boolean('status_aktif', true);
+        
+        // Handle boolean switch correctly. If unchecked, it will be false.
+        $data['status_aktif'] = $request->boolean('status_aktif');
 
         // Upload foto jika ada
         if ($request->hasFile('foto')) {
@@ -94,7 +96,9 @@ class PegawaiController extends Controller
     public function update(PegawaiRequest $request, $id)
     {
         $data = $request->validated();
-        $data['status_aktif'] = $request->boolean('status_aktif', true);
+        
+        // Handle boolean switch correctly. If unchecked, it will be false.
+        $data['status_aktif'] = $request->boolean('status_aktif');
 
         // Upload foto jika ada
         if ($request->hasFile('foto')) {

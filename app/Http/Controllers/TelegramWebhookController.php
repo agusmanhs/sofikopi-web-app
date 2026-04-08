@@ -6,6 +6,7 @@ use App\Models\Absensi;
 use App\Models\Izin;
 use App\Models\Pegawai;
 use App\Services\TelegramService;
+use App\Services\AbsensiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -13,10 +14,12 @@ use Carbon\Carbon;
 class TelegramWebhookController extends Controller
 {
     protected TelegramService $telegram;
+    protected AbsensiService $absensiService;
 
-    public function __construct(TelegramService $telegram)
+    public function __construct(TelegramService $telegram, AbsensiService $absensiService)
     {
         $this->telegram = $telegram;
+        $this->absensiService = $absensiService;
     }
 
     /**
@@ -105,6 +108,26 @@ class TelegramWebhookController extends Controller
     }
 
     /**
+     * Send summary of today's attendance
+     */
+    protected function sendSummary($chatId)
+    {
+        $stats = $this->absensiService->getStatistik(today()->toDateString());
+        
+        $msg = "<b>📊 RINGKASAN ABSENSI HARI INI</b>\n";
+        $msg .= "----------------------------\n";
+        $msg .= "📅 Tanggal: " . today()->format('d/m/Y') . "\n\n";
+        $msg .= "👥 Total Pegawai: <b>" . $stats['total_pegawai'] . "</b>\n";
+        $msg .= "✅ Sudah Masuk: <b>" . $stats['sudah_absen'] . "</b>\n";
+        $msg .= "⏳ Belum Masuk: <b>" . $stats['belum_absen'] . "</b>\n";
+        $msg .= "📝 Izin/Sakit: <b>" . $stats['izin'] . "</b>\n";
+        $msg .= "----------------------------\n";
+        $msg .= "⏰ <i>Terlambat: " . $stats['terlambat'] . "</i>";
+
+        $this->telegram->sendMessage($msg, 'HTML', $chatId);
+    }
+
+    /**
      * Send list of late employees today
      */
     protected function sendTerlambat($chatId)
@@ -176,7 +199,7 @@ class TelegramWebhookController extends Controller
         
         $excludeIds = array_merge($sudahMasukIds, $izinIds);
         
-        $belumAbsens = Pegawai::whereNotIn('id', $excludeIds)->get();
+        $belumAbsens = Pegawai::aktif()->whereNotIn('id', $excludeIds)->get();
 
         if ($belumAbsens->isEmpty()) {
             $this->telegram->sendMessage("Luar biasa! Semua pegawai sudah absen atau izin.", 'HTML', $chatId);

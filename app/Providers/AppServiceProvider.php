@@ -6,6 +6,7 @@ use App\Helpers\ViewConfigHelper;
 use App\Interfaces\Repositories\UserRepositoryInterface;
 use App\Repositories\UserRepository;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\Paginator;
 
@@ -98,6 +99,9 @@ class AppServiceProvider extends ServiceProvider
             }
         });
 
+        // Register Backup Notification Subscriber
+        // Event::subscribe(\App\Listeners\BackupNotificationListener::class);
+
         \Illuminate\Support\Facades\Gate::define('access', function ($user, $slug, $action) {
             return $user->hasPermission($slug, $action);
         });
@@ -161,5 +165,23 @@ class AppServiceProvider extends ServiceProvider
                 'documentation' => 'https://demos.pixinvent.com/materialize-html-admin-template/documentation/',
             ],
         ]);
+
+        // Register Google Drive Storage Driver
+        try {
+            \Illuminate\Support\Facades\Storage::extend('google', function ($app, $config) {
+                $client = new \Google\Client();
+                $client->setClientId($config['clientId']);
+                $client->setClientSecret($config['clientSecret']);
+                $client->refreshToken($config['refreshToken']);
+                
+                $service = new \Google\Service\Drive($client);
+                $adapter = new \Masbug\Flysystem\GoogleDriveAdapter($service, $config['folderId'] ?? '/', []);
+                $driver = new \League\Flysystem\Filesystem($adapter);
+
+                return new \Illuminate\Filesystem\FilesystemAdapter($driver, $adapter);
+            });
+        } catch (\Exception $e) {
+            // Silently fail if dependencies are missing
+        }
     }
 }

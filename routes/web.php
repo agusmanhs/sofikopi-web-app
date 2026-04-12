@@ -144,6 +144,14 @@ Route::middleware(['auth', 'check.pegawai.status'])->group(function () {
     Route::resource('informasi', \App\Http\Controllers\InformasiController::class)
         ->middleware('check.permission:informasi');
 
+    // ============== BACKUP ==============
+    Route::prefix('backup')->name('backup.')->middleware('check.permission:backup')->group(function () {
+        Route::get('/', [\App\Http\Controllers\BackupController::class, 'index'])->name('index');
+        Route::post('/run', [\App\Http\Controllers\BackupController::class, 'store'])->name('run');
+        Route::get('/download', [\App\Http\Controllers\BackupController::class, 'download'])->name('download');
+        Route::delete('/delete', [\App\Http\Controllers\BackupController::class, 'destroy'])->name('delete');
+    });
+
     
 });
 

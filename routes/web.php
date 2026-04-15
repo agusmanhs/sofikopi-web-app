@@ -124,6 +124,7 @@ Route::middleware(['auth', 'check.pegawai.status'])->group(function () {
             Route::get('/pending', [IzinController::class, 'pending'])->name('pending');
             Route::post('/{izin}/approve', [IzinController::class, 'approve'])->name('approve');
             Route::post('/{izin}/reject', [IzinController::class, 'reject'])->name('reject');
+            Route::delete('/{izin}/cancel', [IzinController::class, 'adminCancel'])->name('cancel');
         });
 
         // Route untuk pegawai

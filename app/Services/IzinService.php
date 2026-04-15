@@ -257,6 +257,31 @@ class IzinService extends BaseService
         return $this->delete($izinId);
     }
 
+    /**
+     * Cancel izin oleh admin (bisa untuk izin status apapun, dan menghapus absensi jika sudah approved)
+     */
+    public function adminCancelIzin($izinId)
+    {
+        return DB::transaction(function () use ($izinId) {
+            $izin = $this->find($izinId);
+
+            // Jika status sudah Approved, hapus record absensi yang terkait
+            if ($izin->status_approval === Izin::STATUS_APPROVED) {
+                Absensi::where('pegawai_id', $izin->pegawai_id)
+                    ->whereBetween('tanggal', [$izin->tgl_mulai->toDateString(), $izin->tgl_selesai->toDateString()])
+                    ->where(function ($query) use ($izin) {
+                        $query->where('keterangan', 'like', "%Izin: {$izin->jenisIzin->nama}%")
+                              ->orWhere('status', 'Izin')
+                              ->orWhere('status', 'Sakit')
+                              ->orWhere('status', 'Cuti');
+                    })
+                    ->delete();
+            }
+
+            return $this->delete($izinId);
+        });
+    }
+
     public function getStatistik()
     {
         return $this->repository->getStatistik();

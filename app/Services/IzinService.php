@@ -246,11 +246,12 @@ class IzinService extends BaseService
     {
         $izin = $this->find($izinId);
 
-        if ($izin->pegawai_id !== $pegawaiId) {
+        // Gunakan != agar aman jika ada perbedaan tipe data string/int dari database
+        if ($izin->pegawai_id != $pegawaiId) {
             throw new \Exception('Anda tidak berhak membatalkan izin ini.');
         }
 
-        if ($izin->status_approval !== Izin::STATUS_PENDING) {
+        if ($izin->status_approval != Izin::STATUS_PENDING) {
             throw new \Exception('Hanya izin dengan status Pending yang bisa dibatalkan.');
         }
 

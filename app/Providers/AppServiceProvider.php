@@ -100,7 +100,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         // Register Backup Notification Subscriber
-        // Event::subscribe(\App\Listeners\BackupNotificationListener::class);
+        Event::subscribe(\App\Listeners\BackupNotificationListener::class);
 
         \Illuminate\Support\Facades\Gate::define('access', function ($user, $slug, $action) {
             return $user->hasPermission($slug, $action);

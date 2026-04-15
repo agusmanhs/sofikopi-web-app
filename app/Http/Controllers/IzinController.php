@@ -191,4 +191,27 @@ class IzinController extends Controller
             return back()->with('error', $e->getMessage());
         }
     }
+
+    /**
+     * Admin cancel izin
+     */
+    public function adminCancel($id)
+    {
+        try {
+            $this->service->adminCancelIzin($id);
+
+            if (request()->wantsJson()) {
+                return ResponseHelper::success(null, 'Pengajuan izin berhasil dibatalkan oleh Admin!');
+            }
+
+            return redirect()->route('izin.admin.index')
+                ->with('success', 'Pengajuan izin berhasil dibatalkan oleh Admin!');
+
+        } catch (\Exception $e) {
+            if (request()->wantsJson()) {
+                return ResponseHelper::error($e->getMessage(), 400);
+            }
+            return back()->with('error', $e->getMessage());
+        }
+    }
 }

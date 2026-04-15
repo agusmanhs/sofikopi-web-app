@@ -164,6 +164,10 @@
                                     <i class="ri-close-line"></i>
                                  </button>
                               @endif
+                              <button type="button" class="btn btn-sm btn-outline-danger btn-admin-cancel"
+                                 data-id="{{ $izin->id }}" data-name="{{ $izin->pegawai->nama_lengkap }}" title="Batalkan/Hapus">
+                                 <i class="ri-delete-bin-line"></i>
+                              </button>
                            </div>
                         </td>
                      </tr>
@@ -303,6 +307,40 @@
                      setTimeout(() => window.location.reload(), 1500);
                   }
                });
+         });
+
+         // Admin Cancel
+         document.querySelectorAll('.btn-admin-cancel').forEach(btn => {
+            btn.addEventListener('click', function() {
+               const id = this.dataset.id;
+               const name = this.dataset.name;
+
+               window.AlertHandler.confirm(
+                  'Batalkan/Hapus Izin?',
+                  `Apakah Anda yakin ingin membatalkan/menghapus pengajuan izin dari "${name}"? Tindakan ini tidak dapat dibatalkan.`,
+                  'Ya, Batalkan',
+                  function() {
+                     fetch(`{{ url('izin/admin') }}/${id}/cancel`, {
+                           method: 'DELETE',
+                           headers: {
+                              'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                              'Accept': 'application/json'
+                           }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                           window.AlertHandler.handle(data);
+                           if (data.success) {
+                              setTimeout(() => window.location.reload(), 1500);
+                           }
+                        })
+                        .catch(err => {
+                           console.error(err);
+                           window.AlertHandler.showError('Terjadi kesalahan');
+                        });
+                  }
+               );
+            });
          });
       });
    </script>

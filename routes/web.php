@@ -135,6 +135,27 @@ Route::middleware(['auth', 'check.pegawai.status'])->group(function () {
         Route::delete('/{izin}/cancel', [IzinController::class, 'cancel'])->name('cancel');
     });
 
+    // ============== AKTIVITAS ==============
+    Route::prefix('aktivitas')->name('aktivitas.')->group(function () {
+        // Kunjungan (QC Visit)
+        Route::prefix('kunjungan')->name('kunjungan.')->group(function () {
+            // Admin melihat semua kunjungan
+            Route::prefix('admin')->name('admin.')->middleware('check.permission:kunjungan.admin')->group(function () {
+                Route::get('/', [\App\Http\Controllers\KunjunganController::class, 'adminIndex'])->name('index');
+                Route::get('/{kunjungan}', [\App\Http\Controllers\KunjunganController::class, 'adminShow'])->name('show');
+                Route::delete('/{kunjungan}', [\App\Http\Controllers\KunjunganController::class, 'adminDestroy'])->name('destroy');
+            });
+
+            // Form kunjungan baru (Menu: Kunjungan → /aktivitas/kunjungan)
+            Route::get('/', [\App\Http\Controllers\KunjunganController::class, 'create'])->name('create');
+            Route::post('/', [\App\Http\Controllers\KunjunganController::class, 'store'])->name('store');
+            Route::get('/{kunjungan}', [\App\Http\Controllers\KunjunganController::class, 'show'])->name('show');
+        });
+
+        // Riwayat Kunjungan (Menu: Riwayat Kunjungan → /aktivitas/riwayat)
+        Route::get('/riwayat', [\App\Http\Controllers\KunjunganController::class, 'index'])->name('riwayat.index');
+    });
+
     // ============== PROFILE ==============
     Route::get('profile', [\App\Http\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
     Route::put('profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');

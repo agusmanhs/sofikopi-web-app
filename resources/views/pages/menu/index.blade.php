@@ -11,6 +11,13 @@
   </div>
   @endif
 
+  @if(session('error'))
+  <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    {{ session('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  @endif
+
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="fw-bold mb-0">
       <span class="text-muted fw-light">Manajemen /</span> Menu
@@ -48,7 +55,13 @@
                 </span>
               </td>
               <td>
-                <a href="{{ route('menu.edit', $menu->id) }}" class="btn btn-sm btn-outline-primary"><i class="ri-pencil-line"></i></a>
+                <div class="d-flex gap-1">
+                  <a href="{{ route('menu.edit', $menu->id) }}" class="btn btn-sm btn-outline-primary" title="Edit"><i class="ri-pencil-line"></i></a>
+                  <button type="button" class="btn btn-sm btn-outline-danger" title="Hapus"
+                    onclick="confirmDeleteMenu({{ $menu->id }}, '{{ addslashes($menu->name) }}', {{ $menu->children->count() }})">
+                    <i class="ri-delete-bin-line"></i>
+                  </button>
+                </div>
               </td>
             </tr>
             @foreach($menu->children as $child)
@@ -64,7 +77,13 @@
                   </span>
                 </td>
                 <td>
-                  <a href="{{ route('menu.edit', $child->id) }}" class="btn btn-sm btn-outline-primary"><i class="ri-pencil-line"></i></a>
+                  <div class="d-flex gap-1">
+                    <a href="{{ route('menu.edit', $child->id) }}" class="btn btn-sm btn-outline-primary" title="Edit"><i class="ri-pencil-line"></i></a>
+                    <button type="button" class="btn btn-sm btn-outline-danger" title="Hapus"
+                      onclick="confirmDeleteMenu({{ $child->id }}, '{{ addslashes($child->name) }}', 0)">
+                      <i class="ri-delete-bin-line"></i>
+                    </button>
+                  </div>
                 </td>
               </tr>
             @endforeach
@@ -74,4 +93,94 @@
     </div>
   </div>
 </div>
+@endsection
+
+@section('page-script')
+<script type="module">
+  /**
+   * Strict delete confirmation:
+   * - Jika menu punya children, langsung tolak (info saja)
+   * - Jika tidak, muncul SweetAlert dengan input ketik nama menu untuk konfirmasi
+   */
+  window.confirmDeleteMenu = function(menuId, menuName, childCount) {
+    // Lapis 1: Cek children
+    if (childCount > 0) {
+      window.AlertHandler.swal.fire({
+        icon: 'error',
+        title: 'Tidak Bisa Dihapus',
+        html: `Menu <strong>"${menuName}"</strong> memiliki <strong>${childCount} sub-menu</strong>.<br>Hapus semua sub-menu terlebih dahulu.`,
+        customClass: {
+          confirmButton: 'btn btn-primary',
+        },
+        buttonsStyling: false,
+      });
+      return;
+    }
+
+    // Lapis 2: Type-to-confirm
+    window.AlertHandler.swal.fire({
+      icon: 'warning',
+      title: 'Hapus Menu?',
+      html: `
+        <div class="text-start">
+          <p>Menu <strong>"${menuName}"</strong> akan dihapus <strong>permanen</strong>.</p>
+          <p class="text-danger mb-2"><small><i class="ri-error-warning-line me-1"></i>Aksi ini TIDAK BISA dibatalkan. Semua permission terkait menu ini juga akan dihapus.</small></p>
+          <hr>
+          <label class="form-label">Ketik <strong>"${menuName}"</strong> untuk konfirmasi:</label>
+          <input type="text" id="confirmMenuName" class="form-control" placeholder="Ketik nama menu..." autocomplete="off">
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: '<i class="ri-delete-bin-line me-1"></i> Hapus Permanen',
+      cancelButtonText: 'Batal',
+      customClass: {
+        confirmButton: 'btn btn-danger me-3',
+        cancelButton: 'btn btn-label-secondary',
+      },
+      buttonsStyling: false,
+      preConfirm: () => {
+        const inputVal = document.getElementById('confirmMenuName').value.trim();
+        if (inputVal !== menuName) {
+          window.AlertHandler.swal.showValidationMessage('Nama menu tidak cocok! Ketik ulang dengan benar.');
+          return false;
+        }
+        return true;
+      },
+      didOpen: () => {
+        // Disable confirm button until user types
+        const confirmBtn = window.AlertHandler.swal.getConfirmButton();
+        confirmBtn.disabled = true;
+
+        const input = document.getElementById('confirmMenuName');
+        input.addEventListener('input', function() {
+          confirmBtn.disabled = this.value.trim() !== menuName;
+        });
+
+        input.focus();
+      }
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // Execute delete via AJAX
+        fetch(`{{ url('menu') }}/${menuId}`, {
+          method: 'DELETE',
+          headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json'
+          }
+        })
+        .then(r => r.json())
+        .then(data => {
+          window.AlertHandler.handle(data);
+          if (data.success) {
+            setTimeout(() => location.reload(), 1500);
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          window.AlertHandler.showError('Terjadi kesalahan sistem');
+        });
+      }
+    });
+  }
+</script>
 @endsection

@@ -11,9 +11,9 @@ class KunjunganService extends BaseService
     protected TelegramService $telegramService;
 
     /**
-     * Chat ID khusus untuk notifikasi kunjungan (hardcoded seperti backup)
+     * Chat ID khusus untuk notifikasi kunjungan
      */
-    protected string $kunjunganChatId = '-5232586927';
+    protected string $kunjunganChatId;
 
     public function __construct(
         KunjunganRepository $repository,

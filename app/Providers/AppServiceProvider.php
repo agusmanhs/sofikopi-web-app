@@ -83,6 +83,12 @@ class AppServiceProvider extends ServiceProvider
             \App\Interfaces\Repositories\MitraRepositoryInterface::class,
             \App\Repositories\MitraRepository::class
         );
+
+        // Kunjungan Module Repository
+        $this->app->bind(
+            \App\Interfaces\Repositories\KunjunganRepositoryInterface::class,
+            \App\Repositories\KunjunganRepository::class
+        );
     }
 
     /**

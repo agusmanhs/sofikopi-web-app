@@ -102,19 +102,29 @@
                            </tr>
                         @endif
                      </table>
-                  @elseif(auth()->user()->role &&
-                          (auth()->user()->role->slug === 'super-admin' || auth()->user()->hasPermission('izin.admin', 'update')))
+                  @elseif ($data->status_approval === 'Pending')
                      <hr>
-                     <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-success flex-grow-1 btn-approve"
-                           data-id="{{ $data->id }}" data-name="{{ $data->pegawai->nama_lengkap }}">
-                           <i class="ri-check-line me-1"></i>Setujui Izin
-                        </button>
-                        <button type="button" class="btn btn-outline-danger flex-grow-1 btn-reject"
-                           data-id="{{ $data->id }}" data-name="{{ $data->pegawai->nama_lengkap }}">
-                           <i class="ri-close-line me-1"></i>Tolak Izin
-                        </button>
-                     </div>
+                     @if (auth()->user()->role && (auth()->user()->role->slug === 'super-admin' || auth()->user()->hasPermission('izin.admin', 'update')))
+                        <div class="d-flex gap-2">
+                           <button type="button" class="btn btn-success flex-grow-1 btn-approve"
+                              data-id="{{ $data->id }}" data-name="{{ $data->pegawai->nama_lengkap }}">
+                              <i class="ri-check-line me-1"></i>Setujui Izin
+                           </button>
+                           <button type="button" class="btn btn-outline-danger flex-grow-1 btn-reject"
+                              data-id="{{ $data->id }}" data-name="{{ $data->pegawai->nama_lengkap }}">
+                              <i class="ri-close-line me-1"></i>Tolak Izin
+                           </button>
+                        </div>
+                     @endif
+
+                     @if ($data->pegawai_id == (auth()->user()->pegawai->id ?? null))
+                        <div class="d-grid mt-2">
+                           <button type="button" class="btn btn-outline-danger btn-cancel-user"
+                              data-id="{{ $data->id }}" data-name="{{ $data->jenisIzin->nama }}">
+                              <i class="ri-close-line me-1"></i>Batalkan Pengajuan Izin
+                           </button>
+                        </div>
+                     @endif
                   @endif
                </div>
             </div>
@@ -227,6 +237,42 @@
                      setTimeout(() => window.location.reload(), 1500);
                   }
                });
+         });
+
+         // User Cancel
+         document.querySelectorAll('.btn-cancel-user').forEach(btn => {
+            btn.addEventListener('click', function() {
+               const id = this.dataset.id;
+               const name = this.dataset.name;
+
+               window.AlertHandler.confirm(
+                  'Batalkan Izin?',
+                  `Apakah Anda yakin ingin membatalkan pengajuan izin "${name}"?`,
+                  'Ya, Batalkan',
+                  function() {
+                     fetch(`{{ url('izin') }}/${id}/cancel`, {
+                           method: 'DELETE',
+                           headers: {
+                              'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                              'Accept': 'application/json'
+                           }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                           window.AlertHandler.handle(data);
+                           if (data.success) {
+                              setTimeout(() => {
+                                 window.location.href = "{{ route('izin.index') }}";
+                              }, 1500);
+                           }
+                        })
+                        .catch(err => {
+                           console.error(err);
+                           window.AlertHandler.showError('Terjadi kesalahan');
+                        });
+                  }
+               );
+            });
          });
       });
    </script>

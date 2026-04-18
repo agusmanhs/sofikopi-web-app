@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\ResponseHelper;
 use App\Services\MenuService;
 use App\Http\Requests\MenuRequest;
 use Illuminate\Http\Request;
@@ -51,7 +52,35 @@ class MenuController extends Controller
 
     public function destroy($id)
     {
-        $this->service->delete($id);
-        return redirect()->route('menu.index')->with('success', 'Menu berhasil dihapus');
+        try {
+            $menu = $this->service->find($id);
+
+            // Cek apakah menu punya children
+            if ($menu->children()->count() > 0) {
+                $message = 'Menu dengan sub-menu tidak bisa dihapus. Hapus sub-menu terlebih dahulu.';
+                if (request()->wantsJson()) {
+                    return ResponseHelper::error($message, 400);
+                }
+                return back()->with('error', $message);
+            }
+
+            // Detach semua permissions sebelum hapus
+            if ($menu->roles()->count() > 0) {
+                $menu->roles()->detach();
+            }
+
+            $this->service->delete($id);
+
+            if (request()->wantsJson()) {
+                return ResponseHelper::success(null, 'Menu berhasil dihapus');
+            }
+
+            return redirect()->route('menu.index')->with('success', 'Menu berhasil dihapus');
+        } catch (\Exception $e) {
+            if (request()->wantsJson()) {
+                return ResponseHelper::error($e->getMessage(), 400);
+            }
+            return back()->with('error', $e->getMessage());
+        }
     }
 }

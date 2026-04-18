@@ -121,37 +121,36 @@
             $('div.head-label').html('<h5 class="card-title mb-0">Riwayat Izin Saya</h5>');
          }
 
-         document.querySelectorAll('.btn-cancel').forEach(btn => {
-            btn.addEventListener('click', function() {
-               const id = this.dataset.id;
-               const name = this.dataset.name;
+         // Event Delegation untuk tombol Cancel (Mendukung pencarian & responsive mobile)
+         $(document).on('click', '.btn-cancel', function() {
+            const id = $(this).data('id');
+            const name = $(this).data('name');
 
-               window.AlertHandler.confirm(
-                  'Batalkan Izin?',
-                  `Apakah Anda yakin ingin membatalkan pengajuan izin "${name}"?`,
-                  'Ya, Batalkan',
-                  function() {
-                     fetch(`{{ url('izin') }}/${id}/cancel`, {
-                           method: 'DELETE',
-                           headers: {
-                              'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                              'Accept': 'application/json'
-                           }
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                           window.AlertHandler.handle(data);
-                           if (data.success) {
-                              setTimeout(() => window.location.reload(), 1500);
-                           }
-                        })
-                        .catch(err => {
-                           console.error(err);
-                           window.AlertHandler.showError('Terjadi kesalahan');
-                        });
-                  }
-               );
-            });
+            window.AlertHandler.confirm(
+               'Batalkan Izin?',
+               `Apakah Anda yakin ingin membatalkan pengajuan izin "${name}"?`,
+               'Ya, Batalkan',
+               function() {
+                  fetch(`{{ url('izin') }}/${id}/cancel`, {
+                        method: 'DELETE',
+                        headers: {
+                           'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                           'Accept': 'application/json'
+                        }
+                     })
+                     .then(response => response.json())
+                     .then(data => {
+                        window.AlertHandler.handle(data);
+                        if (data.success) {
+                           setTimeout(() => window.location.reload(), 1500);
+                        }
+                     })
+                     .catch(err => {
+                        console.error(err);
+                        window.AlertHandler.showError('Terjadi kesalahan');
+                     });
+               }
+            );
          });
       });
    </script>

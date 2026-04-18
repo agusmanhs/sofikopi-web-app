@@ -67,7 +67,7 @@ class MitraController extends Controller
                 }
             }
 
-            $data['is_active'] = $request->boolean('is_active', true);
+            $data['is_active'] = $request->boolean('is_active');
             $result = $this->service->create($data);
             return ResponseHelper::success($result, 'Mitra berhasil ditambahkan');
         });
@@ -92,7 +92,7 @@ class MitraController extends Controller
                 }
             }
 
-            $data['is_active'] = $request->boolean('is_active', true);
+            $data['is_active'] = $request->boolean('is_active');
             $result = $this->service->update($id, $data);
             return ResponseHelper::success($result, 'Mitra berhasil diperbarui');
         });

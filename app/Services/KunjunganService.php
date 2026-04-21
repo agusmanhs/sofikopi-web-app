@@ -148,31 +148,41 @@ class KunjunganService extends BaseService
         }
 
         // Build message
-        $message = "<b>📋 LAPORAN KUNJUNGAN QC</b>\n\n";
-        $message .= "<b>Tanggal:</b> " . $kunjungan->tanggal_kunjungan->format('d M Y') . "\n";
-        $message .= "<b>Petugas:</b> {$pegawaiName}\n";
-        $message .= "<b>Outlet:</b> " . ($kunjungan->mitra->name ?? '-') . "\n";
+        $vType = $kunjungan->visit_type == 'routine' ? 'Kunjungan Rutin' : 'By Request';
+        
+        $message = "<b>📋 LAPORAN KUNJUNGAN QC ({$vType})</b>\n";
+        $message .= "━━━━━━━━━━━━━━━━━━━━━\n";
+        $message .= "<b>📅 Tanggal:</b> " . $kunjungan->tanggal_kunjungan->format('d M Y') . "\n";
+        $message .= "<b>👤 Petugas:</b> {$pegawaiName}\n";
+        $message .= "<b>🏪 Outlet:</b> " . ($kunjungan->mitra->name ?? '-') . "\n";
         
         if ($distance !== null) {
-            $message .= "<b>Jarak Absen:</b> " . round($distance * 1000) . " meter\n";
+            $message .= "<b>📍 Jarak dari Lokasi Mitra:</b> " . round($distance * 1000) . " meter\n";
         } else {
-            $message .= "<b>Jarak Absen:</b> (Titik outlet belum diatur)\n";
+            $message .= "<b>📍 Jarak dari Lokasi Mitra:</b> (Titik outlet belum diatur)\n";
         }
 
-        $message .= "<b>Espresso Calibration:</b> {$kunjungan->espresso_calibration}\n";
-        $message .= "<b>Taste Notes:</b> {$kunjungan->taste_notes}\n";
+        $message .= "━━━━━━━━━━━━━━━━━━━━━\n";
+        $message .= "<b>☕ Espresso Calibration:</b>\n<i>{$kunjungan->espresso_calibration}</i>\n\n";
+        $message .= "<b>👅 Taste Notes:</b>\n<i>{$kunjungan->taste_notes}</i>\n\n";
 
         if ($kunjungan->flow_of_customers) {
-            $message .= "<b>Flow of Customers:</b> {$kunjungan->flow_of_customers}\n";
+            $message .= "<b>🌊 Flow of Customers:</b>\n{$kunjungan->flow_of_customers}\n\n";
         }
 
         if ($kunjungan->feedback) {
-            $message .= "<b>Feedback:</b> {$kunjungan->feedback}\n";
+            $message .= "<b>💬 Feedback:</b>\n{$kunjungan->feedback}\n\n";
+        }
+
+        if ($kunjungan->problem) {
+            $message .= "<b>⚠️ Problem:</b>\n<pre>{$kunjungan->problem}</pre>\n\n";
         }
 
         if ($kunjungan->note) {
-            $message .= "<b>Note:</b> {$kunjungan->note}\n";
+            $message .= "<b>📝 Note:</b>\n{$kunjungan->note}\n";
         }
+
+        $message .= "━━━━━━━━━━━━━━━━━━━━━";
 
         // Kirim ke chat ID khusus (hardcoded)
         if ($photoPath && file_exists($photoPath)) {

@@ -9,11 +9,13 @@ class Kunjungan extends Model
     protected $fillable = [
         'user_id',
         'mitra_id',
+        'visit_type',
         'tanggal_kunjungan',
         'espresso_calibration',
         'taste_notes',
         'flow_of_customers',
         'feedback',
+        'problem',
         'note',
         'foto_kunjungan',
     ];

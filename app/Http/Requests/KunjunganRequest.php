@@ -8,11 +8,13 @@ class KunjunganRequest extends BaseRequest
     {
         return [
             'mitra_id' => 'required|exists:mitras,id',
+            'visit_type' => 'required|in:routine,by_request',
             'tanggal_kunjungan' => 'required|date',
             'espresso_calibration' => 'required|string|min:5',
             'taste_notes' => 'required|string|min:5',
             'flow_of_customers' => 'nullable|string',
             'feedback' => 'nullable|string',
+            'problem' => 'nullable|string',
             'note' => 'nullable|string',
             'foto_kunjungan' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
             'user_lat' => 'required|numeric',

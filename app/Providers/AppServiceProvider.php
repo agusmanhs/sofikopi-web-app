@@ -89,6 +89,12 @@ class AppServiceProvider extends ServiceProvider
             \App\Interfaces\Repositories\KunjunganRepositoryInterface::class,
             \App\Repositories\KunjunganRepository::class
         );
+
+        // Produksi Module Repository
+        $this->app->bind(
+            \App\Interfaces\Repositories\ProduksiRepositoryInterface::class,
+            \App\Repositories\ProduksiRepository::class
+        );
     }
 
     /**

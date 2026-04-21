@@ -10,6 +10,38 @@
    @vite(['resources/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js', 'resources/assets/vendor/libs/select2/select2.js'])
 @endsection
 
+@section('page-style')
+   <style>
+      .stat-card {
+         border: none;
+         border-radius: 12px;
+         transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      .stat-card:hover {
+         transform: translateY(-2px);
+         box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+      }
+      /* Fix DataTable search bar alignment on mobile */
+      @media (max-width: 767.98px) {
+         .card-header.flex-column .dt-action-buttons {
+            text-align: start !important;
+         }
+         .card-header.flex-column .head-label {
+            text-align: start !important;
+         }
+         .dataTables_filter {
+            text-align: start !important;
+         }
+         .dataTables_filter label {
+            justify-content: flex-start !important;
+         }
+      }
+      .shadow-2xl {
+         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      }
+   </style>
+@endsection
+
 @section('content')
    <div class="container-xxl flex-grow-1 container-p-y">
       <div class="d-flex justify-content-between align-items-center mb-4">
@@ -26,82 +58,69 @@
       @endif
 
       {{-- Stats Cards --}}
-      <div class="row mb-4">
-         <div class="col-sm-6 col-xl-3">
-            <div class="card">
+      <div class="row g-3 mb-4">
+         <div class="col-6 col-xl-3">
+            <div class="card stat-card h-100">
                <div class="card-body">
-                  <div class="d-flex align-items-start justify-content-between">
-                     <div class="content-left">
-                        <span class="text-heading">Total Kunjungan</span>
-                        <div class="d-flex align-items-center my-1">
-                           <h4 class="mb-0 me-2">{{ $data->count() }}</h4>
-                        </div>
-                        <small class="mb-0">Semua laporan</small>
+                  <div class="d-flex align-items-center justify-content-between">
+                     <div>
+                        <p class="text-muted mb-1 small">Total Kunjungan</p>
+                        <h3 class="mb-0 fw-bold">{{ $data->count() }}</h3>
                      </div>
                      <div class="avatar">
                         <span class="avatar-initial rounded bg-label-primary">
-                           <i class="ri-clipboard-line ri-26px"></i>
+                           <i class="ri-clipboard-line ri-24px"></i>
                         </span>
                      </div>
                   </div>
                </div>
             </div>
          </div>
-         <div class="col-sm-6 col-xl-3">
-            <div class="card">
+         <div class="col-6 col-xl-3">
+            <div class="card stat-card h-100">
                <div class="card-body">
-                  <div class="d-flex align-items-start justify-content-between">
-                     <div class="content-left">
-                        <span class="text-heading">Bulan Ini</span>
-                        <div class="d-flex align-items-center my-1">
-                           <h4 class="mb-0 me-2">
-                              {{ $data->where('tanggal_kunjungan', '>=', now()->startOfMonth())->count() }}</h4>
-                        </div>
-                        <small class="mb-0">{{ now()->format('F Y') }}</small>
+                  <div class="d-flex align-items-center justify-content-between">
+                     <div>
+                        <p class="text-muted mb-1 small">Bulan Ini</p>
+                        <h3 class="mb-0 fw-bold">{{ $data->where('tanggal_kunjungan', '>=', now()->startOfMonth())->count() }}</h3>
                      </div>
                      <div class="avatar">
                         <span class="avatar-initial rounded bg-label-success">
-                           <i class="ri-calendar-check-line ri-26px"></i>
+                           <i class="ri-calendar-check-line ri-24px"></i>
                         </span>
                      </div>
                   </div>
                </div>
             </div>
          </div>
-         <div class="col-sm-6 col-xl-3">
-            <div class="card">
+         <div class="col-6 col-xl-3">
+            <div class="card stat-card h-100">
                <div class="card-body">
-                  <div class="d-flex align-items-start justify-content-between">
-                     <div class="content-left">
-                        <span class="text-heading">Outlet Dikunjungi</span>
-                        <div class="d-flex align-items-center my-1">
-                           <h4 class="mb-0 me-2">{{ $data->pluck('mitra_id')->unique()->count() }}</h4>
-                        </div>
-                        <small class="mb-0">Outlet unik</small>
+                  <div class="d-flex align-items-center justify-content-between">
+                     <div>
+                        <p class="text-muted mb-1 small">Outlet Dikunjungi</p>
+                        <h3 class="mb-0 fw-bold">{{ $data->pluck('mitra_id')->unique()->count() }}</h3>
                      </div>
                      <div class="avatar">
                         <span class="avatar-initial rounded bg-label-warning">
-                           <i class="ri-store-2-line ri-26px"></i>
+                           <i class="ri-store-2-line ri-24px"></i>
                         </span>
                      </div>
                   </div>
                </div>
             </div>
          </div>
-         <div class="col-sm-6 col-xl-3">
-            <div class="card">
+         <div class="col-6 col-xl-3">
+            <div class="card stat-card h-100">
                <div class="card-body">
-                  <div class="d-flex align-items-start justify-content-between">
-                     <div class="content-left">
-                        <span class="text-heading">Petugas Aktif</span>
-                        <div class="d-flex align-items-center my-1">
-                           <h4 class="mb-0 me-2">{{ $data->pluck('user_id')->unique()->count() }}</h4>
-                        </div>
-                        <small class="mb-0">User yg melakukan kunjungan</small>
+                  <div class="d-flex align-items-center justify-content-between">
+                     <div>
+                        <p class="text-muted mb-1 small">Petugas Aktif</p>
+                        <h3 class="mb-0 fw-bold">{{ $data->pluck('user_id')->unique()->count() }}</h3>
                      </div>
                      <div class="avatar">
                         <span class="avatar-initial rounded bg-label-info">
-                           <i class="ri-user-star-line ri-26px"></i>
+                           <i class="ri-user-star-line ri-24px"></i>
                         </span>
                      </div>
                   </div>
@@ -113,8 +132,8 @@
       {{-- Filter --}}
       <div class="card mb-4">
          <div class="card-body">
-            <form method="GET" action="{{ route('aktivitas.kunjungan.admin.index') }}" class="row g-3">
-               <div class="col-md-3">
+            <form method="GET" action="{{ route('aktivitas.kunjungan.admin.index') }}" class="row g-3 align-items-end">
+               <div class="col-md-3 col-6">
                   <label class="form-label">Petugas</label>
                   <select name="user_id" class="form-select select2-filter">
                      <option value="">Semua Petugas</option>
@@ -126,7 +145,7 @@
                      @endforeach
                   </select>
                </div>
-               <div class="col-md-3">
+               <div class="col-md-3 col-6">
                   <label class="form-label">Outlet</label>
                   <select name="mitra_id" class="form-select select2-filter">
                      <option value="">Semua Outlet</option>
@@ -138,18 +157,26 @@
                      @endforeach
                   </select>
                </div>
-               <div class="col-md-2">
+               <div class="col-md-2 col-6">
                   <label class="form-label">Dari Tanggal</label>
                   <input type="date" name="date_from" class="form-control" value="{{ $filters['date_from'] ?? '' }}">
                </div>
-               <div class="col-md-2">
+               <div class="col-md-2 col-6">
                   <label class="form-label">Sampai Tanggal</label>
                   <input type="date" name="date_to" class="form-control" value="{{ $filters['date_to'] ?? '' }}">
                </div>
-               <div class="col-md-2 d-flex align-items-end gap-2">
-                  <button type="submit" class="btn btn-primary"><i class="ri-filter-line me-1"></i>Filter</button>
-                  <a href="{{ route('aktivitas.kunjungan.admin.index') }}" class="btn btn-outline-secondary"><i
-                        class="ri-refresh-line"></i></a>
+               <div class="col-md-2">
+                  <div class="d-flex gap-2 flex-wrap">
+                     <button type="submit" class="btn btn-primary flex-grow-1">
+                        <i class="ri-filter-line me-1"></i>Filter
+                     </button>
+                     <a href="{{ route('aktivitas.kunjungan.admin.export', request()->all()) }}" class="btn btn-success flex-grow-1">
+                        <i class="ri-file-excel-line me-1"></i>Export
+                     </a>
+                     <a href="{{ route('aktivitas.kunjungan.admin.index') }}" class="btn btn-outline-secondary" title="Reset">
+                        <i class="ri-refresh-line"></i>
+                     </a>
+                  </div>
                </div>
             </form>
          </div>
@@ -161,6 +188,7 @@
             <table class="datatables-admin-kunjungan table table-hover">
                <thead>
                   <tr>
+                     <th></th>
                      <th>#</th>
                      <th>Tanggal</th>
                      <th>Petugas</th>
@@ -170,9 +198,10 @@
                      <th>Aksi</th>
                   </tr>
                </thead>
-               <tbody>
+                <tbody>
                   @foreach ($data as $index => $kunjungan)
                      <tr>
+                        <td></td>
                         <td>{{ $index + 1 }}</td>
                         <td>
                            <span class="fw-semibold">{{ $kunjungan->tanggal_kunjungan->format('d M Y') }}</span>
@@ -197,7 +226,7 @@
                         </td>
                         <td>
                            @if ($kunjungan->foto_url)
-                              <a href="{{ $kunjungan->foto_url }}" target="_blank">
+                              <a href="javascript:void(0);" onclick="window.previewKunjunganFoto('{{ $kunjungan->foto_url }}', 'Foto Kunjungan - {{ $kunjungan->mitra->name ?? '-' }}')">
                                  <img src="{{ $kunjungan->foto_url }}" alt="Foto" class="rounded"
                                     style="width: 40px; height: 40px; object-fit: cover;">
                               </a>
@@ -227,11 +256,47 @@
       </div>
    </div>
    </div>
+
+   <!-- Modal Preview Foto (Premium Style) -->
+   <div class="modal fade" id="modalPreviewFoto" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+         <div class="modal-content bg-transparent shadow-none border-0">
+            <div class="modal-header border-0 p-0 mb-3 justify-content-end">
+               <button type="button" class="btn btn-icon btn-light rounded-circle shadow-lg" data-bs-dismiss="modal"
+                  aria-label="Close" style="width: 40px; height: 40px;">
+                  <i class="ri-close-line ri-xl text-dark"></i>
+               </button>
+            </div>
+            <div class="modal-body p-0 text-center">
+               <div class="position-relative overflow-hidden rounded-4 shadow-2xl">
+                  <div id="modal-photo-title"
+                     class="position-absolute top-0 start-50 translate-middle-x mt-3 px-4 py-2 rounded-pill shadow-lg"
+                     style="z-index: 10; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); color: white; font-weight: 600; letter-spacing: 0.5px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                  </div>
+                  <img src="" id="foto-preview" class="img-fluid w-100 shadow-lg"
+                     style="max-height: 85vh; object-fit: contain; background: #000; border-radius: 12px;">
+                  <div
+                     class="position-absolute bottom-0 end-0 mb-3 me-3 px-2 py-1 bg-dark bg-opacity-50 text-white rounded small"
+                     style="font-size: 10px;">
+                     <i class="ri-shield-check-line me-1"></i>Verified QC Visit Photo
+                  </div>
+               </div>
+            </div>
+         </div>
+      </div>
+   </div>
 @endsection
 
 @section('page-script')
    <script type="module">
       $(function() {
+         window.previewKunjunganFoto = function(url, title) {
+            const modal = new bootstrap.Modal(document.getElementById('modalPreviewFoto'));
+            document.getElementById('foto-preview').src = url;
+            document.getElementById('modal-photo-title').textContent = title;
+            modal.show();
+         }
+
          // Init Select2 for filters
          $('.select2-filter').each(function() {
             var $this = $(this);
@@ -246,7 +311,24 @@
          const dt = $('.datatables-admin-kunjungan');
          if (dt.length) {
             dt.DataTable({
-               responsive: true,
+               responsive: {
+                  details: {
+                     display: $.fn.dataTable.Responsive.display.modal({
+                        header: function(row) {
+                           return 'Detail Laporan Kunjungan';
+                        }
+                     }),
+                     type: 'column',
+                     renderer: $.fn.dataTable.Responsive.renderer.tableAll({
+                        tableClass: 'table'
+                     })
+                  }
+               },
+               columnDefs: [{
+                  className: 'control',
+                  orderable: false,
+                  targets: 0
+               }],
                displayLength: 25,
                lengthMenu: [10, 25, 50, 100],
                order: [

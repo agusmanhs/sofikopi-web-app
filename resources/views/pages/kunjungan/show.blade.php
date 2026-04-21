@@ -21,7 +21,7 @@
                </div>
                <div class="card-body">
                   {{-- Header Info --}}
-                  <div class="d-flex justify-content-between align-items-start mb-4">
+                  <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start mb-4 gap-2">
                      <div>
                         <h6 class="text-primary mb-1">
                            <i class="ri-store-2-line me-1"></i>{{ $data->mitra->name ?? '-' }}
@@ -32,7 +32,7 @@
                            </small>
                         @endif
                      </div>
-                     <div class="text-end">
+                     <div class="text-sm-end">
                         <span class="badge bg-label-primary fs-6">
                            {{ $data->tanggal_kunjungan->format('d M Y') }}
                         </span>
@@ -43,33 +43,43 @@
                      </div>
                   </div>
 
+                  {{-- Visit Type Badge --}}
+                  @if($data->visit_type)
+                  <div class="mb-4">
+                     <span class="badge bg-label-{{ $data->visit_type == 'routine' ? 'success' : 'warning' }} px-3 py-2">
+                        <i class="ri-{{ $data->visit_type == 'routine' ? 'repeat-line' : 'phone-line' }} me-1"></i>
+                        {{ $data->visit_type == 'routine' ? 'Kunjungan Rutin' : 'By Request' }}
+                     </span>
+                  </div>
+                  @endif
+
                   <hr>
 
-                  {{-- 3. Espresso Calibration --}}
+                  {{-- Espresso Calibration --}}
                   <div class="mb-4">
                      <h6 class="text-uppercase text-muted mb-2">
-                        <i class="ri-settings-4-line me-1"></i> 3. Espresso Calibration
+                        <i class="ri-settings-4-line me-1"></i> Espresso Calibration
                      </h6>
                      <div class="bg-light rounded p-3">
                         {!! nl2br(e($data->espresso_calibration)) !!}
                      </div>
                   </div>
 
-                  {{-- 4. Taste Notes --}}
+                  {{-- Taste Notes --}}
                   <div class="mb-4">
                      <h6 class="text-uppercase text-muted mb-2">
-                        <i class="ri-goblet-line me-1"></i> 4. Taste Notes
+                        <i class="ri-goblet-line me-1"></i> Taste Notes
                      </h6>
                      <div class="bg-light rounded p-3">
                         {!! nl2br(e($data->taste_notes)) !!}
                      </div>
                   </div>
 
-                  {{-- 5. Flow of Customers --}}
+                  {{-- Flow of Customers --}}
                   @if($data->flow_of_customers)
                   <div class="mb-4">
                      <h6 class="text-uppercase text-muted mb-2">
-                        <i class="ri-group-line me-1"></i> 5. Flow of Customers
+                        <i class="ri-group-line me-1"></i> Flow of Customers
                      </h6>
                      <div class="bg-light rounded p-3">
                         {!! nl2br(e($data->flow_of_customers)) !!}
@@ -77,11 +87,11 @@
                   </div>
                   @endif
 
-                  {{-- 6. Feedback --}}
+                  {{-- Feedback --}}
                   @if($data->feedback)
                   <div class="mb-4">
                      <h6 class="text-uppercase text-muted mb-2">
-                        <i class="ri-feedback-line me-1"></i> 6. Feedback
+                        <i class="ri-feedback-line me-1"></i> Feedback
                      </h6>
                      <div class="bg-light rounded p-3">
                         {!! nl2br(e($data->feedback)) !!}
@@ -89,11 +99,23 @@
                   </div>
                   @endif
 
-                  {{-- 7. Note --}}
+                  {{-- Problem --}}
+                  @if($data->problem)
+                  <div class="mb-4">
+                     <h6 class="text-uppercase text-muted mb-2">
+                        <i class="ri-error-warning-line me-1 text-danger"></i> Problem
+                     </h6>
+                     <div class="bg-danger bg-opacity-10 rounded p-3 border border-danger border-opacity-25">
+                        {!! nl2br(e($data->problem)) !!}
+                     </div>
+                  </div>
+                  @endif
+
+                  {{-- Note --}}
                   @if($data->note)
                   <div class="mb-4">
                      <h6 class="text-uppercase text-muted mb-2">
-                        <i class="ri-sticky-note-line me-1"></i> 7. Note
+                        <i class="ri-sticky-note-line me-1"></i> Note
                      </h6>
                      <div class="bg-light rounded p-3">
                         {!! nl2br(e($data->note)) !!}
@@ -107,9 +129,9 @@
                      <h6 class="text-uppercase text-muted mb-2">
                         <i class="ri-camera-line me-1"></i> Foto Kunjungan
                      </h6>
-                     <a href="{{ $data->foto_url }}" target="_blank">
+                     <a href="javascript:void(0);" onclick="window.previewFoto('{{ $data->foto_url }}', 'Foto Kunjungan - {{ $data->mitra->name ?? '-' }}')">
                         <img src="{{ $data->foto_url }}" alt="Foto Kunjungan"
-                           class="rounded border img-fluid" style="max-height: 400px; object-fit: cover;">
+                           class="rounded border img-fluid" style="max-height: 400px; object-fit: cover; cursor: pointer;">
                      </a>
                   </div>
                   @endif
@@ -123,4 +145,43 @@
          </div>
       </div>
    </div>
+
+   <!-- Modal Preview Foto -->
+   <div class="modal fade" id="modalPreviewFoto" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+         <div class="modal-content bg-transparent shadow-none border-0">
+            <div class="modal-header border-0 p-0 mb-3 justify-content-end">
+               <button type="button" class="btn btn-icon btn-light rounded-circle shadow-lg" data-bs-dismiss="modal"
+                  aria-label="Close" style="width: 40px; height: 40px;">
+                  <i class="ri-close-line ri-xl text-dark"></i>
+               </button>
+            </div>
+            <div class="modal-body p-0 text-center">
+               <div class="position-relative overflow-hidden rounded-4 shadow-2xl">
+                  <div id="modal-photo-title"
+                     class="position-absolute top-0 start-50 translate-middle-x mt-3 px-4 py-2 rounded-pill shadow-lg"
+                     style="z-index: 10; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); color: white; font-weight: 600; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                  </div>
+                  <img src="" id="foto-preview" class="img-fluid w-100 shadow-lg"
+                     style="max-height: 85vh; object-fit: contain; background: #000; border-radius: 12px;">
+               </div>
+            </div>
+         </div>
+      </div>
+   </div>
+
+   <style>
+      .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+   </style>
+@endsection
+
+@section('page-script')
+   <script>
+      window.previewFoto = function(url, title) {
+         const modal = new bootstrap.Modal(document.getElementById('modalPreviewFoto'));
+         document.getElementById('foto-preview').src = url;
+         document.getElementById('modal-photo-title').textContent = title;
+         modal.show();
+      }
+   </script>
 @endsection

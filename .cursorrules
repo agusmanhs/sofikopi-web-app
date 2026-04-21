@@ -1,0 +1,31 @@
+# Sofikopi Project Coding Rules
+
+You are an expert Laravel developer working on the Sofikopi Web App. Always follow these rules to maintain consistency:
+
+## 1. Architectural Pattern
+- **Hierarchy**: All business logic MUST flow through: `Controller` -> `Service` -> `Repository`.
+- **Controllers**: Keep them thin. Only handle request input and service invocation.
+- **Services**: Contain business logic and database transaction management.
+- **Repositories**: Handle Eloquent queries. Always extend `BaseRepository` and implement a corresponding interface.
+- **Service Registration**: New repositories/services must be bound in `App\Providers\AppServiceProvider`.
+
+## 2. Validation & Security
+- **Requests**: Use `FormRequest` classes for all data-modifying inputs (POST/PUT/PATCH).
+- **Responses**: Always use `App\Helpers\ResponseHelper` for JSON/AJAX responses to keep the frontend contract constant.
+
+## 3. UI/UX Consistency
+- **Layout**: Always use `@extends('layouts/layoutMaster')`.
+- **Tables**:
+  - Use DataTables with `responsive` enabled.
+  - For mobile optimization, use `responsive: { details: { type: 'column' } }` and include an empty column at `targets: 0` for the toggle.
+- **Forms**:
+  - Use `Select2` for all entity selection dropdowns.
+  - Use `SweetAlert2` for confirmations and notifications via `window.AlertHandler`.
+
+## 4. Coding Standards
+- **Naming**:
+  - PHP Classes: `PascalCase`
+  - PHP Methods/Variables: `camelCase`
+  - Database Columns: `snake_case`
+- **Modern PHP**: Use PHP 8.x features (typed properties, constructor promotion) where available.
+- **DRY**: Use `BaseService`, `BaseRepository`, and `BaseRequest` to minimize boilerplate.

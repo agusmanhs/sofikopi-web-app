@@ -78,6 +78,8 @@ Route::middleware(['auth', 'check.pegawai.status'])->group(function () {
     // Product & Mitra Module (DATA MASTER)
     Route::prefix('master')->group(function () {
         // Product Management
+        Route::get('products/template', [\App\Http\Controllers\ProductsController::class, 'downloadTemplate'])->name('products.template');
+        Route::post('products/import', [\App\Http\Controllers\ProductsController::class, 'import'])->name('products.import');
         Route::resource('product-category', \App\Http\Controllers\ProductCategoryController::class);
         Route::resource('product-sub-category', \App\Http\Controllers\ProductSubCategoryController::class);
         Route::resource('products', \App\Http\Controllers\ProductsController::class);
@@ -142,6 +144,7 @@ Route::middleware(['auth', 'check.pegawai.status'])->group(function () {
             // Admin melihat semua kunjungan
             Route::prefix('admin')->name('admin.')->middleware('check.permission:kunjungan.admin')->group(function () {
                 Route::get('/', [\App\Http\Controllers\KunjunganController::class, 'adminIndex'])->name('index');
+                Route::get('/export', [\App\Http\Controllers\KunjunganController::class, 'adminExport'])->name('export');
                 Route::get('/{kunjungan}', [\App\Http\Controllers\KunjunganController::class, 'adminShow'])->name('show');
                 Route::delete('/{kunjungan}', [\App\Http\Controllers\KunjunganController::class, 'adminDestroy'])->name('destroy');
             });
@@ -154,6 +157,9 @@ Route::middleware(['auth', 'check.pegawai.status'])->group(function () {
 
         // Riwayat Kunjungan (Menu: Riwayat Kunjungan → /aktivitas/riwayat)
         Route::get('/riwayat', [\App\Http\Controllers\KunjunganController::class, 'index'])->name('riwayat.index');
+        
+        // ============== PRODUKSI & STOK ==============
+        Route::resource('produksi', \App\Http\Controllers\ProduksiController::class);
     });
 
     // ============== PROFILE ==============
@@ -173,6 +179,7 @@ Route::middleware(['auth', 'check.pegawai.status'])->group(function () {
         Route::get('/download', [\App\Http\Controllers\BackupController::class, 'download'])->name('download');
         Route::delete('/delete', [\App\Http\Controllers\BackupController::class, 'destroy'])->name('delete');
     });
+
 
     
 });

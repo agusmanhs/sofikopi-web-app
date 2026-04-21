@@ -21,6 +21,7 @@ class KunjunganService extends BaseService
     ) {
         parent::__construct($repository);
         $this->telegramService = $telegramService;
+        $this->kunjunganChatId = config('services.telegram.kunjungan_chat_id', '-5232586927');
     }
 
     /**

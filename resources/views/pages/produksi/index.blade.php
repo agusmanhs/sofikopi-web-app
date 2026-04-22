@@ -115,7 +115,7 @@
             const val = $(this).val();
             $('#tipe-hint').html(tipeHints[val] || '');
             if (val === 'adjustment') {
-               $('#jumlah').attr('min', '').attr('placeholder', 'Contoh: 10 (tambah) atau -5 (kurang)');
+               $('#jumlah').removeAttr('min').attr('placeholder', 'Contoh: 10 (tambah) atau -5 (kurang)');
                $('#jumlah-hint').text('Untuk adjustment, gunakan nilai negatif jika ingin mengurangi.');
             } else {
                $('#jumlah').attr('min', '1').attr('placeholder', 'Masukkan jumlah');
@@ -146,7 +146,7 @@
                },
                { 
                   data: 'tanggal',
-                  render: (data) => moment(data).format('DD MMM YYYY')
+                  render: (data) => new Date(data).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
                },
                { 
                   data: 'product',
@@ -225,6 +225,7 @@
                'Data stok yang telah berubah akan dikembalikan (revert). Lanjutkan?',
                'Ya, Hapus!',
                () => {
+                  window.AlertHandler.swal.showLoading();
                   fetch(`{{ url('aktivitas/produksi') }}/${id}`, {
                      method: 'DELETE',
                      headers: {
@@ -232,10 +233,17 @@
                         'Accept': 'application/json'
                      }
                   })
-                  .then(r => r.json())
-                  .then(data => {
+                  .then(async r => {
+                     const data = await r.json();
+                     window.AlertHandler.swal.close();
                      window.AlertHandler.handle(data);
-                     if(data.success) dt.ajax.reload();
+                     if(data.success) {
+                        dt.ajax.reload(null, false);
+                     }
+                  })
+                  .catch(err => {
+                     window.AlertHandler.swal.close();
+                     window.AlertHandler.showError('Terjadi kesalahan sistem');
                   });
                }
             );

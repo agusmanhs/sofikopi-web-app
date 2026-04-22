@@ -315,17 +315,13 @@
                               placeholder="0" required>
                         </div>
                      </div>
-                     <div class="row">
-                        <div class="col-6 mb-3">
-                           <label class="form-label">Stok Sekarang <span class="text-danger">*</span></label>
-                           <input type="number" name="current_stock" id="product_stock" class="form-control"
-                              value="0" required>
-                        </div>
-                        <div class="col-6 mb-3">
-                           <label class="form-label">Stok Aman <span class="text-danger">*</span></label>
-                           <input type="number" name="min_stock" id="product_min_stock" class="form-control"
-                              value="0" required>
-                        </div>
+                     <div class="mb-3">
+                        <label class="form-label">Stok Aman (Min. Stok) <span class="text-danger">*</span></label>
+                        <input type="number" name="min_stock" id="product_min_stock" class="form-control"
+                           value="0" required>
+                        <small class="text-muted">Untuk tambah/ubah Stok Sekarang, gunakan menu <b>Aktivitas >
+                              Produksi</b>.</small>
+                        <input type="hidden" name="current_stock" id="product_stock" value="0">
                      </div>
                      <div class="form-check form-switch pt-2">
                         <input class="form-check-input" type="checkbox" id="product_is_active" name="is_active"
@@ -393,6 +389,7 @@
          -webkit-backdrop-filter: blur(8px);
          background-color: rgba(0, 0, 0, 0.6);
       }
+
       .shadow-2xl {
          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
       }

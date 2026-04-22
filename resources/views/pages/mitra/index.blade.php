@@ -56,6 +56,7 @@
                   <table class="table table-hover" id="table-mitra">
                      <thead>
                         <tr>
+                           <th></th>
                            <th>Kode</th>
                            <th>Mitra</th>
                            <th>Kategori</th>
@@ -79,15 +80,16 @@
                   </button>
                </div>
                <div class="table-responsive">
-                  <table class="table table-hover" id="table-categories">
-                     <thead>
-                        <tr>
-                           <th>Nama Kategori</th>
-                           <th>Status</th>
-                           <th class="text-center">Aksi</th>
-                        </tr>
-                     </thead>
-                  </table>
+                   <table class="table table-hover" id="table-categories">
+                      <thead>
+                         <tr>
+                            <th></th>
+                            <th>Nama Kategori</th>
+                            <th>Status</th>
+                            <th class="text-center">Aksi</th>
+                         </tr>
+                      </thead>
+                   </table>
                </div>
             </div>
 
@@ -648,7 +650,22 @@
       function initTables() {
          $('#table-mitra').DataTable({
             ajax: "{{ route('mitra.index') }}",
-            columns: [{
+            responsive: {
+               details: {
+                  display: $.fn.dataTable.Responsive.display.modal({
+                     header: function(row) { return 'Detail Mitra'; }
+                  }),
+                  type: 'column',
+                  renderer: $.fn.dataTable.Responsive.renderer.tableAll({ tableClass: 'table' })
+               }
+            },
+            columnDefs: [{ className: 'control', orderable: false, targets: 0 }],
+            columns: [
+               {
+                  data: null,
+                  defaultContent: ''
+               },
+               {
                   data: 'code'
                },
                {
@@ -699,7 +716,22 @@
 
          $('#table-categories').DataTable({
             ajax: "{{ route('mitra-category.index') }}",
-            columns: [{
+            responsive: {
+               details: {
+                  display: $.fn.dataTable.Responsive.display.modal({
+                     header: function(row) { return 'Detail Kategori Mitra'; }
+                  }),
+                  type: 'column',
+                  renderer: $.fn.dataTable.Responsive.renderer.tableAll({ tableClass: 'table' })
+               }
+            },
+            columnDefs: [{ className: 'control', orderable: false, targets: 0 }],
+            columns: [
+               {
+                  data: null,
+                  defaultContent: ''
+               },
+               {
                   data: 'name'
                },
                {

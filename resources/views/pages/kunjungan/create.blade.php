@@ -38,10 +38,26 @@
                   <form action="{{ route('aktivitas.kunjungan.store') }}" method="POST" enctype="multipart/form-data" id="formKunjungan">
                      @csrf
 
-                     {{-- 1. Tanggal Kunjungan --}}
+                     {{-- Jenis Kunjungan --}}
+                     <div class="mb-3">
+                        <label class="form-label" for="visit_type">
+                           Jenis Kunjungan <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select @error('visit_type') is-invalid @enderror" 
+                           id="visit_type" name="visit_type" required>
+                           <option value="">-- Pilih Jenis Kunjungan --</option>
+                           <option value="routine" {{ old('visit_type') == 'routine' ? 'selected' : '' }}>Kunjungan Rutin</option>
+                           <option value="by_request" {{ old('visit_type') == 'by_request' ? 'selected' : '' }}>By Request</option>
+                        </select>
+                        @error('visit_type')
+                           <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                     </div>
+
+                     {{-- Tanggal Kunjungan --}}
                      <div class="mb-3">
                         <label class="form-label" for="tanggal_kunjungan">
-                           <strong>1.</strong> Tanggal Kunjungan <span class="text-danger">*</span>
+                           Tanggal Kunjungan <span class="text-danger">*</span>
                         </label>
                         <input type="date" class="form-control @error('tanggal_kunjungan') is-invalid @enderror"
                            id="tanggal_kunjungan" name="tanggal_kunjungan"
@@ -51,10 +67,10 @@
                         @enderror
                      </div>
 
-                     {{-- 2. Nama Outlet (dari Mitra) --}}
+                     {{-- Nama Outlet (dari Mitra) --}}
                      <div class="mb-3">
                         <label class="form-label" for="mitra_id">
-                           <strong>2.</strong> Outlet Name <span class="text-danger">*</span>
+                           Outlet Name <span class="text-danger">*</span>
                         </label>
                         <select class="form-select select2 @error('mitra_id') is-invalid @enderror"
                            id="mitra_id" name="mitra_id" required>
@@ -77,16 +93,16 @@
                         @enderror
                         <div id="outlet-info" class="mt-2 d-none">
                            <small class="text-muted">
-                              <i class="ri-map-pin-line me-1"></i>
-                              <span id="outlet-address"></span>
+                               <i class="ri-map-pin-line me-1"></i>
+                               <span id="outlet-address"></span>
                            </small>
                         </div>
                      </div>
 
-                     {{-- 3. Espresso Calibration --}}
+                     {{-- Espresso Calibration --}}
                      <div class="mb-3">
                         <label class="form-label" for="espresso_calibration">
-                           <strong>3.</strong> Espresso Calibration <span class="text-danger">*</span>
+                           Espresso Calibration <span class="text-danger">*</span>
                         </label>
                         <textarea class="form-control @error('espresso_calibration') is-invalid @enderror"
                            id="espresso_calibration" name="espresso_calibration" rows="3"
@@ -96,10 +112,10 @@
                         @enderror
                      </div>
 
-                     {{-- 4. Taste Notes --}}
+                     {{-- Taste Notes --}}
                      <div class="mb-3">
                         <label class="form-label" for="taste_notes">
-                           <strong>4.</strong> Taste Notes <span class="text-danger">*</span>
+                           Taste Notes <span class="text-danger">*</span>
                         </label>
                         <textarea class="form-control @error('taste_notes') is-invalid @enderror"
                            id="taste_notes" name="taste_notes" rows="3"
@@ -109,10 +125,10 @@
                         @enderror
                      </div>
 
-                     {{-- 5. Flow of Customers --}}
+                     {{-- Flow of Customers --}}
                      <div class="mb-3">
                         <label class="form-label" for="flow_of_customers">
-                           <strong>5.</strong> Flow of Customers <small class="text-muted">(Opsional)</small>
+                           Flow of Customers <small class="text-muted">(Opsional)</small>
                         </label>
                         <textarea class="form-control @error('flow_of_customers') is-invalid @enderror"
                            id="flow_of_customers" name="flow_of_customers" rows="2"
@@ -122,10 +138,10 @@
                         @enderror
                      </div>
 
-                     {{-- 6. Feedback --}}
+                     {{-- Feedback --}}
                      <div class="mb-3">
                         <label class="form-label" for="feedback">
-                           <strong>6.</strong> Feedback <small class="text-muted">(Opsional)</small>
+                           Feedback <small class="text-muted">(Opsional)</small>
                         </label>
                         <textarea class="form-control @error('feedback') is-invalid @enderror"
                            id="feedback" name="feedback" rows="2"
@@ -135,10 +151,23 @@
                         @enderror
                      </div>
 
-                     {{-- 7. Note --}}
+                     {{-- Problem --}}
+                     <div class="mb-3">
+                        <label class="form-label" for="problem">
+                           Problem <small class="text-muted">(Opsional)</small>
+                        </label>
+                        <textarea class="form-control @error('problem') is-invalid @enderror"
+                           id="problem" name="problem" rows="3"
+                           placeholder="Jelaskan masalah yang ditemukan jika ada...">{{ old('problem') }}</textarea>
+                        @error('problem')
+                           <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                     </div>
+
+                     {{-- Note --}}
                      <div class="mb-3">
                         <label class="form-label" for="note">
-                           <strong>7.</strong> Note <small class="text-muted">(Opsional)</small>
+                           Note <small class="text-muted">(Opsional)</small>
                         </label>
                         <textarea class="form-control @error('note') is-invalid @enderror"
                            id="note" name="note" rows="3"

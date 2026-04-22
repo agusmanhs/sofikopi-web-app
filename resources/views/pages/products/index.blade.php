@@ -43,14 +43,20 @@
             <div class="tab-pane fade show active" id="navs-products" role="tabpanel">
                <div class="d-flex justify-content-between align-items-center mb-4">
                   <h5 class="mb-0">Daftar Produk</h5>
-                  <button class="btn btn-primary" onclick="openProductModal()">
-                     <i class="ri-add-line me-1"></i> Tambah Produk
-                  </button>
+                  <div class="d-flex gap-2">
+                     <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalImportProducts">
+                        <i class="ri-file-upload-line me-1"></i> Import
+                     </button>
+                     <button class="btn btn-primary" onclick="openProductModal()">
+                        <i class="ri-add-line me-1"></i> Tambah Produk
+                     </button>
+                  </div>
                </div>
-               <div class="card-datatable table-responsive">
-                  <table class="table table-hover datatables-basic" id="table-products">
+               <div class="card-datatable table-responsive text-nowrap">
+                  <table class="table table-hover" id="table-products">
                      <thead>
                         <tr>
+                           <th></th>
                            <th>SKU</th>
                            <th>Produk</th>
                            <th>Sub Kategori</th>
@@ -76,6 +82,7 @@
                   <table class="table table-hover" id="table-sub-categories">
                      <thead>
                         <tr>
+                           <th></th>
                            <th>Kategori Utama</th>
                            <th>Nama Sub Kategori</th>
                            <th>Status</th>
@@ -98,6 +105,7 @@
                   <table class="table table-hover" id="table-categories">
                      <thead>
                         <tr>
+                           <th></th>
                            <th>Nama Kategori</th>
                            <th>Status</th>
                            <th>Aksi</th>
@@ -127,8 +135,8 @@
                      required>
                </div>
                <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" id="category_is_active" name="is_active" value="1"
-                     checked>
+                  <input class="form-check-input" type="checkbox" id="category_is_active" name="is_active"
+                     value="1" checked>
                   <label class="form-check-label" for="category_is_active">Aktif</label>
                </div>
             </div>
@@ -137,6 +145,51 @@
                <button type="submit" class="btn btn-primary">Simpan</button>
             </div>
          </form>
+      </div>
+   </div>
+
+   <!-- Modal Import Products -->
+   <div class="modal fade" id="modalImportProducts" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+         <div class="modal-content">
+            <div class="modal-header border-bottom">
+               <h5 class="modal-title">Import Produk dari Excel</h5>
+               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formImportProducts" onsubmit="window.importProducts(event)">
+               @csrf
+               <div class="modal-body">
+                  <div class="alert alert-primary mb-4" role="alert">
+                     <h6 class="alert-heading mb-1 d-flex align-items-center">
+                        <i class="ri-information-line me-2"></i> Panduan Pengisian Excel
+                     </h6>
+                     <ul class="mb-0 small ps-3">
+                        <li>Gunakan file template resmi yang tersedia untuk menghindari error.</li>
+                        <li><strong>Nama Produk</strong>: Wajib diisi.</li>
+                        <li><strong>SKU</strong>: Jika kosong, sistem akan generate otomatis.</li>
+                        <li><strong>Harga</strong>: Masukkan hanya angka (tanpa titik/koma).</li>
+                        <li><strong>Stok Sekarang</strong>: Akan otomatis diset ke <strong>0</strong> (Produksi awal).</li>
+                        <li><strong>Kategori & Sub</strong>: Jika belum ada, sistem akan membuatkan otomatis.</li>
+                     </ul>
+                  </div>
+
+                  <div class="mb-4">
+                     <label class="form-label fw-semibold">Pilih File Excel (.xlsx, .xls, .csv)</label>
+                     <input type="file" name="file" class="form-control" accept=".xlsx, .xls, .csv" required>
+                  </div>
+
+                  <div class="d-grid mb-2">
+                     <a href="{{ route('products.template') }}" class="btn btn-sm btn-label-secondary">
+                        <i class="ri-download-line me-1"></i> Download Template Excel
+                     </a>
+                  </div>
+               </div>
+               <div class="modal-footer border-top">
+                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                  <button type="submit" class="btn btn-primary" id="btnImport">Mulai Import</button>
+               </div>
+            </form>
+         </div>
       </div>
    </div>
 
@@ -262,17 +315,13 @@
                               placeholder="0" required>
                         </div>
                      </div>
-                     <div class="row">
-                        <div class="col-6 mb-3">
-                           <label class="form-label">Stok Sekarang <span class="text-danger">*</span></label>
-                           <input type="number" name="current_stock" id="product_stock" class="form-control"
-                              value="0" required>
-                        </div>
-                        <div class="col-6 mb-3">
-                           <label class="form-label">Stok Aman <span class="text-danger">*</span></label>
-                           <input type="number" name="min_stock" id="product_min_stock" class="form-control"
-                              value="0" required>
-                        </div>
+                     <div class="mb-3">
+                        <label class="form-label">Stok Aman (Min. Stok) <span class="text-danger">*</span></label>
+                        <input type="number" name="min_stock" id="product_min_stock" class="form-control"
+                           value="0" required>
+                        <small class="text-muted">Untuk tambah/ubah Stok Sekarang, gunakan menu <b>Aktivitas >
+                              Produksi</b>.</small>
+                        <input type="hidden" name="current_stock" id="product_stock" value="0">
                      </div>
                      <div class="form-check form-switch pt-2">
                         <input class="form-check-input" type="checkbox" id="product_is_active" name="is_active"
@@ -309,6 +358,42 @@
          </form>
       </div>
    </div>
+
+   <!-- Modal Preview Foto (Premium Style) -->
+   <div class="modal fade animate__animated animate__fadeIn" id="modalPreviewFoto" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+         <div class="modal-content bg-transparent shadow-none border-0">
+            <div class="modal-header border-0 p-0 mb-3 justify-content-end">
+               <button type="button" class="btn btn-icon btn-light rounded-circle shadow-lg" data-bs-dismiss="modal"
+                  aria-label="Close" style="width: 40px; height: 40px;">
+                  <i class="ri-close-line ri-xl text-dark"></i>
+               </button>
+            </div>
+            <div class="modal-body p-0 text-center">
+               <div class="position-relative overflow-hidden rounded-4 shadow-2xl">
+                  <div id="modal-photo-title"
+                     class="position-absolute top-0 start-50 translate-middle-x mt-3 px-4 py-2 rounded-pill shadow-lg"
+                     style="z-index: 10; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); color: white; font-weight: 600; letter-spacing: 0.5px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                  </div>
+                  <img src="" id="foto-preview" class="img-fluid w-100 shadow-lg"
+                     style="max-height: 85vh; object-fit: contain; background: #000; border-radius: 12px;">
+               </div>
+            </div>
+         </div>
+      </div>
+   </div>
+
+   <style>
+      .modal-backdrop.show {
+         backdrop-filter: blur(8px);
+         -webkit-backdrop-filter: blur(8px);
+         background-color: rgba(0, 0, 0, 0.6);
+      }
+
+      .shadow-2xl {
+         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      }
+   </style>
 @endsection
 
 @section('page-script')
@@ -366,9 +451,38 @@
       // --- CRUD FUNCTIONS ---
 
       function initTables() {
-         $('#table-products').DataTable({
+         window.previewProductFoto = function(url, title) {
+            const modal = new bootstrap.Modal(document.getElementById('modalPreviewFoto'));
+            document.getElementById('foto-preview').src = url;
+            document.getElementById('modal-photo-title').textContent = title;
+            modal.show();
+         }
+
+         const dt_products = $('#table-products').DataTable({
             ajax: "{{ route('products.index') }}",
+            responsive: {
+               details: {
+                  display: $.fn.dataTable.Responsive.display.modal({
+                     header: function(row) {
+                        return 'Detail Produk';
+                     }
+                  }),
+                  type: 'column',
+                  renderer: $.fn.dataTable.Responsive.renderer.tableAll({
+                     tableClass: 'table'
+                  })
+               }
+            },
+            columnDefs: [{
+               className: 'control',
+               orderable: false,
+               targets: 0
+            }],
             columns: [{
+                  data: null,
+                  defaultContent: ''
+               },
+               {
                   data: 'sku'
                },
                {
@@ -376,7 +490,7 @@
                   render: function(data, type, row) {
                      return `<div class="d-flex align-items-center">
                             <div class="avatar avatar-sm me-2">
-                                <a href="${row.cover_url}" target="_blank">
+                                <a href="javascript:void(0);" onclick="window.previewProductFoto('${row.cover_url}', '${data}')">
                                    <img src="${row.cover_url}" class="rounded-circle" style="object-fit:cover">
                                 </a>
                             </div>
@@ -421,7 +535,29 @@
 
          $('#table-sub-categories').DataTable({
             ajax: "{{ route('product-sub-category.index') }}",
+            responsive: {
+               details: {
+                  display: $.fn.dataTable.Responsive.display.modal({
+                     header: function(row) {
+                        return 'Detail Sub Kategori';
+                     }
+                  }),
+                  type: 'column',
+                  renderer: $.fn.dataTable.Responsive.renderer.tableAll({
+                     tableClass: 'table'
+                  })
+               }
+            },
+            columnDefs: [{
+               className: 'control',
+               orderable: false,
+               targets: 0
+            }],
             columns: [{
+                  data: null,
+                  defaultContent: ''
+               },
+               {
                   data: 'category.name'
                },
                {
@@ -446,7 +582,29 @@
 
          $('#table-categories').DataTable({
             ajax: "{{ route('product-category.index') }}",
+            responsive: {
+               details: {
+                  display: $.fn.dataTable.Responsive.display.modal({
+                     header: function(row) {
+                        return 'Detail Kategori';
+                     }
+                  }),
+                  type: 'column',
+                  renderer: $.fn.dataTable.Responsive.renderer.tableAll({
+                     tableClass: 'table'
+                  })
+               }
+            },
+            columnDefs: [{
+               className: 'control',
+               orderable: false,
+               targets: 0
+            }],
             columns: [{
+                  data: null,
+                  defaultContent: ''
+               },
+               {
                   data: 'name'
                },
                {
@@ -631,6 +789,33 @@
                   });
             }
          );
+      }
+
+      window.importProducts = function(e) {
+         e.preventDefault();
+         const btn = $('#btnImport');
+         btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Importing...');
+
+         const formData = new FormData($('#formImportProducts')[0]);
+         fetch("{{ route('products.import') }}", {
+               method: 'POST',
+               body: formData,
+               headers: {
+                  'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                  'Accept': 'application/json'
+               }
+            })
+            .then(async r => {
+               const data = await r.json();
+               window.AlertHandler.handle(data);
+               if (data.success) {
+                  $('#modalImportProducts').modal('hide');
+                  $('#table-products').DataTable().ajax.reload();
+               }
+            })
+            .finally(() => {
+               btn.prop('disabled', false).text('Mulai Import');
+            });
       }
    </script>
 @endsection

@@ -14,6 +14,14 @@ abstract class BaseService
     }
 
     /**
+     * Get the underlying repository instance
+     */
+    public function getRepository(): BaseRepositoryInterface
+    {
+        return $this->repository;
+    }
+
+    /**
      * Get all records
      */
     public function all()

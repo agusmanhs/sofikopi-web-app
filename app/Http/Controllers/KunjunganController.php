@@ -2,16 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\KunjunganExport;
 use App\Helpers\ResponseHelper;
 use App\Http\Requests\KunjunganRequest;
 use App\Services\KunjunganService;
 use App\Services\MitraService;
 use App\Services\PegawaiService;
 use App\Models\User;
+use App\Traits\LogsActivity;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class KunjunganController extends Controller
 {
+    use LogsActivity;
     public function __construct(
         protected KunjunganService $service,
         protected MitraService $mitraService,
@@ -38,7 +42,15 @@ class KunjunganController extends Controller
             $data = $request->validated();
             $foto = $request->file('foto_kunjungan');
 
-            $this->service->createKunjungan(auth()->id(), $data, $foto);
+            $kunjungan = $this->service->createKunjungan(auth()->id(), $data, $foto);
+
+            $this->logActivity(
+                'created',
+                'kunjungan',
+                'Membuat laporan kunjungan QC ke ' . ($kunjungan->mitra->name ?? '-'),
+                $kunjungan,
+                ['visit_type' => $data['visit_type'] ?? null, 'outlet' => $kunjungan->mitra->name ?? '-']
+            );
 
             return redirect()->route('aktivitas.riwayat.index')
                 ->with('success', 'Laporan kunjungan berhasil disimpan!');
@@ -84,6 +96,31 @@ class KunjunganController extends Controller
     }
 
     /**
+     * Export kunjungan to Excel (Admin)
+     */
+    public function adminExport(Request $request)
+    {
+        $filters = $request->only(['user_id', 'mitra_id', 'date_from', 'date_to']);
+        
+        $exportFilters = [
+            'user_id' => $filters['user_id'] ?? null,
+            'mitra_id' => $filters['mitra_id'] ?? null,
+            'start_date' => $filters['date_from'] ?? null,
+            'end_date' => $filters['date_to'] ?? null,
+        ];
+
+        $this->logActivity(
+            'exported',
+            'kunjungan',
+            'Mengexport data kunjungan QC ke Excel',
+            null,
+            $exportFilters
+        );
+
+        return Excel::download(new KunjunganExport($exportFilters), 'laporan_kunjungan_qc.xlsx');
+    }
+
+    /**
      * Admin detail kunjungan
      */
     public function adminShow($id)
@@ -98,6 +135,16 @@ class KunjunganController extends Controller
     public function adminDestroy($id)
     {
         try {
+            $kunjungan = $this->service->findWithRelations($id);
+
+            $this->logActivity(
+                'deleted',
+                'kunjungan',
+                'Menghapus laporan kunjungan ke ' . ($kunjungan->mitra->name ?? '-') . ' tanggal ' . $kunjungan->tanggal_kunjungan->format('d M Y'),
+                $kunjungan,
+                ['outlet' => $kunjungan->mitra->name ?? '-', 'date' => $kunjungan->tanggal_kunjungan->format('Y-m-d')]
+            );
+
             $this->service->adminDelete($id);
 
             if (request()->wantsJson()) {

@@ -193,6 +193,25 @@ class AbsensiController extends Controller
         $data = $this->service->getByPegawaiBulan($pegawai->id, $bulan, $tahun);
         $statistik = $this->service->getStatistikPegawai($pegawai->id, $bulan, $tahun);
 
+        // Sinkronisasi: Masukkan tanggal Alpha ke dalam koleksi data agar muncul di tabel
+        if (isset($statistik['alpha_dates'])) {
+            $existingDates = $data->pluck('tanggal')->map(fn($d) => $d->format('Y-m-d'))->toArray();
+
+            foreach ($statistik['alpha_dates'] as $date) {
+                // HANYA tambah jika memang tidak ada rekaman data sama sekali di hari itu (mencegah double)
+                if (!in_array($date, $existingDates)) {
+                    $virtualAbsen = new \App\Models\Absensi();
+                    $virtualAbsen->tanggal = \Carbon\Carbon::parse($date);
+                    $virtualAbsen->status = 'Alpha';
+                    $virtualAbsen->pegawai_id = $pegawai->id;
+                    $virtualAbsen->pegawai = $pegawai;
+                    $data->push($virtualAbsen);
+                }
+            }
+            // Urutkan kembali berdasarkan tanggal terbaru
+            $data = $data->sortByDesc('tanggal');
+        }
+
         return view('pages.absensi.history', compact('data', 'pegawai', 'bulan', 'tahun', 'statistik'));
     }
 
@@ -208,6 +227,25 @@ class AbsensiController extends Controller
 
         $data = $this->service->getByPegawaiBulan($pegawai->id, $bulan, $tahun);
         $statistik = $this->service->getStatistikPegawai($pegawai->id, $bulan, $tahun);
+
+        // Sinkronisasi: Masukkan tanggal Alpha ke dalam koleksi data agar muncul di tabel
+        if (isset($statistik['alpha_dates'])) {
+            $existingDates = $data->pluck('tanggal')->map(fn($d) => $d->format('Y-m-d'))->toArray();
+
+            foreach ($statistik['alpha_dates'] as $date) {
+                // HANYA tambah jika memang tidak ada rekaman data sama sekali di hari itu (mencegah double)
+                if (!in_array($date, $existingDates)) {
+                    $virtualAbsen = new \App\Models\Absensi();
+                    $virtualAbsen->tanggal = \Carbon\Carbon::parse($date);
+                    $virtualAbsen->status = 'Alpha';
+                    $virtualAbsen->pegawai_id = $pegawai->id;
+                    $virtualAbsen->pegawai = $pegawai;
+                    $data->push($virtualAbsen);
+                }
+            }
+            // Urutkan kembali berdasarkan tanggal terbaru
+            $data = $data->sortByDesc('tanggal');
+        }
 
         $isAdminView = true;
 

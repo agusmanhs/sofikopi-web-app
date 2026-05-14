@@ -119,6 +119,7 @@ class TelegramWebhookController extends Controller
         $msg .= "📅 Tanggal: " . today()->format('d/m/Y') . "\n\n";
         $msg .= "👥 Total Pegawai: <b>" . $stats['total_pegawai'] . "</b>\n";
         $msg .= "✅ Sudah Masuk: <b>" . $stats['sudah_absen'] . "</b>\n";
+        $msg .= "🏃 Sudah Pulang: <b>" . ($stats['hadir'] + $stats['terlambat']) . "</b>\n";
         $msg .= "⏳ Belum Masuk: <b>" . $stats['belum_absen'] . "</b>\n";
         $msg .= "📝 Izin/Sakit: <b>" . $stats['izin'] . "</b>\n";
         $msg .= "----------------------------\n";
@@ -145,8 +146,9 @@ class TelegramWebhookController extends Controller
         $msg = "<b>⏰ DAFTAR TERLAMBAT HARI INI</b>\n\n";
         foreach ($absensis as $index => $absen) {
             $nama = $absen->pegawai->nama_lengkap ?? $absen->pegawai->nama;
-            $jam = Carbon::parse($absen->jam_masuk)->format('H:i');
-            $msg .= ($index + 1) . ". 🔴 {$nama} (Masuk: {$jam})\n";
+            $jamMasuk = Carbon::parse($absen->jam_masuk)->format('H:i');
+            $jamPulang = $absen->jam_pulang ? Carbon::parse($absen->jam_pulang)->format('H:i') : 'Belum';
+            $msg .= ($index + 1) . ". 🔴 {$nama} ({$jamMasuk} - {$jamPulang})\n";
         }
 
         $this->telegram->sendMessage($msg, 'HTML', $chatId);
@@ -170,11 +172,12 @@ class TelegramWebhookController extends Controller
         $msg = "<b>✅ PEGAWAI SUDAH MASUK</b>\n\n";
         foreach ($absensis as $index => $absen) {
             $nama = $absen->pegawai->nama_lengkap ?? $absen->pegawai->nama ?? 'Unknown';
-            $jam = Carbon::parse($absen->jam_masuk)->format('H:i');
+            $jamMasuk = Carbon::parse($absen->jam_masuk)->format('H:i');
+            $jamPulang = $absen->jam_pulang ? Carbon::parse($absen->jam_pulang)->format('H:i') : 'Belum';
             $status = $absen->status;
             
             $icon = $status == 'Tepat Waktu' ? '🟢' : '🟡';
-            $msg .= ($index + 1) . ". {$icon} {$nama} ({$jam})\n";
+            $msg .= ($index + 1) . ". {$icon} {$nama} ({$jamMasuk} - {$jamPulang})\n";
         }
 
         $this->telegram->sendMessage($msg, 'HTML', $chatId);

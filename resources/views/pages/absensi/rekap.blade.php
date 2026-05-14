@@ -133,7 +133,7 @@
                      <th class="text-center bg-warning text-dark">Telat</th>
                      <th class="text-center bg-info text-white">Izin</th>
                      <th class="text-center bg-danger text-white">Alpha</th>
-                     <th class="text-center bg-secondary text-white">Sesi</th>
+                     <th class="text-center bg-secondary text-white">Total Log</th>
                   </tr>
                </thead>
                <tbody>

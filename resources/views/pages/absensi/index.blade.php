@@ -215,6 +215,24 @@
       <div class="row">
          <!-- Main Absensi Panel -->
          <div class="col-lg-8">
+            @if ($absenDitutup ?? false)
+               <div class="alert alert-danger border-0 shadow-sm mb-4" role="alert">
+                  <div class="d-flex align-items-start">
+                     <div class="me-3" style="font-size: 1.5rem;">
+                        <i class="ri-time-line"></i>
+                     </div>
+                     <div>
+                        <h6 class="alert-heading fw-bold mb-1">Absen Masuk Sudah Ditutup</h6>
+                        <p class="mb-0 small">
+                           Batas absen masuk untuk shift <strong>{{ $shift->nama ?? '-' }}</strong> adalah pukul
+                           <strong>{{ $batasAkhirMasuk ?? '-' }}</strong> (3 jam setelah jadwal masuk).
+                           Silakan hubungi atasan Anda untuk tindak lanjut.
+                        </p>
+                     </div>
+                  </div>
+               </div>
+            @endif
+
             <div class="card mb-4">
                <div class="card-header d-flex justify-content-between align-items-center">
                   <h5 class="mb-0">
@@ -324,10 +342,12 @@
                   <div class="row g-3">
                      <div class="col-6">
                         <button type="button" class="btn btn-success btn-lg w-100" id="btn-absen-masuk"
-                           @if ($absensiHariIni && $absensiHariIni->jam_masuk) disabled @endif>
+                           @if (($absensiHariIni && $absensiHariIni->jam_masuk) || ($absenDitutup ?? false)) disabled @endif>
                            <i class="ri-login-box-line me-2"></i>
                            @if ($absensiHariIni && $absensiHariIni->jam_masuk)
                               Masuk: {{ $absensiHariIni->jam_masuk->format('H:i') }}
+                           @elseif ($absenDitutup ?? false)
+                              Absen Ditutup
                            @else
                               Absen Masuk
                            @endif

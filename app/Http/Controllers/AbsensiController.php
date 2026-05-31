@@ -81,7 +81,17 @@ class AbsensiController extends Controller
             now()->year
         );
 
-        return view('pages.absensi.index', compact('pegawai', 'absensiHariIni', 'historyAbsensi', 'shift'));
+        $batasAkhirMasuk = null;
+        $absenDitutup = false;
+        if ($shift) {
+            $jamMasuk = \Carbon\Carbon::parse($shift->jam_masuk->format('H:i:s'));
+            $batasAkhirMasuk = $jamMasuk->copy()->addHours(3)->format('H:i');
+            if (now()->gt($jamMasuk->copy()->addHours(3))) {
+                $absenDitutup = true;
+            }
+        }
+
+        return view('pages.absensi.index', compact('pegawai', 'absensiHariIni', 'historyAbsensi', 'shift', 'batasAkhirMasuk', 'absenDitutup'));
     }
 
     /**

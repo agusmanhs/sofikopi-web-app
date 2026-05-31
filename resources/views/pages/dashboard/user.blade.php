@@ -530,6 +530,19 @@
                                    $isMasuk = true;
                                }
 
+                               // CEK BATAS 3 JAM DARI JAM MASUK
+                               if ($isMasuk && !$isDisabled) {
+                                   $batasAkhirMasuk = $jamMasuk->copy()->addHours(3);
+                                   if ($now->gt($batasAkhirMasuk)) {
+                                       $isDisabled = true;
+                                       $isMasuk = false;
+                                       $btnClass = 'btn-outline-secondary';
+                                       $btnText = 'Absen Ditutup';
+                                       $statusText = 'Lewat Batas (' . $batasAkhirMasuk->format('H:i') . ')';
+                                       $statusClass = 'text-danger';
+                                   }
+                               }
+
                                // OVERRIDE LOGIKA JIKA ADA SESI LAIN YANG AKTIF
                                if ($isOtherShiftActive) {
                                    $isDisabled = true;
@@ -564,9 +577,18 @@
                                  </div>
 
                                  @if ($isDisabled)
-                                    <button class="btn {{ $btnClass }} w-100" disabled>
-                                       {{ $btnText }}
-                                    </button>
+                                     <button class="btn {{ $btnClass }} w-100" disabled>
+                                        {{ $btnText }}
+                                     </button>
+                                     @if ($btnText === 'Absen Ditutup')
+                                        <div class="mt-2 text-center">
+                                           <small class="text-danger fw-medium">
+                                              <i class="ri-error-warning-line me-1"></i>
+                                              Batas absen masuk telah berakhir pada {{ $batasAkhirMasuk->format('H:i') }}.
+                                              Hubungi atasan untuk tindak lanjut.
+                                           </small>
+                                        </div>
+                                     @endif
                                  @else
                                     <a href="{{ route('absensi.index', ['shift_id' => $shift->id]) }}"
                                        class="btn {{ $btnClass }} w-100">

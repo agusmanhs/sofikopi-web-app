@@ -175,9 +175,7 @@ Route::middleware(['auth', 'check.pegawai.status'])->group(function () {
     // ============== BACKUP ==============
     Route::prefix('backup')->name('backup.')->middleware('check.permission:backup')->group(function () {
         Route::get('/', [\App\Http\Controllers\BackupController::class, 'index'])->name('index');
-        Route::post('/run', [\App\Http\Controllers\BackupController::class, 'store'])->name('run');
-        Route::get('/download', [\App\Http\Controllers\BackupController::class, 'download'])->name('download');
-        Route::delete('/delete', [\App\Http\Controllers\BackupController::class, 'destroy'])->name('delete');
+        Route::post('/export', [\App\Http\Controllers\BackupController::class, 'export'])->name('export');
     });
 
 

@@ -129,16 +129,24 @@ class AbsensiService extends BaseService
         // Handle Cross-Day Shift (Misal: 20:00 - 04:00)
         $isCrossDay = $shift->is_cross_day;
 
-        // 1. Tidak boleh absen jika sudah lewat jam pulang (Waktu Shift Habis)
-        if ($now->gt($jamPulang) && !$isCrossDay) {
-            throw new \Exception('Waktu shift ini sudah berakhir.');
-        }
-
-        // 2. Tidak boleh absen terlalu awal (Misal: 2 Jam sebelum shift mulai)
+        // 1. Tidak boleh absen terlalu awal (2 Jam sebelum shift mulai)
         $batasAwal = $jamMasuk->copy()->subHours(2);
-
         if ($now->lt($batasAwal)) {
             throw new \Exception('Absen masuk belum dibuka untuk shift ini (Dibuka: ' . $batasAwal->format('H:i') . ').');
+        }
+
+        // 2. Batas absen masuk: 3 jam setelah jam masuk shift
+        $batasAkhirMasuk = $jamMasuk->copy()->addHours(3);
+        if (!$isCrossDay) {
+            // Non cross-day: cek langsung
+            if ($now->gt($batasAkhirMasuk)) {
+                throw new \Exception('Waktu absen masuk sudah ditutup (Batas: ' . $batasAkhirMasuk->format('H:i') . '). Silakan hubungi atasan Anda.');
+            }
+        } else {
+            // Cross-day: pastikan perbandingan waktunya benar melewati tengah malam
+            if ($now->gt($batasAkhirMasuk) && $now->lt($jamPulang->copy()->addDay())) {
+                throw new \Exception('Waktu absen masuk sudah ditutup (Batas: ' . $batasAkhirMasuk->format('H:i') . '). Silakan hubungi atasan Anda.');
+            }
         }
 
         // Validasi lokasi

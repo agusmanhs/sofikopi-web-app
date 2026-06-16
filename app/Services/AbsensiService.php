@@ -546,29 +546,9 @@ class AbsensiService extends BaseService
             return false;
         })->unique(fn ($i) => $i->tanggal->format('Y-m-d'))->count();
 
-        // Ambil juga data Izin yang masih Pending (agar tidak dianggap Alpha)
+    // Hanya izin yang sudah di-approve yang sah. Izin Pending TIDAK menggugurkan alpha
+        // (hari tetap dihitung alpha sampai izin disetujui & record absensi izin dibuat).
         $pendingIzinDates = [];
-        $pendingIzins = Izin::where('pegawai_id', $pegawaiId)
-            ->where('status_approval', 'Pending')
-            ->where(function ($q) use ($bulan, $tahun) {
-                $startOfMonth = Carbon::create($tahun, $bulan, 1)->startOfMonth();
-                $endOfMonth = Carbon::create($tahun, $bulan, 1)->endOfMonth();
-
-                $q->where('tgl_mulai', '<=', $endOfMonth)
-                    ->where('tgl_selesai', '>=', $startOfMonth);
-            })->get();
-
-        foreach ($pendingIzins as $pIzin) {
-            $curr = $pIzin->tgl_mulai->copy();
-            $endIzin = $pIzin->tgl_selesai->copy();
-            while ($curr <= $endIzin) {
-                if ($curr->month == $bulan && $curr->year == $tahun) {
-                    $pendingIzinDates[] = $curr->format('Y-m-d');
-                }
-                $curr->addDay();
-            }
-        }
-        $pendingIzinDates = array_unique($pendingIzinDates);
 
         // Hitung Alpha (Hari Kerja yang tidak ada di rekaman absensi MASUK dan PULANG yang lengkap)
         $datesWithPresence = $absensis->filter(function ($item) {

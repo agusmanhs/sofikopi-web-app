@@ -45,17 +45,18 @@
    <tbody>
       @foreach ($data as $index => $pegawai)
          @php
-            $isReguler = $pegawai->shift && $pegawai->shift->ikut_libur;
-            $hariAktifTarget = $isReguler ? $hariEfektifReguler : $hariEfektifFull;
-
-            // Kita bisa pakai properti statistik yang sudah disuntikkan dari controller
+            // Kita pakai properti statistik yang sudah disuntikkan dari controller
             $statistik = $pegawai->statistik ?? [
                 'hadir' => 0,
                 'tepat_waktu' => 0,
                 'terlambat' => 0,
                 'izin' => 0,
-                'alfa' => $hariAktifTarget,
+                'alfa' => 0,
+                'total_hari_kerja' => 0,
             ];
+
+            // Target hari kerja PER-PEGAWAI (konsisten dengan tampilan web rekap)
+            $hariAktifTarget = $statistik['total_hari_kerja'] ?? 0;
 
             $absensis = $pegawai->absensis ?? collect([]);
 
@@ -73,21 +74,11 @@
                     ->count();
             }
 
-            // Total unique days covered (Hadir + any Izin/Sakit/Cuti)
-            $daysActive = $hadirCount + ($statistik['izin'] ?? 0);
+            // Hari aktif = target hari kerja dikurangi alpha (konsisten dengan tampilan web)
+            $daysActive = max(0, $hariAktifTarget - $alphaCount);
 
-            // Percentage
-            $persentase =
-                $hariAktifTarget > 0 ? round((($hariAktifTarget - $alphaCount) / $hariAktifTarget) * 100, 2) : 0;
-            if ($persentase > 100) {
-                $persentase = 100;
-            }
-            if ($persentase < 0) {
-                $persentase = 0;
-            }
-
-            // Percentage
-            $persentase = $hariAktifTarget > 0 ? round(($daysActive / $hariAktifTarget) * 100, 2) : 0;
+            // Persentase kehadiran (satu formula, sama dengan halaman web rekap)
+            $persentase = $hariAktifTarget > 0 ? round(($daysActive / $hariAktifTarget) * 100, 1) : 0;
 
             // Duration work
             $totalMenit = $absensis->sum('durasi_kerja_menit');

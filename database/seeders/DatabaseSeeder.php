@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             ShiftSeeder::class,
             AbsensiMenuSeeder::class,
             AbsensiRoleMenuSeeder::class,
+            SalesOrderMenuSeeder::class,
         ]);
     }
 }

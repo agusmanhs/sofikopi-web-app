@@ -4,66 +4,66 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class TelegramService
 {
     protected string $token;
+
     protected string $chatId;
+
     protected bool $enabled;
 
     public function __construct()
     {
         $this->token = config('services.telegram.token', '');
         $this->chatId = config('services.telegram.chat_id', '');
-        $this->enabled = !empty($this->token) && !empty($this->chatId);
+        $this->enabled = ! empty($this->token) && ! empty($this->chatId);
     }
 
     /**
      * Send message to Telegram
-     * 
-     * @param string $message
-     * @param string|null $parseMode HTML or MarkdownV2
-     * @return bool
+     *
+     * @param  string|null  $parseMode  HTML or MarkdownV2
      */
     public function sendMessage(string $message, ?string $parseMode = 'HTML', ?string $chatId = null): bool
     {
-        if (!$this->enabled) {
+        if (! $this->enabled) {
             return false;
         }
 
         $targetChatId = $chatId ?? $this->chatId;
 
         try {
-            $response = Http::post("https://api.telegram.org/bot{$this->token}/sendMessage", [
+            $response = Http::timeout(15)->connectTimeout(5)->post("https://api.telegram.org/bot{$this->token}/sendMessage", [
                 'chat_id' => $targetChatId,
                 'text' => $message,
                 'parse_mode' => $parseMode,
             ]);
 
-            if (!$response->successful()) {
-                Log::error('Telegram API Error (sendMessage): ' . $response->body());
+            if (! $response->successful()) {
+                Log::error('Telegram API Error (sendMessage): '.$response->body());
+
                 return false;
             }
 
             return true;
         } catch (\Exception $e) {
-            Log::error('Telegram Service Exception (sendMessage): ' . $e->getMessage());
+            Log::error('Telegram Service Exception (sendMessage): '.$e->getMessage());
+
             return false;
         }
     }
 
     /**
      * Send photo to Telegram
-     * 
-     * @param string $photoPath Absolute path or URL
-     * @param string $caption
-     * @param string|null $parseMode HTML or MarkdownV2
-     * @param string|null $chatId
-     * @return bool
+     *
+     * @param  string  $photoPath  Absolute path or URL
+     * @param  string|null  $parseMode  HTML or MarkdownV2
      */
     public function sendPhoto(string $photoPath, string $caption = '', ?string $parseMode = 'HTML', ?string $chatId = null): bool
     {
-        if (!$this->enabled) {
+        if (! $this->enabled) {
             return false;
         }
 
@@ -71,14 +71,15 @@ class TelegramService
 
         try {
             // Build the request
-            $pendingRequest = Http::asMultipart();
-            
+            $pendingRequest = Http::asMultipart()->timeout(20)->connectTimeout(5);
+
             // If it's a local file path and exists
-            if (!empty($photoPath) && file_exists($photoPath)) {
+            if (! empty($photoPath) && file_exists($photoPath)) {
                 $fileContents = @file_get_contents($photoPath);
                 if ($fileContents === false) {
-                     Log::warning("Telegram Service: Failed to read photo file at {$photoPath}");
-                     return false;
+                    Log::warning("Telegram Service: Failed to read photo file at {$photoPath}");
+
+                    return false;
                 }
                 $pendingRequest->attach('photo', $fileContents, basename($photoPath));
             } else {
@@ -88,6 +89,7 @@ class TelegramService
                     return $this->sendMessageWithPhotoUrl($photoPath, $caption, $parseMode, $targetChatId);
                 }
                 Log::warning("Telegram Service: Photo path is neither a valid file nor a URL: {$photoPath}");
+
                 return false;
             }
 
@@ -97,14 +99,16 @@ class TelegramService
                 'parse_mode' => $parseMode,
             ]);
 
-            if (!$response->successful()) {
-                Log::error('Telegram API Error (sendPhoto): ' . $response->status() . ' - ' . $response->body());
+            if (! $response->successful()) {
+                Log::error('Telegram API Error (sendPhoto): '.$response->status().' - '.$response->body());
+
                 return false;
             }
 
             return true;
         } catch (\Exception $e) {
-            Log::error('Telegram Service Exception (sendPhoto): ' . $e->getMessage());
+            Log::error('Telegram Service Exception (sendPhoto): '.$e->getMessage());
+
             return false;
         }
     }
@@ -116,16 +120,21 @@ class TelegramService
     {
         $targetChatId = $chatId ?? $this->chatId;
         try {
-            $response = Http::post("https://api.telegram.org/bot{$this->token}/sendPhoto", [
+            $response = Http::timeout(20)->connectTimeout(5)->post("https://api.telegram.org/bot{$this->token}/sendPhoto", [
                 'chat_id' => $targetChatId,
                 'photo' => $url,
                 'caption' => $caption,
                 'parse_mode' => $parseMode,
             ]);
 
+            if (! $response->successful()) {
+                $this->safeLog('error', 'Telegram API Error (sendPhotoUrl): '.$response->status().' - '.$response->body());
+            }
+
             return $response->successful();
         } catch (\Exception $e) {
-            $this->safeLog('error', 'Telegram Service Exception (sendPhotoUrl): ' . $e->getMessage());
+            $this->safeLog('error', 'Telegram Service Exception (sendPhotoUrl): '.$e->getMessage());
+
             return false;
         }
     }
@@ -135,7 +144,7 @@ class TelegramService
      */
     public function sendMessageWithKeyboard(string $message, array $keyboard, ?string $parseMode = 'HTML', ?string $chatId = null): bool
     {
-        if (!$this->enabled) {
+        if (! $this->enabled) {
             return false;
         }
 
@@ -149,18 +158,20 @@ class TelegramService
                 'reply_markup' => [
                     'keyboard' => $keyboard,
                     'resize_keyboard' => true,
-                    'one_time_keyboard' => false
-                ]
+                    'one_time_keyboard' => false,
+                ],
             ]);
 
-            if (!$response->successful()) {
-                $this->safeLog('error', 'Telegram API Error (keyboard): ' . $response->body());
+            if (! $response->successful()) {
+                $this->safeLog('error', 'Telegram API Error (keyboard): '.$response->body());
+
                 return false;
             }
 
             return true;
         } catch (\Exception $e) {
-            $this->safeLog('error', 'Telegram Service Exception (keyboard): ' . $e->getMessage());
+            $this->safeLog('error', 'Telegram Service Exception (keyboard): '.$e->getMessage());
+
             return false;
         }
     }
@@ -170,7 +181,7 @@ class TelegramService
      */
     public function sendMessageWithInlineKeyboard(string $message, array $inlineKeyboard, ?string $parseMode = 'HTML', ?string $chatId = null): bool
     {
-        if (!$this->enabled) {
+        if (! $this->enabled) {
             return false;
         }
 
@@ -182,18 +193,20 @@ class TelegramService
                 'text' => $message,
                 'parse_mode' => $parseMode,
                 'reply_markup' => [
-                    'inline_keyboard' => $inlineKeyboard
-                ]
+                    'inline_keyboard' => $inlineKeyboard,
+                ],
             ]);
 
-            if (!$response->successful()) {
-                $this->safeLog('error', 'Telegram API Error (inline_keyboard): ' . $response->body());
+            if (! $response->successful()) {
+                $this->safeLog('error', 'Telegram API Error (inline_keyboard): '.$response->body());
+
                 return false;
             }
 
             return true;
         } catch (\Exception $e) {
-            $this->safeLog('error', 'Telegram Service Exception (inline_keyboard): ' . $e->getMessage());
+            $this->safeLog('error', 'Telegram Service Exception (inline_keyboard): '.$e->getMessage());
+
             return false;
         }
     }
@@ -213,17 +226,17 @@ class TelegramService
     /**
      * Metode NOTIFIKASI UMUM (Gampang dipakai)
      * Gunakan ini untuk kirim pesan kustom tambahan nanti.
-     * 
+     *
      * Cara Pakai di Controller/Service:
      * app(\App\Services\TelegramService::class)->notify("JUDUL PESAN", [
      *     "Nama" => "Budi",
      *     "Aksi" => "Melakukan Sesuatu"
      * ], "🚀");
-     * 
-     * @param string $title Judul Pesan (Bold)
-     * @param array $details Array Key => Value untuk isi detail
-     * @param string $icon Emoji untuk ikon depan judul
-     * @param string|null $photoPath Path foto (opsional)
+     *
+     * @param  string  $title  Judul Pesan (Bold)
+     * @param  array  $details  Array Key => Value untuk isi detail
+     * @param  string  $icon  Emoji untuk ikon depan judul
+     * @param  string|null  $photoPath  Path foto (opsional)
      */
     public function notify(string $title, array $details, string $icon = 'ℹ️', ?string $photoPath = null): void
     {
@@ -236,15 +249,15 @@ class TelegramService
         try {
             if ($photoPath) {
                 $sent = $this->sendPhoto($photoPath, $message);
-                if (!$sent) {
-                    $this->safeLog('info', "Telegram Service: Photo notification failed, falling back to text.");
+                if (! $sent) {
+                    $this->safeLog('info', 'Telegram Service: Photo notification failed, falling back to text.');
                 }
             }
         } catch (\Exception $e) {
-            $this->safeLog('error', "Telegram Service: Error in photo part: " . $e->getMessage());
+            $this->safeLog('error', 'Telegram Service: Error in photo part: '.$e->getMessage());
         }
 
-        if (!$sent) {
+        if (! $sent) {
             $this->sendMessage($message);
         }
     }
@@ -261,17 +274,16 @@ class TelegramService
 
         $photoPath = null;
         if ($absensi->foto_masuk) {
-            $root = config('filesystems.disks.public.root');
-            $photoPath = rtrim($root, '/') . '/' . ltrim($absensi->foto_masuk, '/');
+            $photoPath = Storage::disk('public')->url($absensi->foto_masuk);
         }
 
-        $this->notify("ABSEN MASUK", [
+        $this->notify('ABSEN MASUK', [
             'Nama' => ($pegawai->nama_lengkap ?? $pegawai->nama ?? '-'),
             'Divisi' => ($pegawai->divisi->nama ?? '-'),
-            'Shift' => ($shift->nama ?? '-') . " (" . ($shift->jam_masuk->format('H:i') ?? '-') . ")",
+            'Shift' => ($shift->nama ?? '-').' ('.($shift->jam_masuk->format('H:i') ?? '-').')',
             'Waktu Absen' => $time,
             'Status' => $status,
-            'Lokasi' => $absensi->lokasi_masuk
+            'Lokasi' => $absensi->lokasi_masuk,
         ], '✅', $photoPath);
     }
 
@@ -287,23 +299,22 @@ class TelegramService
 
         $photoPath = null;
         if ($absensi->foto_pulang) {
-            $root = config('filesystems.disks.public.root');
-            $photoPath = rtrim($root, '/') . '/' . ltrim($absensi->foto_pulang, '/');
+            $photoPath = Storage::disk('public')->url($absensi->foto_pulang);
         }
 
         $details = [
             'Nama' => ($pegawai->nama_lengkap ?? $pegawai->nama ?? '-'),
             'Divisi' => ($pegawai->divisi->nama ?? '-'),
-            'Shift' => ($shift->nama ?? '-') . " (" . ($shift->jam_pulang->format('H:i') ?? '-') . ")",
+            'Shift' => ($shift->nama ?? '-').' ('.($shift->jam_pulang->format('H:i') ?? '-').')',
             'Waktu Pulang' => $time,
-            'Lokasi' => $absensi->lokasi_pulang
+            'Lokasi' => $absensi->lokasi_pulang,
         ];
 
         if ($keterangan != '-') {
             $details['Keterangan'] = $keterangan;
         }
 
-        $this->notify("ABSEN PULANG", $details, '🚩', $photoPath);
+        $this->notify('ABSEN PULANG', $details, '🚩', $photoPath);
     }
 
     /**
@@ -314,12 +325,12 @@ class TelegramService
         $pegawai = $izin->pegawai;
         $jenisIzin = $izin->jenisIzin;
 
-        $this->notify("PENGAJUAN IZIN BARU", [
+        $this->notify('PENGAJUAN IZIN BARU', [
             'Nama' => ($pegawai->nama_lengkap ?? $pegawai->nama ?? '-'),
             'Jenis' => ($jenisIzin->nama ?? '-'),
-            'Tanggal' => $izin->tgl_mulai->format('d/m/Y') . ($izin->tgl_mulai != $izin->tgl_selesai ? " s/d " . $izin->tgl_selesai->format('d/m/Y') : ""),
+            'Tanggal' => $izin->tgl_mulai->format('d/m/Y').($izin->tgl_mulai != $izin->tgl_selesai ? ' s/d '.$izin->tgl_selesai->format('d/m/Y') : ''),
             'Alasan' => $izin->alasan,
-            'Status' => 'Menunggu Persetujuan'
+            'Status' => 'Menunggu Persetujuan',
         ], '📝');
     }
 
@@ -331,14 +342,14 @@ class TelegramService
         $pegawai = $izin->pegawai;
         $status = $izin->status_approval; // Assuming 'Approved' or 'Rejected'
         $icon = $status == 'Approved' ? '✅' : '❌';
-        $title = "PENGEMBALIAN IZIN (" . strtoupper($status) . ")";
+        $title = 'PENGEMBALIAN IZIN ('.strtoupper($status).')';
 
         $this->notify($title, [
             'Nama' => ($pegawai->nama_lengkap ?? $pegawai->nama ?? '-'),
             'Jenis' => ($izin->jenisIzin->nama ?? '-'),
-            'Tanggal' => $izin->tgl_mulai->format('d/m/Y') . ($izin->tgl_mulai != $izin->tgl_selesai ? " s/d " . $izin->tgl_selesai->format('d/m/Y') : ""),
+            'Tanggal' => $izin->tgl_mulai->format('d/m/Y').($izin->tgl_mulai != $izin->tgl_selesai ? ' s/d '.$izin->tgl_selesai->format('d/m/Y') : ''),
             'Status' => $status,
-            'Catatan Admin' => $izin->catatan_admin ?? '-'
+            'Catatan Admin' => $izin->catatan_admin ?? '-',
         ], $icon);
     }
 }

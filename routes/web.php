@@ -180,5 +180,46 @@ Route::middleware(['auth', 'check.pegawai.status'])->group(function () {
 
 
     
+    // ============== PENJUALAN ==============
+    Route::prefix('penjualan')->group(function () {
+        // Dashboard Penjualan
+        Route::get('dashboard', [\App\Http\Controllers\SalesDashboardController::class, 'index'])
+            ->name('sales-dashboard.index')
+            ->middleware('check.permission:sales-dashboard.index');
+
+        // Sales Order (Draft -> Submit)
+        Route::post('sales-order/{id}/submit', [\App\Http\Controllers\SalesOrderController::class, 'submit'])->name('sales-order.submit');
+        Route::get('sales-order/{id}/print', [\App\Http\Controllers\SalesOrderController::class, 'printPdf'])->name('sales-order.print');
+        Route::resource('sales-order', \App\Http\Controllers\SalesOrderController::class)
+            ->middleware('check.permission:sales-order.index');
+
+        // Kelola Order (Warehouse: Approve, Edit, Reject)
+        Route::post('kelola-order/{id}/approve', [\App\Http\Controllers\SalesOrderManageController::class, 'approve'])->name('sales-order.approve');
+        Route::post('kelola-order/{id}/reject', [\App\Http\Controllers\SalesOrderManageController::class, 'reject'])->name('sales-order.reject');
+        Route::resource('kelola-order', \App\Http\Controllers\SalesOrderManageController::class)
+            ->parameters(['kelola-order' => 'id'])
+            ->names('sales-order.manage')
+            ->except(['create', 'store', 'destroy'])
+            ->middleware('check.permission:sales-order.manage');
+
+        // Delivery Order (HRD Reassign & Kurir Upload)
+        Route::post('delivery-order/{id}/reassign', [\App\Http\Controllers\DeliveryOrderController::class, 'reassign'])->name('delivery-order.reassign');
+        Route::post('delivery-order/{id}/start', [\App\Http\Controllers\DeliveryOrderController::class, 'start'])->name('delivery-order.start');
+        Route::post('delivery-order/{id}/upload-proof', [\App\Http\Controllers\DeliveryOrderController::class, 'uploadProof'])->name('delivery-order.upload-proof');
+        Route::post('delivery-order/{id}/complete-pickup', [\App\Http\Controllers\DeliveryOrderController::class, 'completePickup'])->name('delivery-order.complete-pickup');
+        Route::get('delivery-order/{id}/print', [\App\Http\Controllers\DeliveryOrderController::class, 'printPdf'])->name('delivery-order.print');
+        Route::resource('delivery-order', \App\Http\Controllers\DeliveryOrderController::class)
+            ->parameters(['delivery-order' => 'id'])
+            ->only(['index', 'show'])
+            ->middleware('check.permission:delivery-order.index');
+
+        // Invoice
+        Route::post('invoice/{id}/status', [\App\Http\Controllers\InvoiceController::class, 'updateStatus'])->name('invoice.update-status');
+        Route::get('invoice/{id}/print', [\App\Http\Controllers\InvoiceController::class, 'printPdf'])->name('invoice.print');
+        Route::resource('invoice', \App\Http\Controllers\InvoiceController::class)
+            ->parameters(['invoice' => 'id'])
+            ->only(['index', 'show'])
+            ->middleware('check.permission:invoice.index');
+    });
 });
 

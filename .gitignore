@@ -27,3 +27,6 @@ Thumbs.db
 !/public/assets/*
 /public/css
 /public/js
+
+CLAUDE.md
+*.sql

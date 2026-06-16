@@ -95,6 +95,24 @@ class AppServiceProvider extends ServiceProvider
             \App\Interfaces\Repositories\ProduksiRepositoryInterface::class,
             \App\Repositories\ProduksiRepository::class
         );
+
+        // Sales Order Module Repositories
+        $this->app->bind(
+            \App\Interfaces\Repositories\SalesOrderRepositoryInterface::class,
+            \App\Repositories\SalesOrderRepository::class
+        );
+        $this->app->bind(
+            \App\Interfaces\Repositories\DeliveryOrderRepositoryInterface::class,
+            \App\Repositories\DeliveryOrderRepository::class
+        );
+        $this->app->bind(
+            \App\Interfaces\Repositories\InvoiceRepositoryInterface::class,
+            \App\Repositories\InvoiceRepository::class
+        );
+        $this->app->bind(
+            \App\Interfaces\Repositories\SalesOrderLogRepositoryInterface::class,
+            \App\Repositories\SalesOrderLogRepository::class
+        );
     }
 
     /**

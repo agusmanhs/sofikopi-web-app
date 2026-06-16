@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
-use App\Traits\LogsActivity;
 
 class Izin extends Model
 {
@@ -37,7 +37,9 @@ class Izin extends Model
      * Status approval constants
      */
     const STATUS_PENDING = 'Pending';
+
     const STATUS_APPROVED = 'Approved';
+
     const STATUS_REJECTED = 'Rejected';
 
     /**
@@ -72,6 +74,7 @@ class Izin extends Model
         if ($this->file_surat) {
             return Storage::url($this->file_surat);
         }
+
         return null;
     }
 
@@ -97,6 +100,16 @@ class Izin extends Model
     public function scopeApproved($query)
     {
         return $query->where('status_approval', self::STATUS_APPROVED);
+    }
+
+    /**
+     * Scope untuk izin approved yang mencakup tanggal tertentu
+     */
+    public function scopeApprovedOn($query, $date)
+    {
+        return $query->where('status_approval', self::STATUS_APPROVED)
+            ->whereDate('tgl_mulai', '<=', $date)
+            ->whereDate('tgl_selesai', '>=', $date);
     }
 
     /**

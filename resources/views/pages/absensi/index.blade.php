@@ -339,10 +339,20 @@
                          $sudahLewatBatas = $now->gt($batasMaksimalPulang);
                      }
                   @endphp
+                  @if ($sedangIzin ?? false)
+                     <div class="alert alert-info d-flex align-items-center mb-3" role="alert">
+                        <i class="ri-information-line me-2"></i>
+                        <div>
+                           Anda sedang <strong>{{ $sedangIzin->jenisIzin->nama ?? 'cuti/izin' }}</strong>
+                           ({{ $sedangIzin->tgl_mulai->format('d/m/Y') }} &ndash; {{ $sedangIzin->tgl_selesai->format('d/m/Y') }}).
+                           Tidak perlu melakukan absensi.
+                        </div>
+                     </div>
+                  @endif
                   <div class="row g-3">
                      <div class="col-6">
                         <button type="button" class="btn btn-success btn-lg w-100" id="btn-absen-masuk"
-                           @if (($absensiHariIni && $absensiHariIni->jam_masuk) || ($absenDitutup ?? false)) disabled @endif>
+                           @if (($absensiHariIni && $absensiHariIni->jam_masuk) || ($absenDitutup ?? false) || ($sedangIzin ?? false)) disabled @endif>
                            <i class="ri-login-box-line me-2"></i>
                            @if ($absensiHariIni && $absensiHariIni->jam_masuk)
                               Masuk: {{ $absensiHariIni->jam_masuk->format('H:i') }}
@@ -355,7 +365,7 @@
                      </div>
                      <div class="col-6">
                         <button type="button" class="btn btn-danger btn-lg w-100" id="btn-absen-pulang"
-                           data-target-pulang="{{ $targetJamPulang }}" @if (!$absensiHariIni || !$absensiHariIni->jam_masuk || $absensiHariIni->jam_pulang || $sudahLewatBatas) disabled @endif>
+                           data-target-pulang="{{ $targetJamPulang }}" @if (!$absensiHariIni || !$absensiHariIni->jam_masuk || $absensiHariIni->jam_pulang || $sudahLewatBatas || ($sedangIzin ?? false)) disabled @endif>
                            <i class="ri-logout-box-line me-2"></i>
                            @if ($absensiHariIni && $absensiHariIni->jam_pulang)
                               Pulang: {{ $absensiHariIni->jam_pulang->format('H:i') }}

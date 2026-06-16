@@ -2,9 +2,10 @@
 
 namespace App\Repositories;
 
-use App\Models\Absensi;
-use App\Models\Pegawai;
 use App\Interfaces\Repositories\AbsensiRepositoryInterface;
+use App\Models\Absensi;
+use App\Models\Izin;
+use App\Models\Pegawai;
 
 class AbsensiRepository extends BaseRepository implements AbsensiRepositoryInterface
 {
@@ -38,6 +39,7 @@ class AbsensiRepository extends BaseRepository implements AbsensiRepositoryInter
     public function getAbsensiHariIni($tanggal = null)
     {
         $tanggal = $tanggal ?: today()->toDateString();
+
         return $this->model->with(['pegawai', 'shift'])
             ->whereDate('tanggal', $tanggal)
             ->get();
@@ -48,12 +50,15 @@ class AbsensiRepository extends BaseRepository implements AbsensiRepositoryInter
         $tanggal = $tanggal ?: today()->toDateString();
         $sudahAbsen = $this->model->whereDate('tanggal', $tanggal)
             ->pluck('pegawai_id');
+        $sedangIzin = Izin::approvedOn($tanggal)->pluck('pegawai_id');
+        $excludeIds = $sudahAbsen->merge($sedangIzin)->unique();
 
         return Pegawai::aktif()
-            ->whereNotIn('id', $sudahAbsen)
+            ->whereNotIn('id', $excludeIds)
             ->with(['divisi', 'kantor'])
             ->get();
     }
+
     public function paginate($perPage = 10)
     {
         return $this->model->with('pegawai')

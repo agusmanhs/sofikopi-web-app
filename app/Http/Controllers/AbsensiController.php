@@ -2,11 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\RekapAbsensiExport;
 use App\Helpers\ResponseHelper;
 use App\Http\Requests\AbsensiRequest;
+use App\Models\Absensi;
+use App\Models\HariLibur;
+use App\Models\Izin;
+use App\Models\JenisIzin;
+use App\Models\Pegawai;
+use App\Models\Shift;
 use App\Services\AbsensiService;
 use App\Services\PegawaiService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class AbsensiController extends Controller
 {
@@ -21,8 +30,8 @@ class AbsensiController extends Controller
     public function index(Request $request)
     {
         $pegawai = $this->pegawaiService->getByUserId(auth()->id());
-        
-        if (!$pegawai) {
+
+        if (! $pegawai) {
             return redirect()->route('dashboard')
                 ->with('error', 'Anda belum terdaftar sebagai pegawai.');
         }
@@ -32,27 +41,27 @@ class AbsensiController extends Controller
         $absensiHariIni = null;
 
         if ($shiftId) {
-            $shift = \App\Models\Shift::find($shiftId);
+            $shift = Shift::find($shiftId);
             // Validasi shift milik divisi pegawai
             if ($shift && $shift->divisi_id !== $pegawai->divisi_id) {
                 return redirect()->route('dashboard')->with('error', 'Shift tidak valid untuk divisi Anda.');
             }
-            
+
             // Cari sesi absen yang aktif (belum pulang)
-            $absensiHariIni = \App\Models\Absensi::where('pegawai_id', $pegawai->id)
+            $absensiHariIni = Absensi::where('pegawai_id', $pegawai->id)
                 ->where('shift_id', $shiftId)
                 ->whereNull('jam_pulang')
                 ->orderBy('tanggal', 'desc')
                 ->first();
 
             // Jika ada sesi "Menggantung" dari hari sebelumnya, cek apakah sudah basi
-            if ($absensiHariIni && !$absensiHariIni->tanggal->isToday()) {
-                $jamPulangShift = \Carbon\Carbon::parse($absensiHariIni->tanggal->format('Y-m-d') . ' ' . $shift->jam_pulang->format('H:i:s'));
+            if ($absensiHariIni && ! $absensiHariIni->tanggal->isToday()) {
+                $jamPulangShift = Carbon::parse($absensiHariIni->tanggal->format('Y-m-d').' '.$shift->jam_pulang->format('H:i:s'));
                 if ($shift->is_cross_day) {
                     $jamPulangShift->addDay();
                 }
                 $deadline = $jamPulangShift->copy()->addHours(2);
-                
+
                 if (now()->gt($deadline)) {
                     // Sesi basi diabaikan agar user bisa masuk sesi baru hari ini
                     $absensiHariIni = null;
@@ -60,8 +69,8 @@ class AbsensiController extends Controller
             }
 
             // Jika tidak ada yang open/aktif, cari yang sudah selesai hari ini
-            if (!$absensiHariIni) {
-                $absensiHariIni = \App\Models\Absensi::where('pegawai_id', $pegawai->id)
+            if (! $absensiHariIni) {
+                $absensiHariIni = Absensi::where('pegawai_id', $pegawai->id)
                     ->where('shift_id', $shiftId)
                     ->whereDate('tanggal', today())
                     ->first();
@@ -70,7 +79,7 @@ class AbsensiController extends Controller
             // Fallback ke logic lama (ambil absensi pertama hari ini) atau redirect ke dashboard
             // Agar konsisten dengan fitur baru, sebaiknya pegawai harus pilih shift dari dashboard
             // Tapi jika akses langsung menu, kita bisa ambil shift yang "aktif" sekarang jika ada
-            
+
             // Untuk sementara, jika tidak ada shift_id, redirect back ke dashboard agar user memilih
             return redirect()->route('dashboard')->with('info', 'Silakan pilih shift terlebih dahulu.');
         }
@@ -84,14 +93,20 @@ class AbsensiController extends Controller
         $batasAkhirMasuk = null;
         $absenDitutup = false;
         if ($shift) {
-            $jamMasuk = \Carbon\Carbon::parse($shift->jam_masuk->format('H:i:s'));
+            $jamMasuk = Carbon::parse($shift->jam_masuk->format('H:i:s'));
             $batasAkhirMasuk = $jamMasuk->copy()->addHours(3)->format('H:i');
             if (now()->gt($jamMasuk->copy()->addHours(3))) {
                 $absenDitutup = true;
             }
         }
 
-        return view('pages.absensi.index', compact('pegawai', 'absensiHariIni', 'historyAbsensi', 'shift', 'batasAkhirMasuk', 'absenDitutup'));
+        // Cek apakah pegawai sedang izin/cuti yang sudah di-approve hari ini
+        $sedangIzin = Izin::with('jenisIzin')
+            ->where('pegawai_id', $pegawai->id)
+            ->approvedOn(today())
+            ->first();
+
+        return view('pages.absensi.index', compact('pegawai', 'absensiHariIni', 'historyAbsensi', 'shift', 'batasAkhirMasuk', 'absenDitutup', 'sedangIzin'));
     }
 
     /**
@@ -102,7 +117,7 @@ class AbsensiController extends Controller
         try {
             $pegawai = $this->pegawaiService->getByUserId(auth()->id());
 
-            if (!$pegawai) {
+            if (! $pegawai) {
                 return ResponseHelper::error('Anda belum terdaftar sebagai pegawai.', 403);
             }
 
@@ -133,7 +148,7 @@ class AbsensiController extends Controller
         try {
             $pegawai = $this->pegawaiService->getByUserId(auth()->id());
 
-            if (!$pegawai) {
+            if (! $pegawai) {
                 return ResponseHelper::error('Anda belum terdaftar sebagai pegawai.', 403);
             }
 
@@ -168,7 +183,7 @@ class AbsensiController extends Controller
         try {
             $pegawai = $this->pegawaiService->getByUserId(auth()->id());
 
-            if (!$pegawai) {
+            if (! $pegawai) {
                 return ResponseHelper::error('Anda belum terdaftar sebagai pegawai.', 403);
             }
 
@@ -192,7 +207,7 @@ class AbsensiController extends Controller
     {
         $pegawai = $this->pegawaiService->getByUserId(auth()->id());
 
-        if (!$pegawai) {
+        if (! $pegawai) {
             return redirect()->route('dashboard')
                 ->with('error', 'Anda belum terdaftar sebagai pegawai.');
         }
@@ -205,13 +220,13 @@ class AbsensiController extends Controller
 
         // Sinkronisasi: Masukkan tanggal Alpha ke dalam koleksi data agar muncul di tabel
         if (isset($statistik['alpha_dates'])) {
-            $existingDates = $data->pluck('tanggal')->map(fn($d) => $d->format('Y-m-d'))->toArray();
+            $existingDates = $data->pluck('tanggal')->map(fn ($d) => $d->format('Y-m-d'))->toArray();
 
             foreach ($statistik['alpha_dates'] as $date) {
                 // HANYA tambah jika memang tidak ada rekaman data sama sekali di hari itu (mencegah double)
-                if (!in_array($date, $existingDates)) {
-                    $virtualAbsen = new \App\Models\Absensi();
-                    $virtualAbsen->tanggal = \Carbon\Carbon::parse($date);
+                if (! in_array($date, $existingDates)) {
+                    $virtualAbsen = new Absensi;
+                    $virtualAbsen->tanggal = Carbon::parse($date);
                     $virtualAbsen->status = 'Alpha';
                     $virtualAbsen->pegawai_id = $pegawai->id;
                     $virtualAbsen->pegawai = $pegawai;
@@ -230,7 +245,7 @@ class AbsensiController extends Controller
      */
     public function showPegawaiHistory(Request $request, $pegawai_id)
     {
-        $pegawai = \App\Models\Pegawai::findOrFail($pegawai_id);
+        $pegawai = Pegawai::findOrFail($pegawai_id);
 
         $bulan = $request->get('bulan', now()->month);
         $tahun = $request->get('tahun', now()->year);
@@ -240,13 +255,13 @@ class AbsensiController extends Controller
 
         // Sinkronisasi: Masukkan tanggal Alpha ke dalam koleksi data agar muncul di tabel
         if (isset($statistik['alpha_dates'])) {
-            $existingDates = $data->pluck('tanggal')->map(fn($d) => $d->format('Y-m-d'))->toArray();
+            $existingDates = $data->pluck('tanggal')->map(fn ($d) => $d->format('Y-m-d'))->toArray();
 
             foreach ($statistik['alpha_dates'] as $date) {
                 // HANYA tambah jika memang tidak ada rekaman data sama sekali di hari itu (mencegah double)
-                if (!in_array($date, $existingDates)) {
-                    $virtualAbsen = new \App\Models\Absensi();
-                    $virtualAbsen->tanggal = \Carbon\Carbon::parse($date);
+                if (! in_array($date, $existingDates)) {
+                    $virtualAbsen = new Absensi;
+                    $virtualAbsen->tanggal = Carbon::parse($date);
                     $virtualAbsen->status = 'Alpha';
                     $virtualAbsen->pegawai_id = $pegawai->id;
                     $virtualAbsen->pegawai = $pegawai;
@@ -288,23 +303,24 @@ class AbsensiController extends Controller
      */
     public function rekap(Request $request)
     {
-        $bulan = (int)$request->get('bulan', now()->month);
-        $tahun = (int)$request->get('tahun', now()->year);
+        $bulan = (int) $request->get('bulan', now()->month);
+        $tahun = (int) $request->get('tahun', now()->year);
 
         $data = $this->pegawaiService->rekapPaginate($bulan, $tahun, 100);
-        
+
         // Compute statistics for each employee using service
-        $data->getCollection()->transform(function($pegawai) use ($bulan, $tahun) {
+        $data->getCollection()->transform(function ($pegawai) use ($bulan, $tahun) {
             $pegawai->statistik = $this->service->getStatistikPegawai($pegawai->id, $bulan, $tahun);
+
             return $pegawai;
         });
-        
+
         // Hitung detail hari efektif (General info for header)
         $detailFull = $this->service->getDetailHariKerja($bulan, $tahun, false);
         $detailReguler = $this->service->getDetailHariKerja($bulan, $tahun, true);
 
         return view('pages.absensi.rekap', compact(
-            'data', 'bulan', 'tahun', 
+            'data', 'bulan', 'tahun',
             'detailFull', 'detailReguler'
         ));
     }
@@ -314,34 +330,37 @@ class AbsensiController extends Controller
      */
     public function exportExcel(Request $request)
     {
-        $bulan = (int)$request->get('bulan', now()->month);
-        $tahun = (int)$request->get('tahun', now()->year);
+        $bulan = (int) $request->get('bulan', now()->month);
+        $tahun = (int) $request->get('tahun', now()->year);
 
         $data = $this->pegawaiService->rekapAll($bulan, $tahun);
-        $data->transform(function($pegawai) use ($bulan, $tahun) {
+        $data->transform(function ($pegawai) use ($bulan, $tahun) {
             $pegawai->statistik = $this->service->getStatistikPegawai($pegawai->id, $bulan, $tahun);
+
             return $pegawai;
         });
-        $jenisIzins = \App\Models\JenisIzin::where('is_aktif', true)->get();
-        
+        $jenisIzins = JenisIzin::where('is_aktif', true)->get();
+
         $hariEfektifFull = $this->service->getHariKerjaEfektif($bulan, $tahun, false);
         $hariEfektifReguler = $this->service->getHariKerjaEfektif($bulan, $tahun, true);
 
         // Hitung total hari libur di bulan tersebut
-        $start = \Carbon\Carbon::createFromDate($tahun, $bulan, 1)->startOfMonth();
-        $end = \Carbon\Carbon::createFromDate($tahun, $bulan, 1)->endOfMonth();
-        if ($tahun == now()->year && $bulan == now()->month) $end = now();
-        
-        $totalLibur = \App\Models\HariLibur::whereBetween('tanggal', [$start->format('Y-m-d'), $end->format('Y-m-d')])->count();
+        $start = Carbon::createFromDate($tahun, $bulan, 1)->startOfMonth();
+        $end = Carbon::createFromDate($tahun, $bulan, 1)->endOfMonth();
+        if ($tahun == now()->year && $bulan == now()->month) {
+            $end = now();
+        }
 
-        $filename = "Rekap_Absensi_" . $bulan . "_" . $tahun . ".xlsx";
+        $totalLibur = HariLibur::whereBetween('tanggal', [$start->format('Y-m-d'), $end->format('Y-m-d')])->count();
+
+        $filename = 'Rekap_Absensi_'.$bulan.'_'.$tahun.'.xlsx';
 
         // Bagikan leaveTypes secara global untuk digunakan di dalam template blade logic saat dirender oleh library
         $GLOBALS['leaveTypes'] = $jenisIzins->pluck('nama')->toArray();
 
         // Gunakan library Maatwebsite/Excel untuk export yang kompatibel (.xlsx)
-        return \Maatwebsite\Excel\Facades\Excel::download(
-            new \App\Exports\RekapAbsensiExport($data, $bulan, $tahun, $hariEfektifFull, $hariEfektifReguler, $jenisIzins, $totalLibur),
+        return Excel::download(
+            new RekapAbsensiExport($data, $bulan, $tahun, $hariEfektifFull, $hariEfektifReguler, $jenisIzins, $totalLibur),
             $filename
         );
     }
@@ -363,62 +382,62 @@ class AbsensiController extends Controller
         $end = $request->get('end');
         $pegawai = auth()->user()->pegawai;
 
-        if (!$pegawai) {
+        if (! $pegawai) {
             return response()->json([]);
         }
 
         // Attendance Events
-        $absensis = \App\Models\Absensi::where('pegawai_id', $pegawai->id)
+        $absensis = Absensi::where('pegawai_id', $pegawai->id)
             ->whereBetween('tanggal', [$start, $end])
             ->get();
 
         $events = [];
 
         foreach ($absensis as $absen) {
-        $color = 'success'; // Default is Tepat Waktu (Hadir)
-        $statusDisplay = $absen->status;
+            $color = 'success'; // Default is Tepat Waktu (Hadir)
+            $statusDisplay = $absen->status;
 
-        if ($absen->status === 'Tepat Waktu') {
-            $statusDisplay = 'Hadir';
-            $color = 'success';
-        } elseif ($absen->status === 'Terlambat') {
-            $color = 'warning';
-        } elseif ($absen->status === 'Alpha') {
-            $color = 'danger';
-        } elseif (in_array($absen->status, ['Izin', 'Cuti', 'Sakit'])) {
-            $color = 'info';
+            if ($absen->status === 'Tepat Waktu') {
+                $statusDisplay = 'Hadir';
+                $color = 'success';
+            } elseif ($absen->status === 'Terlambat') {
+                $color = 'warning';
+            } elseif ($absen->status === 'Alpha') {
+                $color = 'danger';
+            } elseif (in_array($absen->status, ['Izin', 'Cuti', 'Sakit'])) {
+                $color = 'info';
+            }
+
+            // Logic check Alpha for missed checkout
+            if (! in_array($absen->status, ['Izin', 'Sakit', 'Cuti']) && ! $absen->jam_pulang && ! $absen->tanggal->isToday()) {
+                $statusDisplay = 'Alpha';
+                $color = 'danger';
+            }
+
+            $events[] = [
+                'id' => 'absen-'.$absen->id,
+                'title' => $statusDisplay.($absen->jam_masuk ? ' ('.$absen->jam_masuk->format('H:i').')' : ''),
+                'start' => $absen->tanggal->format('Y-m-d').($absen->jam_masuk ? 'T'.$absen->jam_masuk->format('H:i:s') : ''),
+                'end' => $absen->tanggal->format('Y-m-d').($absen->jam_pulang ? 'T'.$absen->jam_pulang->format('H:i:s') : ''),
+                'allDay' => $absen->jam_masuk ? false : true,
+                'extendedProps' => [
+                    'calendar' => $color,
+                    'description' => $absen->keterangan ?? 'Absensi Shift: '.($absen->shift->nama ?? '-'),
+                ],
+            ];
         }
-
-        // Logic check Alpha for missed checkout
-        if (!in_array($absen->status, ['Izin', 'Sakit', 'Cuti']) && !$absen->jam_pulang && !$absen->tanggal->isToday()) {
-            $statusDisplay = 'Alpha';
-            $color = 'danger';
-        }
-
-        $events[] = [
-            'id' => 'absen-' . $absen->id,
-            'title' => $statusDisplay . ($absen->jam_masuk ? ' (' . $absen->jam_masuk->format('H:i') . ')' : ''),
-            'start' => $absen->tanggal->format('Y-m-d') . ($absen->jam_masuk ? 'T' . $absen->jam_masuk->format('H:i:s') : ''),
-            'end' => $absen->tanggal->format('Y-m-d') . ($absen->jam_pulang ? 'T' . $absen->jam_pulang->format('H:i:s') : ''),
-            'allDay' => $absen->jam_masuk ? false : true,
-            'extendedProps' => [
-                'calendar' => $color,
-                'description' => $absen->keterangan ?? 'Absensi Shift: ' . ($absen->shift->nama ?? '-'),
-            ]
-        ];
-    }
         // Holiday Events
-        $holidays = \App\Models\HariLibur::whereBetween('tanggal', [$start, $end])->get();
+        $holidays = HariLibur::whereBetween('tanggal', [$start, $end])->get();
         foreach ($holidays as $holiday) {
             $events[] = [
-                'id' => 'holiday-' . $holiday->id,
-                'title' => 'Libur: ' . $holiday->nama,
+                'id' => 'holiday-'.$holiday->id,
+                'title' => 'Libur: '.$holiday->nama,
                 'start' => $holiday->tanggal->format('Y-m-d'),
                 'allDay' => true,
                 'extendedProps' => [
                     'calendar' => 'danger',
                     'description' => $holiday->deskripsi ?? 'Libur Nasional',
-                ]
+                ],
             ];
         }
 

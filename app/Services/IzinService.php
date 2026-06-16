@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Absensi;
 use App\Models\Izin;
+use App\Models\JenisIzin;
 use App\Repositories\IzinRepository;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -12,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 class IzinService extends BaseService
 {
     protected FileUploadService $fileUploadService;
+
     protected TelegramService $telegramService;
 
     public function __construct(
@@ -67,10 +69,10 @@ class IzinService extends BaseService
         }
 
         // Check max hari (jika ada limit)
-        $jenisIzin = \App\Models\JenisIzin::find($data['jenis_izin_id']);
+        $jenisIzin = JenisIzin::find($data['jenis_izin_id']);
         if ($jenisIzin) {
             $isCuti = str_contains(strtolower($jenisIzin->nama), 'cuti') || str_contains(strtolower($jenisIzin->kode), 'cuti');
-            
+
             // Aturan khusus Cuti: Minimal 7 hari sebelumnya
             if ($isCuti) {
                 $today = now()->startOfDay();
@@ -174,20 +176,31 @@ class IzinService extends BaseService
     }
 
     /**
+     * Tentukan status absensi (Sakit/Cuti/Izin) berdasarkan jenis izin
+     */
+    public function resolveStatusFromJenis(?JenisIzin $jenisIzin): string
+    {
+        $kodeStr = strtolower(($jenisIzin->kode ?? '').' '.($jenisIzin->nama ?? ''));
+
+        if (str_contains($kodeStr, 'sakit')) {
+            return 'Sakit';
+        }
+
+        if (str_contains($kodeStr, 'cuti') || str_contains($kodeStr, 'melahirkan') || str_contains($kodeStr, 'menikah') || str_contains($kodeStr, 'duka')) {
+            return 'Cuti';
+        }
+
+        return 'Izin';
+    }
+
+    /**
      * Generate record absensi untuk tanggal izin yang di-approve
      */
     protected function generateAbsensiIzin(Izin $izin)
     {
         $jenisIzin = $izin->jenisIzin;
-        
-        $kodeStr = strtolower(($jenisIzin->kode ?? '') . ' ' . ($jenisIzin->nama ?? ''));
-        
-        $status = 'Izin';
-        if (str_contains($kodeStr, 'sakit')) {
-            $status = 'Sakit';
-        } elseif (str_contains($kodeStr, 'cuti') || str_contains($kodeStr, 'melahirkan') || str_contains($kodeStr, 'menikah') || str_contains($kodeStr, 'duka')) {
-            $status = 'Cuti';
-        }
+
+        $status = $this->resolveStatusFromJenis($jenisIzin);
 
         $current = Carbon::parse($izin->tgl_mulai);
         $end = Carbon::parse($izin->tgl_selesai);
@@ -197,14 +210,14 @@ class IzinService extends BaseService
 
         while ($current->lte($end)) {
             $dateStr = $current->toDateString();
-            
+
             // Cari apakah sudah ada absensi di hari tersebut (untuk di-override)
             $existing = Absensi::where('pegawai_id', $izin->pegawai_id)
                 ->whereDate('tanggal', $dateStr)
                 ->first();
 
             $logKeterangan = "Izin: {$jenisIzin->nama} - {$izin->alasan}";
-            
+
             if ($existing && ($existing->jam_masuk || $existing->jam_pulang)) {
                 $origMasuk = $existing->jam_masuk ? $existing->jam_masuk->format('H:i') : '-';
                 $origPulang = $existing->jam_pulang ? $existing->jam_pulang->format('H:i') : '-';
@@ -272,9 +285,9 @@ class IzinService extends BaseService
                     ->whereBetween('tanggal', [$izin->tgl_mulai->toDateString(), $izin->tgl_selesai->toDateString()])
                     ->where(function ($query) use ($izin) {
                         $query->where('keterangan', 'like', "%Izin: {$izin->jenisIzin->nama}%")
-                              ->orWhere('status', 'Izin')
-                              ->orWhere('status', 'Sakit')
-                              ->orWhere('status', 'Cuti');
+                            ->orWhere('status', 'Izin')
+                            ->orWhere('status', 'Sakit')
+                            ->orWhere('status', 'Cuti');
                     })
                     ->delete();
             }

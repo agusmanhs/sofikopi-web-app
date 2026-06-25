@@ -95,7 +95,7 @@ class DeliveryOrderService extends BaseService
 
     public function completeDelivery($id, array $data)
     {
-        return DB::transaction(function () use ($id, $data) {
+        $result = DB::transaction(function () use ($id, $data) {
             $do = $this->repository->find($id);
             if (! $do) {
                 throw new \Exception('Delivery Order tidak ditemukan.');
@@ -140,5 +140,13 @@ class DeliveryOrderService extends BaseService
 
             return $do;
         });
+
+        try {
+            app(\App\Services\TelegramService::class)->notifyDeliveryCompleted($result);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Telegram notification error: '.$e->getMessage());
+        }
+
+        return $result;
     }
 }

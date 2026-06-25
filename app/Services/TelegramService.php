@@ -352,4 +352,28 @@ class TelegramService
             'Catatan Admin' => $izin->catatan_admin ?? '-',
         ], $icon);
     }
+
+    /**
+     * Formatting message for Delivery Order Completed
+     */
+    public function notifyDeliveryCompleted($do): void
+    {
+        $salesOrder = $do->salesOrder;
+        $customerName = $salesOrder->customer_name ?? '-';
+        $courierName = $do->assignedTo->name ?? '-';
+        $receivedBy = $do->received_by_name ?? '-';
+        
+        $photoPath = null;
+        if ($do->proof_photo) {
+            $photoPath = Storage::disk('public')->path($do->proof_photo);
+        }
+
+        $this->notify('DELIVERY ORDER SELESAI', [
+            'No. DO' => $do->do_number,
+            'Customer' => $customerName,
+            'Kurir' => $courierName,
+            'Diterima Oleh' => $receivedBy,
+            'Waktu Selesai' => $do->delivered_at ? $do->delivered_at->format('d/m/Y H:i') : now()->format('d/m/Y H:i'),
+        ], '📦', $photoPath);
+    }
 }

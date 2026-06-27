@@ -8,6 +8,60 @@
 ])
 @endsection
 
+@section('page-style')
+<style>
+.camera-container {
+    position: relative;
+    width: 100%;
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    min-height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#video-preview { width: 100%; height: auto; display: block; }
+#canvas-capture { display: none; }
+.captured-preview { width: 100%; border-radius: 12px; max-height: 240px; object-fit: cover; }
+.camera-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: .875rem;
+}
+.btn-capture-wrapper {
+    width: 70px; height: 70px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; border: none; background: transparent; padding: 0;
+}
+.btn-capture-wrapper:active { transform: scale(0.95); }
+.outer-circle {
+    width: 70px; height: 70px; border-radius: 50%;
+    background: var(--bs-primary, #7367f0);
+    display: flex; align-items: center; justify-content: center;
+}
+.inner-circle {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--bs-primary, #7367f0);
+    border: 3px solid rgba(255,255,255,.5);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #fff;
+}
+@keyframes pulse-border {
+    0%   { box-shadow: 0 0 0 0   rgba(115,103,240,.5); }
+    70%  { box-shadow: 0 0 0 10px rgba(115,103,240,0); }
+    100% { box-shadow: 0 0 0 0   rgba(115,103,240,0); }
+}
+.pulse-animation { animation: pulse-border 2s infinite; }
+</style>
+@endsection
+
 @section('vendor-script')
 @vite([
   'resources/assets/vendor/libs/select2/select2.js'
@@ -228,8 +282,62 @@
 
                         <div class="mb-3">
                             <label class="form-label">Foto Bukti Serah Terima</label>
-                            <input type="file" name="proof_photo" class="form-control" accept="image/*" required>
-                            <small class="text-muted d-block mt-1">Harap lampirkan foto penyerahan produk.</small>
+
+                            <!-- Camera widget (same pattern as absensi) -->
+                            <div class="camera-container mb-2" id="camera-container">
+                                <video id="video-preview" autoplay playsinline></video>
+                                <canvas id="canvas-capture"></canvas>
+                                <div class="camera-overlay" id="camera-overlay">
+                                    <span><i class="ri-camera-off-line me-2"></i>Kamera belum aktif</span>
+                                </div>
+                            </div>
+
+                            <!-- Photo preview (shown after capture) -->
+                            <div class="text-center mb-2 d-none" id="preview-section">
+                                <img id="captured-preview" class="captured-preview" src="" alt="Preview Foto">
+                                <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="btn-retake">
+                                    <i class="ri-refresh-line me-1"></i>Ambil Ulang
+                                </button>
+                            </div>
+
+                            <!-- Camera controls -->
+                            <div class="text-center mb-2">
+                                <button type="button" class="btn btn-outline-primary" id="btn-start-camera">
+                                    <i class="ri-camera-line me-2"></i>Buka Kamera
+                                </button>
+                                <div class="d-none mt-2" id="capture-controls">
+                                    <button type="button" class="btn-capture-wrapper pulse-animation mx-auto" id="btn-capture">
+                                        <div class="outer-circle">
+                                            <div class="inner-circle">
+                                                <i class="ri-camera-fill ri-xl mb-1"></i>
+                                                <small style="font-weight:800;line-height:1;">TEKAN</small>
+                                            </div>
+                                        </div>
+                                    </button>
+                                    <p class="text-muted small mt-2 mb-0">Tekan tombol untuk ambil foto</p>
+                                </div>
+                            </div>
+
+                            <!-- Hidden primary input: receives File via DataTransfer after capture -->
+                            <input type="file" name="proof_photo" id="proof-photo-input" accept="image/*" class="d-none" required>
+
+                            <!-- Fallback: shown only if getUserMedia fails -->
+                            <div id="camera-fallback" class="d-none">
+                                <div class="alert alert-warning py-2 px-3 mb-2 small" id="fallback-message"></div>
+                                <div class="d-flex gap-2">
+                                    <label for="input-native-camera" class="btn btn-outline-primary btn-sm flex-fill mb-0">
+                                        <i class="ri-camera-line me-1"></i>Buka Kamera
+                                    </label>
+                                    <input type="file" id="input-native-camera" accept="image/*" capture="environment" class="d-none">
+
+                                    <label for="input-gallery" class="btn btn-outline-secondary btn-sm flex-fill mb-0">
+                                        <i class="ri-image-line me-1"></i>Pilih dari Galeri
+                                    </label>
+                                    <input type="file" id="input-gallery" accept="image/*" class="d-none">
+                                </div>
+                            </div>
+
+                            <small class="d-block mt-1" id="photo-status" style="color:inherit;">Belum ada foto diambil.</small>
                         </div>
 
                         <div class="mb-3 bg-light p-2 rounded border">
@@ -331,6 +439,121 @@
                 gpsStatus.className = 'small fw-semibold text-danger';
                 completeBtn.disabled = false;
             }
+
+            // --- Camera: Proof Photo ---
+            let doStream = null;
+
+            const btnStartCamera   = document.getElementById('btn-start-camera');
+            const btnCapture       = document.getElementById('btn-capture');
+            const btnRetake        = document.getElementById('btn-retake');
+            const videoPreview     = document.getElementById('video-preview');
+            const canvasCapture    = document.getElementById('canvas-capture');
+            const capturedPreview  = document.getElementById('captured-preview');
+            const cameraContainer  = document.getElementById('camera-container');
+            const cameraOverlay    = document.getElementById('camera-overlay');
+            const captureControls  = document.getElementById('capture-controls');
+            const previewSection   = document.getElementById('preview-section');
+            const proofInput       = document.getElementById('proof-photo-input');
+            const photoStatus      = document.getElementById('photo-status');
+            const cameraFallback   = document.getElementById('camera-fallback');
+            const fallbackMessage  = document.getElementById('fallback-message');
+            const inputNativeCamera = document.getElementById('input-native-camera');
+            const inputGallery     = document.getElementById('input-gallery');
+
+            function stopStream() {
+                if (doStream) {
+                    doStream.getTracks().forEach(function(t) { t.stop(); });
+                    doStream = null;
+                }
+            }
+
+            function showFallback(msg) {
+                fallbackMessage.textContent = msg;
+                cameraFallback.classList.remove('d-none');
+                btnStartCamera.classList.add('d-none');
+                photoStatus.textContent = msg;
+                photoStatus.style.color = 'var(--bs-warning)';
+            }
+
+            function syncFallbackFile(file) {
+                if (!file) return;
+                var dt = new DataTransfer();
+                dt.items.add(file);
+                proofInput.files = dt.files;
+                capturedPreview.src = URL.createObjectURL(file);
+                cameraContainer.classList.add('d-none');
+                previewSection.classList.remove('d-none');
+                photoStatus.textContent = 'Foto berhasil dipilih.';
+                photoStatus.style.color = 'var(--bs-success)';
+            }
+
+            inputNativeCamera.addEventListener('change', function() {
+                syncFallbackFile(this.files[0] || null);
+            });
+
+            inputGallery.addEventListener('change', function() {
+                syncFallbackFile(this.files[0] || null);
+            });
+
+            btnStartCamera.addEventListener('click', function() {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    showFallback('Browser tidak mendukung akses kamera langsung. Gunakan pilihan di bawah:');
+                    return;
+                }
+                navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment', width: 640, height: 480 },
+                    audio: false
+                }).then(function(stream) {
+                    doStream = stream;
+                    videoPreview.srcObject = stream;
+                    cameraOverlay.style.display = 'none';
+                    btnStartCamera.classList.add('d-none');
+                    captureControls.classList.remove('d-none');
+                }).catch(function(err) {
+                    var msg = err.name === 'NotAllowedError'
+                        ? 'Izin kamera ditolak. Gunakan pilihan di bawah:'
+                        : 'Kamera tidak dapat diakses. Gunakan pilihan di bawah:';
+                    showFallback(msg);
+                });
+            });
+
+            btnCapture.addEventListener('click', function() {
+                canvasCapture.width  = videoPreview.videoWidth;
+                canvasCapture.height = videoPreview.videoHeight;
+                canvasCapture.getContext('2d').drawImage(videoPreview, 0, 0);
+
+                canvasCapture.toBlob(function(blob) {
+                    var file = new File([blob], 'proof_delivery.jpg', { type: 'image/jpeg' });
+                    var dt = new DataTransfer();
+                    dt.items.add(file);
+                    proofInput.files = dt.files;
+
+                    capturedPreview.src = URL.createObjectURL(blob);
+                    cameraContainer.classList.add('d-none');
+                    captureControls.classList.add('d-none');
+                    previewSection.classList.remove('d-none');
+                    photoStatus.textContent = 'Foto berhasil diambil.';
+                    photoStatus.style.color = 'var(--bs-success)';
+
+                    stopStream();
+                }, 'image/jpeg', 0.85);
+            });
+
+            btnRetake.addEventListener('click', function() {
+                proofInput.value = '';
+                inputNativeCamera.value = '';
+                inputGallery.value = '';
+                capturedPreview.src = '';
+                previewSection.classList.add('d-none');
+                cameraContainer.classList.remove('d-none');
+                cameraFallback.classList.add('d-none');
+                photoStatus.textContent = 'Belum ada foto diambil.';
+                photoStatus.style.color = '';
+                btnStartCamera.classList.remove('d-none');
+                captureControls.classList.add('d-none');
+            });
+
+            window.addEventListener('beforeunload', stopStream);
         }
     });
 </script>

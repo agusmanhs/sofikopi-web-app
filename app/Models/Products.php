@@ -50,7 +50,7 @@ class Products extends Model
         if ($this->cover) {
             return Storage::disk('public')->url($this->cover);
         }
-        return asset('assets/img/illustrations/page-pricing-standard.png'); // Placeholder
+        return asset('images/sofikopi-store.png');
     }
 
     public function scopeAktif($query)

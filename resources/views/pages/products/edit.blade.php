@@ -34,7 +34,7 @@
                                 <div id="preview-container" class="mt-2 text-center">
                                     <p class="text-muted small">Preview saat ini:</p>
                                     @if($data->cover)
-                                        <img id="preview-image" src="{{ Storage::url($data->cover) }}" alt="Preview" class="img-thumbnail" style="max-height: 200px">
+                                        <img id="preview-image" src="{{ Storage::disk('public')->url($data->cover) }}" alt="Preview" class="img-thumbnail" style="max-height: 200px">
                                     @else
                                         <div id="no-image" class="bg-light rounded d-flex align-items-center justify-content-center mx-auto" style="width: 200px; height: 150px">
                                             <i class="ri-image-line text-muted"></i>

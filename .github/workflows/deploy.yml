@@ -1,0 +1,47 @@
+name: Deploy Laravel App
+
+on:
+  push:
+    branches:
+      - main # Change this to your production branch (e.g., master or production)
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Checkout the code from your repository
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Deploy files to the server via SFTP
+      - name: SFTP Deploy
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.SFTP_HOST }}
+          username: ${{ secrets.SFTP_USERNAME }}
+          password: ${{ secrets.SFTP_PASSWORD }}
+          port: 22
+          local-dir: ./
+          server-dir: /var/www/sofikopi_abs/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/vendor/**
+            .env
+
+      # 3. Connect via SSH to run Laravel-specific commands (Optional but Recommended)
+      - name: Execute post-deployment commands via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SFTP_HOST }}
+          username: ${{ secrets.SFTP_USERNAME }}
+          password: ${{ secrets.SFTP_PASSWORD }}
+          port: 22
+          script: |
+            cd /var/www/sofikopi_abs
+            composer install --no-dev --optimize-autoloader
+            php artisan migrate --force
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache

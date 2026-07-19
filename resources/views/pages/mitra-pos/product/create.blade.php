@@ -78,7 +78,7 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Harga Jual (Rp) <span class="text-danger">*</span></label>
-                                <input type="number" step="0.01" min="0" name="sale_price" id="sale_price" class="form-control" value="{{ old('sale_price') }}" required>
+                                <input type="text" inputmode="numeric" name="sale_price" id="sale_price" class="form-control rupiah-input" value="{{ old('sale_price') }}" placeholder="Contoh: 22.000" required>
                             </div>
                         </div>
 
@@ -100,7 +100,7 @@
                                                 <select name="ingredients[0][mitra_material_id]" class="form-select select2 ingredient-material" required>
                                                     <option value="">-- Pilih Material --</option>
                                                     @foreach($materials as $material)
-                                                    <option value="{{ $material->id }}">{{ $material->name }} (Rp {{ number_format($material->harga_satuan, 2, ',', '.') }}/{{ $material->unit }})</option>
+                                                    <option value="{{ $material->id }}">{{ $material->name }} (Rp {{ rtrim(rtrim(number_format($material->harga_satuan, 2, ',', '.'), '0'), ',') }}/{{ $material->unit }})</option>
                                                     @endforeach
                                                 </select>
                                             </td>
@@ -174,6 +174,22 @@
                 return 'Rp ' + rounded.toLocaleString('id-ID');
             }
 
+            // sale_price is a formatted rupiah-input ("22.000") — dots are
+            // thousand separators and must be stripped before parseFloat,
+            // which would otherwise read "22.000" as 22.
+            function parseRupiah(formatted) {
+                return parseFloat((formatted || '').replace(/\./g, '').replace(',', '.')) || 0;
+            }
+
+            document.querySelectorAll('.rupiah-input').forEach(function(el) {
+                const format = function() {
+                    const digits = el.value.replace(/[^\d]/g, '');
+                    el.value = digits ? Number(digits).toLocaleString('id-ID') : '';
+                };
+                el.addEventListener('input', format);
+                format();
+            });
+
             function recalcPreview() {
                 let hpp = 0;
                 jq('#ingredientsTable tbody tr').each(function() {
@@ -184,7 +200,7 @@
                 });
 
                 const qFactor = parseFloat(jq('#q_factor').val()) || 0;
-                const salePrice = parseFloat(jq('#sale_price').val()) || 0;
+                const salePrice = parseRupiah(jq('#sale_price').val());
                 const cogs = Math.round(hpp * (1 + qFactor));
                 const margin = salePrice - cogs;
 
@@ -203,7 +219,7 @@
                         <select name="ingredients[${ingredientIndex}][mitra_material_id]" class="form-select select2 ingredient-material" required>
                             <option value="">-- Pilih Material --</option>
                             @foreach($materials as $material)
-                                <option value="{{ $material->id }}">{{ $material->name }} (Rp {{ number_format($material->harga_satuan, 2, ',', '.') }}/{{ $material->unit }})</option>
+                                <option value="{{ $material->id }}">{{ $material->name }} (Rp {{ rtrim(rtrim(number_format($material->harga_satuan, 2, ',', '.'), '0'), ',') }}/{{ $material->unit }})</option>
                             @endforeach
                         </select>
                     </td>

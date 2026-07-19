@@ -11,21 +11,22 @@ class CheckPermission
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next, string $menuSlug): Response
     {
         $actionMap = [
-            'index'   => 'read',
-            'show'    => 'read',
-            'create'  => 'create',
-            'store'   => 'create',
-            'edit'    => 'update',
-            'update'  => 'update',
+            'index' => 'read',
+            'show' => 'read',
+            'create' => 'create',
+            'store' => 'create',
+            'edit' => 'update',
+            'update' => 'update',
             'approve' => 'update',
-            'reject'  => 'update',
-            'adjust'  => 'update',
+            'reject' => 'update',
+            'adjust' => 'update',
             'destroy' => 'delete',
+            'destroy-bulk' => 'delete',
         ];
 
         $routeName = $request->route()->getName();
@@ -35,10 +36,14 @@ class CheckPermission
         $action = $actionMap[$method] ?? 'read';
 
         // Additional handling for custom routes like permission.index
-        if ($routeName === 'permission.index') $action = 'read';
-        if ($routeName === 'permission.update') $action = 'update';
+        if ($routeName === 'permission.index') {
+            $action = 'read';
+        }
+        if ($routeName === 'permission.update') {
+            $action = 'update';
+        }
 
-        if (!$request->user() || !$request->user()->hasPermission($menuSlug, $action)) {
+        if (! $request->user() || ! $request->user()->hasPermission($menuSlug, $action)) {
             abort(403, 'Akses ditolak. Anda tidak memiliki izin untuk tindakan ini.');
         }
 

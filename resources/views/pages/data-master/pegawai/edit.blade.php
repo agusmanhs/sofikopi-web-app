@@ -2,6 +2,14 @@
 
 @section('title', 'Edit Pegawai')
 
+@section('vendor-style')
+@vite(['resources/assets/vendor/libs/select2/select2.scss'])
+@endsection
+
+@section('vendor-script')
+@vite(['resources/assets/vendor/libs/select2/select2.js'])
+@endsection
+
 @section('content')
    <div class="container-xxl flex-grow-1 container-p-y">
       <div class="mb-4">
@@ -27,7 +35,7 @@
                      <div class="row">
                         <div class="col-md-6 mb-3">
                            <label class="form-label" for="user_id">Akun User <span class="text-danger">*</span></label>
-                           <select class="form-select @error('user_id') is-invalid @enderror" id="user_id" name="user_id"
+                           <select class="form-select select2 @error('user_id') is-invalid @enderror" id="user_id" name="user_id"
                               required>
                               <option value="">-- Pilih User --</option>
                               @foreach ($users as $user)
@@ -253,5 +261,13 @@
 
       // Initial load
       loadShifts("{{ $data->divisi_id }}", "{{ old('shift_id', $data->shift_id) }}");
+   </script>
+   <script>
+      document.addEventListener('DOMContentLoaded', function() {
+         const jq = window.$ || window.jQuery;
+         if (jq) {
+            jq('.select2').select2({ placeholder: '-- Pilih --', allowClear: true });
+         }
+      });
    </script>
 @endsection

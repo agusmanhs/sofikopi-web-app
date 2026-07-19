@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Mitra;
 use App\Models\MitraCategory;
 use App\Models\MitraMaterial;
+use App\Models\MitraPosSetting;
 use App\Models\MitraProduct;
 use App\Models\Products;
 use App\Models\Role;
@@ -25,7 +26,7 @@ use Illuminate\Support\Facades\Hash;
  *
  * NOT registered in DatabaseSeeder — run explicitly, and only AFTER
  * MitraPosMenuSeeder (which creates the 'mitra' role/menus this seeder's
- * kasir user needs):
+ * kasir user needs), and never in production (guarded below):
  *
  *   php artisan db:seed --class=MitraPosMenuSeeder
  *   php artisan db:seed --class=CafeLalloPosSeeder
@@ -60,11 +61,18 @@ class CafeLalloPosSeeder extends Seeder
 
     public function run(): void
     {
+        if (app()->environment('production')) {
+            $this->command->error('❌ CafeLalloPosSeeder is a manual dev/test fixture and must not run in production.');
+
+            return;
+        }
+
         $ownerRole = Role::where('slug', 'mitra-owner')->first();
         $kasirRole = Role::where('slug', 'mitra-kasir')->first();
 
-        if (!$ownerRole || !$kasirRole) {
+        if (! $ownerRole || ! $kasirRole) {
             $this->command->error('❌ Roles "mitra-owner"/"mitra-kasir" not found. Run MitraPosMenuSeeder first: php artisan db:seed --class=MitraPosMenuSeeder');
+
             return;
         }
 
@@ -90,7 +98,7 @@ class CafeLalloPosSeeder extends Seeder
             ['is_active' => true]
         );
 
-        return Mitra::updateOrCreate(
+        $mitra = Mitra::updateOrCreate(
             ['code' => 'CAFE-LALLO-KDI'],
             [
                 'mitra_category_id' => $category->id,
@@ -101,6 +109,13 @@ class CafeLalloPosSeeder extends Seeder
                 'is_active' => true,
             ]
         );
+
+        // Sample/test data implies enrollment — otherwise the mitra it just
+        // seeded material/product data for wouldn't even show up on the
+        // Kelola Mitra POS screen (index() only lists enrolled mitras).
+        MitraPosSetting::firstOrCreate(['mitra_id' => $mitra->id]);
+
+        return $mitra;
     }
 
     private function seedUsers(Mitra $mitra, Role $ownerRole, Role $kasirRole): void
@@ -155,6 +170,7 @@ class CafeLalloPosSeeder extends Seeder
                 ]);
 
                 $materials[$sku] = $existing;
+
                 continue;
             }
 
@@ -191,7 +207,7 @@ class CafeLalloPosSeeder extends Seeder
     }
 
     /**
-     * @param array<string, MitraMaterial> $materials
+     * @param  array<string, MitraMaterial>  $materials
      * @return array{0: MitraProduct, 1: MitraProduct} [kopiSusu, airMineral]
      */
     private function seedProducts(Mitra $mitra, array $materials): array

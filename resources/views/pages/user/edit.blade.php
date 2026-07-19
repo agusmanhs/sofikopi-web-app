@@ -2,6 +2,14 @@
 
 @section('title', 'Edit User')
 
+@section('vendor-style')
+@vite(['resources/assets/vendor/libs/select2/select2.scss'])
+@endsection
+
+@section('vendor-script')
+@vite(['resources/assets/vendor/libs/select2/select2.js'])
+@endsection
+
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
   {{-- Header --}}
@@ -59,7 +67,7 @@
 
           <div class="col-md-6 mb-4">
             <div class="form-floating form-floating-outline">
-              <select class="form-select @error('role_id') is-invalid @enderror" id="role_id" name="role_id" required>
+              <select class="form-select select2 @error('role_id') is-invalid @enderror" id="role_id" name="role_id" required>
                 <option value="">Pilih Role</option>
                 @foreach($roles as $role)
                 <option value="{{ $role->id }}" data-slug="{{ $role->slug }}" {{ old('role_id', $user->role_id) == $role->id ? 'selected' : '' }}>{{ $role->name }}</option>
@@ -92,7 +100,7 @@
                server-side validation stays authoritative. --}}
           <div class="col-md-6 mb-4 d-none" id="mitra_container">
             <div class="form-floating form-floating-outline">
-              <select class="form-select @error('mitra_id') is-invalid @enderror" id="mitra_id" name="mitra_id">
+              <select class="form-select select2 @error('mitra_id') is-invalid @enderror" id="mitra_id" name="mitra_id">
                 <option value="">Pilih Mitra</option>
                 @foreach($mitras as $mitra)
                 <option value="{{ $mitra->id }}" {{ old('mitra_id', $user->mitra_id) == $mitra->id ? 'selected' : '' }}>{{ $mitra->code }} - {{ $mitra->name }}</option>
@@ -121,6 +129,11 @@
 @section('page-script')
 <script>
   document.addEventListener('DOMContentLoaded', function() {
+    const jq = window.$ || window.jQuery;
+    if (jq) {
+      jq('.select2').select2({ placeholder: '-- Pilih --', allowClear: true });
+    }
+
     const roleSelect = document.getElementById('role_id');
     const mitraContainer = document.getElementById('mitra_container');
     const mitraSelect = document.getElementById('mitra_id');

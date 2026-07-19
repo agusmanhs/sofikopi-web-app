@@ -7,6 +7,22 @@ use Illuminate\Validation\Rule;
 
 class MitraProductRequest extends BaseRequest
 {
+    /**
+     * Money inputs arrive Indonesian-formatted from the rupiah-input JS
+     * ("22.000"). Normalize before the numeric rules run — dots are
+     * thousand separators, comma is the decimal mark.
+     */
+    protected function prepareForValidation()
+    {
+        $price = $this->input('sale_price');
+
+        if (is_string($price)) {
+            $this->merge([
+                'sale_price' => str_replace(',', '.', str_replace('.', '', $price)),
+            ]);
+        }
+    }
+
     public function rules(): array
     {
         $mitraParam = $this->route('mitra');
@@ -19,7 +35,10 @@ class MitraProductRequest extends BaseRequest
                 'max:100',
                 Rule::unique('mitra_products', 'sku')
                     ->where(fn ($query) => $query->where('mitra_id', $mitraId))
-                    ->ignore($this->route('product')),
+                    // {product} is the SKU (slug routes), not the id — ignore
+                    // must compare against the sku column or editing a product
+                    // without changing its SKU false-positives as "taken".
+                    ->ignore($this->route('product'), 'sku'),
             ],
             'name' => 'required|string|max:255',
             'variant' => 'nullable|string|max:100',

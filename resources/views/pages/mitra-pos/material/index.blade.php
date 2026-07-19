@@ -72,7 +72,7 @@
                         <td>{{ $material->unit }}</td>
                         <td>{{ rtrim(rtrim(number_format($material->netto, 3, ',', '.'), '0'), ',') }}</td>
                         <td>Rp {{ number_format($material->price_per_pack, 0, ',', '.') }}</td>
-                        <td>Rp {{ number_format($material->harga_satuan, 2, ',', '.') }}</td>
+                        <td>Rp {{ rtrim(rtrim(number_format($material->harga_satuan, 2, ',', '.'), '0'), ',') }}</td>
                         <td>
                             @php
                                 $stockBadge = 'bg-label-success';

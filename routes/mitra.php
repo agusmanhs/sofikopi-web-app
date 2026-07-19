@@ -2,11 +2,11 @@
 
 use App\Http\Controllers\MitraPos\MitraDashboardController;
 use App\Http\Controllers\MitraPos\MitraMaterialController;
+use App\Http\Controllers\MitraPos\MitraPosManageController;
 use App\Http\Controllers\MitraPos\MitraProductController;
 use App\Http\Controllers\MitraPos\MitraStockController;
 use App\Http\Controllers\MitraPos\PosController;
 use App\Http\Controllers\MitraPos\PosTransactionController;
-use App\Models\Mitra;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -52,22 +52,34 @@ Route::middleware(['auth', 'mitra.user'])->prefix('mitra-pos')->group(function (
         ->middleware('check.permission:mitra-stock.index');
 });
 
-// Admin setup — mitra picker landing page. No {mitra} route param yet, so
-// `mitra.scope` (which expects one to resolve) is intentionally NOT applied
-// here. Internal staff only, gated by check.pegawai.status + permission.
-Route::middleware(['auth', 'check.pegawai.status'])
-    ->get('mitra-pos/manage', function () {
-        $mitras = Mitra::aktif()->orderBy('name')->get();
+// Admin setup — mitra picker landing page + enroll/de-enroll. No {mitra}
+// route param on index/store, so `mitra.scope` (which expects one to
+// resolve) is intentionally NOT applied here. Internal staff only, gated
+// by check.pegawai.status + permission.
+Route::middleware(['auth', 'check.pegawai.status'])->group(function () {
+    Route::get('mitra-pos/manage', [MitraPosManageController::class, 'index'])
+        ->name('mitra-pos-manage.index')
+        ->middleware('check.permission:mitra-pos-manage.index');
 
-        return view('pages.mitra-pos.manage-picker', compact('mitras'));
-    })
-    ->name('mitra-pos-manage.index')
-    ->middleware('check.permission:mitra-pos-manage.index');
+    // Enroll an existing mitra into the POS system.
+    Route::post('mitra-pos/manage', [MitraPosManageController::class, 'store'])
+        ->name('mitra-pos-manage.store')
+        ->middleware('check.permission:mitra-pos-manage.index');
+
+    Route::delete('mitra-pos/manage', [MitraPosManageController::class, 'destroyBulk'])
+        ->name('mitra-pos-manage.destroy-bulk')
+        ->middleware('check.permission:mitra-pos-manage.index');
+});
 
 // Admin setup — Sofikopi staff managing a specific mitra's POS config.
 Route::middleware(['auth', 'check.pegawai.status', 'mitra.scope'])
     ->prefix('mitra-pos/manage/{mitra}')
     ->group(function () {
+        // Remove a mitra from the POS system: wipes its data + de-enrolls it.
+        Route::delete('/', [MitraPosManageController::class, 'destroy'])
+            ->name('mitra-pos-manage.destroy')
+            ->middleware('check.permission:mitra-pos-manage.index');
+
         // Custom action route before the material resource.
         Route::post('material/{material}/adjust', [MitraStockController::class, 'adjust'])
             ->name('mitra-material.adjust')

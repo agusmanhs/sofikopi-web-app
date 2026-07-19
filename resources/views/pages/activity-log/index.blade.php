@@ -3,11 +3,11 @@
 @section('title', 'Activity Log')
 
 @section('vendor-style')
-   @vite(['resources/assets/vendor/libs/datatables-bs5/datatables.bootstrap5.scss', 'resources/assets/vendor/libs/datatables-responsive-bs5/responsive.bootstrap5.scss', 'resources/assets/vendor/libs/datatables-buttons-bs5/buttons.bootstrap5.scss'])
+   @vite(['resources/assets/vendor/libs/datatables-bs5/datatables.bootstrap5.scss', 'resources/assets/vendor/libs/datatables-responsive-bs5/responsive.bootstrap5.scss', 'resources/assets/vendor/libs/datatables-buttons-bs5/buttons.bootstrap5.scss', 'resources/assets/vendor/libs/select2/select2.scss'])
 @endsection
 
 @section('vendor-script')
-   @vite(['resources/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js'])
+   @vite(['resources/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js', 'resources/assets/vendor/libs/select2/select2.js'])
 @endsection
 
 @section('content')
@@ -43,7 +43,7 @@
                   </div>
                   <div class="col-md-3">
                      <label class="form-label">User</label>
-                     <select name="user_id" class="form-select">
+                     <select name="user_id" class="form-select select2">
                         <option value="">Semua User</option>
                         @foreach ($users as $user)
                            <option value="{{ $user->id }}"
@@ -218,6 +218,8 @@
             });
             $('div.head-label').html('<h5 class="card-title mb-0">Riwayat Aktivitas</h5>');
          }
+
+         $('.select2').select2({ placeholder: '-- Pilih --', allowClear: true });
       });
    </script>
 @endsection

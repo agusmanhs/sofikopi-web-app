@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Menu;
 use App\Models\Role;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 class MitraPosMenuSeeder extends Seeder
@@ -16,7 +16,7 @@ class MitraPosMenuSeeder extends Seeder
         // keep their role without a data migration) — then it becomes the
         // owner role, and the kasir role is created alongside it.
         $legacy = Role::where('slug', 'mitra')->first();
-        if ($legacy && !Role::where('slug', 'mitra-owner')->exists()) {
+        if ($legacy && ! Role::where('slug', 'mitra-owner')->exists()) {
             $legacy->update(['slug' => 'mitra-owner', 'name' => 'Mitra Owner']);
         }
 
@@ -100,7 +100,7 @@ class MitraPosMenuSeeder extends Seeder
             [
                 'name' => 'Material',
                 'slug' => 'mitra-material.index',
-                'path' => '/mitra-pos/manage',
+                'path' => '#',
                 'order_no' => 6,
                 'permissions' => [
                     'super-admin' => ['create' => true, 'read' => true, 'update' => true, 'delete' => true],
@@ -109,7 +109,7 @@ class MitraPosMenuSeeder extends Seeder
             [
                 'name' => 'Produk',
                 'slug' => 'mitra-product.index',
-                'path' => '/mitra-pos/manage',
+                'path' => '#',
                 'order_no' => 7,
                 'permissions' => [
                     'super-admin' => ['create' => true, 'read' => true, 'update' => true, 'delete' => true],

@@ -63,7 +63,7 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Harga per Pack (Rp) <span class="text-danger">*</span></label>
-                                <input type="number" step="0.01" min="0" name="price_per_pack" class="form-control" value="{{ old('price_per_pack') }}" placeholder="Contoh: 180000" required>
+                                <input type="text" inputmode="numeric" name="price_per_pack" class="form-control rupiah-input" value="{{ old('price_per_pack') }}" placeholder="Contoh: 180.000" required>
                             </div>
                         </div>
 
@@ -97,4 +97,22 @@
         </div>
     </div>
 </div>
+@endsection
+
+@section('page-script')
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Live thousand-separator formatting (id-ID: 180000 -> 180.000).
+        // Server strips the dots back off in the FormRequest, so this is
+        // purely presentational.
+        document.querySelectorAll('.rupiah-input').forEach(function(el) {
+            const format = function() {
+                const digits = el.value.replace(/[^\d]/g, '');
+                el.value = digits ? Number(digits).toLocaleString('id-ID') : '';
+            };
+            el.addEventListener('input', format);
+            format();
+        });
+    });
+</script>
 @endsection

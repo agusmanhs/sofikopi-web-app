@@ -21,8 +21,17 @@ return new class extends Migration
             'is_active' => true,
         ]);
 
-        // Role 1 & 2 (Super Admin & Admin) have all access
+        // Role 1 & 2 (Super Admin & Admin) have all access.
+        // Guarded by existence check: on a fresh migrate (e.g. RefreshDatabase
+        // in tests), roles 2/3 don't exist yet at this point in migration
+        // history — they're created later by UserSeeder/RoleAndMenuSeeder,
+        // not by a migration — so an unconditional insert violates the
+        // role_menu -> roles foreign key.
         foreach ([1, 2] as $roleId) {
+            if (!\Illuminate\Support\Facades\DB::table('roles')->where('id', $roleId)->exists()) {
+                continue;
+            }
+
             \Illuminate\Support\Facades\DB::table('role_menu')->insert([
                 'role_id' => $roleId,
                 'menu_id' => $menu->id,
@@ -35,17 +44,19 @@ return new class extends Migration
             ]);
         }
 
-        // Role 3 (User) only read access
-        \Illuminate\Support\Facades\DB::table('role_menu')->insert([
-            'role_id' => 3,
-            'menu_id' => $menu->id,
-            'can_create' => false,
-            'can_read' => true,
-            'can_update' => false,
-            'can_delete' => false,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        // Role 3 (User) only read access.
+        if (\Illuminate\Support\Facades\DB::table('roles')->where('id', 3)->exists()) {
+            \Illuminate\Support\Facades\DB::table('role_menu')->insert([
+                'role_id' => 3,
+                'menu_id' => $menu->id,
+                'can_create' => false,
+                'can_read' => true,
+                'can_update' => false,
+                'can_delete' => false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 
     public function down(): void

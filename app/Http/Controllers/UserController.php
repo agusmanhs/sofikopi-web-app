@@ -28,7 +28,8 @@ class UserController extends Controller
     public function create()
     {
         $roles = $this->roleRepository->all();
-        return view('pages.user.create', compact('roles'));
+        $mitras = \App\Models\Mitra::aktif()->orderBy('name')->get();
+        return view('pages.user.create', compact('roles', 'mitras'));
     }
 
     /**
@@ -59,7 +60,8 @@ class UserController extends Controller
     {
         $user = $this->service->find($id);
         $roles = $this->roleRepository->all();
-        return view('pages.user.edit', compact('user', 'roles'));
+        $mitras = \App\Models\Mitra::aktif()->orderBy('name')->get();
+        return view('pages.user.edit', compact('user', 'roles', 'mitras'));
     }
 
     /**

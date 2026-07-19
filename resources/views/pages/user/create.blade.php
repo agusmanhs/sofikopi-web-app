@@ -61,7 +61,7 @@
               <select class="form-select @error('role_id') is-invalid @enderror" id="role_id" name="role_id" required>
                 <option value="">Pilih Role</option>
                 @foreach($roles as $role)
-                <option value="{{ $role->id }}" {{ old('role_id') == $role->id ? 'selected' : '' }}>{{ $role->name }}</option>
+                <option value="{{ $role->id }}" data-slug="{{ $role->slug }}" {{ old('role_id') == $role->id ? 'selected' : '' }}>{{ $role->name }}</option>
                 @endforeach
               </select>
               <label for="role_id">Role</label>
@@ -85,6 +85,24 @@
               @enderror
             </div>
           </div>
+
+          {{-- Only relevant for mitra-* roles; toggled by JS below. Stays in
+               the DOM (hidden) so an empty value is always submitted and
+               server-side validation stays authoritative. --}}
+          <div class="col-md-6 mb-4 d-none" id="mitra_container">
+            <div class="form-floating form-floating-outline">
+              <select class="form-select @error('mitra_id') is-invalid @enderror" id="mitra_id" name="mitra_id">
+                <option value="">Pilih Mitra</option>
+                @foreach($mitras as $mitra)
+                <option value="{{ $mitra->id }}" {{ old('mitra_id') == $mitra->id ? 'selected' : '' }}>{{ $mitra->code }} - {{ $mitra->name }}</option>
+                @endforeach
+              </select>
+              <label for="mitra_id">Mitra</label>
+              @error('mitra_id')
+              <div class="invalid-feedback">{{ $message }}</div>
+              @enderror
+            </div>
+          </div>
         </div>
 
         <div class="d-flex justify-content-end gap-2 mt-3">
@@ -97,4 +115,26 @@
     </div>
   </div>
 </div>
+@endsection
+
+@section('page-script')
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const roleSelect = document.getElementById('role_id');
+    const mitraContainer = document.getElementById('mitra_container');
+    const mitraSelect = document.getElementById('mitra_id');
+
+    function toggleMitraField() {
+      const selected = roleSelect.options[roleSelect.selectedIndex];
+      const isMitraRole = (selected?.dataset.slug || '').startsWith('mitra-');
+
+      mitraContainer.classList.toggle('d-none', !isMitraRole);
+      mitraSelect.required = isMitraRole;
+      if (!isMitraRole) mitraSelect.value = '';
+    }
+
+    roleSelect.addEventListener('change', toggleMitraField);
+    toggleMitraField();
+  });
+</script>
 @endsection

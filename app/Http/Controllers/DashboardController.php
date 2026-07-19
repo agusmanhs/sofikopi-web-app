@@ -20,6 +20,16 @@ class DashboardController extends Controller
     public function index()
     {
         $user = auth()->user();
+
+        // Mitra users land on their portal, not the internal dashboard.
+        // Owner roles get the mitra dashboard; kasir roles (no dashboard
+        // permission) go straight to the POS screen instead of a 403.
+        if ($user->mitra_id !== null) {
+            return $user->hasPermission('mitra-dashboard.index', 'read')
+                ? redirect()->route('mitra-dashboard.index')
+                : redirect()->route('pos.index');
+        }
+
         $roleSlug = $user->role?->slug;
 
         // Admin dan Superadmin melihat dashboard admin

@@ -54,6 +54,10 @@ jobs:
             cd /var/www/sofikopi_abs
             composer install --no-dev --optimize-autoloader
             php artisan migrate --force
+            # RBAC seeder untuk modul Mitra POS: idempotent (updateOrCreate/
+            # updateOrInsert), aman dijalankan di setiap deploy. Tidak menimpa
+            # perubahan permission yang diubah manual lewat halaman Permission.
+            php artisan db:seed --class=MitraPosMenuSeeder --force
             php artisan config:cache
             php artisan route:cache
             php artisan view:cache

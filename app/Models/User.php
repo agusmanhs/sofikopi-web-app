@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Laravel\Sanctum\HasApiTokens;
 use App\Traits\LogsActivity;
@@ -24,11 +25,22 @@ class User extends Authenticatable
         'email',
         'password',
         'role_id',
+        'mitra_id',
     ];
 
     public function role()
     {
         return $this->belongsTo(Role::class);
+    }
+
+    public function mitra(): BelongsTo
+    {
+        return $this->belongsTo(Mitra::class);
+    }
+
+    public function isMitraUser(): bool
+    {
+        return !is_null($this->mitra_id);
     }
 
     /**

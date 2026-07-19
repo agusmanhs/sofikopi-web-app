@@ -12,13 +12,14 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            RoleAndMenuSeeder::class,
-            UserSeeder::class,
-            AbsensiMasterSeeder::class,
-            ShiftSeeder::class,
-            AbsensiMenuSeeder::class,
-            AbsensiRoleMenuSeeder::class,
-            SalesOrderMenuSeeder::class,
+            // RoleAndMenuSeeder::class,
+            // UserSeeder::class,
+            // AbsensiMasterSeeder::class,
+            // ShiftSeeder::class,
+            // AbsensiMenuSeeder::class,
+            // AbsensiRoleMenuSeeder::class,
+            // SalesOrderMenuSeeder::class,
+            MitraPosMenuSeeder::class,
         ]);
     }
 }

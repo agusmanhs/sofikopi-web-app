@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Mitra extends Model
 {
@@ -28,6 +30,16 @@ class Mitra extends Model
         'is_active' => 'boolean',
     ];
 
+    /**
+     * URL-facing routes resolve mitras by their unique `code`, not the
+     * numeric id — see ResolveMitraScope for how the admin-setup routes
+     * (`mitra-pos/manage/{mitra}`) consume this.
+     */
+    public function getRouteKeyName(): string
+    {
+        return 'code';
+    }
+
     public function category()
     {
         return $this->belongsTo(MitraCategory::class, 'mitra_category_id');
@@ -46,6 +58,31 @@ class Mitra extends Model
     public function district()
     {
         return $this->belongsTo(District::class, 'district_code', 'code');
+    }
+
+    public function users(): HasMany
+    {
+        return $this->hasMany(User::class);
+    }
+
+    public function materials(): HasMany
+    {
+        return $this->hasMany(MitraMaterial::class);
+    }
+
+    public function mitraProducts(): HasMany
+    {
+        return $this->hasMany(MitraProduct::class);
+    }
+
+    public function posTransactions(): HasMany
+    {
+        return $this->hasMany(PosTransaction::class);
+    }
+
+    public function posSetting(): HasOne
+    {
+        return $this->hasOne(MitraPosSetting::class);
     }
 
     public function getTitikLokasiAttribute()

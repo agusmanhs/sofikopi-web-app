@@ -113,6 +113,25 @@ class AppServiceProvider extends ServiceProvider
             \App\Interfaces\Repositories\SalesOrderLogRepositoryInterface::class,
             \App\Repositories\SalesOrderLogRepository::class
         );
+
+        // Mitra POS Module Repositories
+        $this->app->bind(
+            \App\Interfaces\Repositories\MitraPos\MitraMaterialRepositoryInterface::class,
+            \App\Repositories\MitraPos\MitraMaterialRepository::class
+        );
+        $this->app->bind(
+            \App\Interfaces\Repositories\MitraPos\MitraStockMovementRepositoryInterface::class,
+            \App\Repositories\MitraPos\MitraStockMovementRepository::class
+        );
+        $this->app->bind(
+            \App\Interfaces\Repositories\MitraPos\MitraProductRepositoryInterface::class,
+            \App\Repositories\MitraPos\MitraProductRepository::class
+        );
+        $this->app->bind(
+            \App\Interfaces\Repositories\MitraPos\PosTransactionRepositoryInterface::class,
+            \App\Repositories\MitraPos\PosTransactionRepository::class
+        );
+        $this->app->scoped(\App\Services\MitraPos\MitraContext::class);
     }
 
     /**

@@ -24,6 +24,7 @@ class CheckPermission
             'update'  => 'update',
             'approve' => 'update',
             'reject'  => 'update',
+            'adjust'  => 'update',
             'destroy' => 'delete',
         ];
 

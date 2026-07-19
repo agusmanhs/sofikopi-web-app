@@ -8,31 +8,41 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
     steps:
       # 1. Checkout the code from your repository
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 2. Deploy files to the server via SFTP
-      - name: SFTP Deploy
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      # 2. Build frontend assets so public/build (Vite manifest) is deployed
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          server: ${{ secrets.SFTP_HOST }}
+          node-version: 20
+          cache: yarn
+
+      - name: Install JS dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build frontend assets
+        run: yarn build
+
+      # 3. Remove files that must not be uploaded (mirrors previous excludes;
+      #    vendor/ and .env never exist in the CI checkout)
+      - name: Prune excluded files before upload
+        run: rm -rf node_modules .git
+
+      # 4. Deploy files to the server over SSH (SCP)
+      - name: Deploy files via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SFTP_HOST }}
           username: ${{ secrets.SFTP_USERNAME }}
           password: ${{ secrets.SFTP_PASSWORD }}
           port: 22
-          local-dir: ./
-          server-dir: /var/www/sofikopi_abs/
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            **/vendor/**
-            .env
+          source: "."
+          target: /var/www/sofikopi_abs/
 
-      # 3. Connect via SSH to run Laravel-specific commands (Optional but Recommended)
+      # 5. Connect via SSH to run Laravel-specific commands (Optional but Recommended)
       - name: Execute post-deployment commands via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:

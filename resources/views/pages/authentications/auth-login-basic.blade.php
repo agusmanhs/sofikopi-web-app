@@ -43,7 +43,7 @@
                <!-- /Logo -->
 
                <div class="card-body mt-1">
-                  <h4 class="mb-1">Welcome to {{ config('variables.templateName') }}! 👋</h4>
+                  <h4 class="mb-1">Welcome to {{ config('variables.templateName') }}!!! 👋</h4>
                   <p class="mb-5">Please sign-in to your account and start the adventure</p>
 
                   @if (session('error'))

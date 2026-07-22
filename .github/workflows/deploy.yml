@@ -26,10 +26,12 @@ jobs:
       - name: Build frontend assets
         run: yarn build
 
-      # 3. Remove files that must not be uploaded (mirrors previous excludes;
-      #    vendor/ and .env never exist in the CI checkout)
+      # 3. Remove files that must not be uploaded. storage/ dan bootstrap/cache
+      #    WAJIB ikut di-prune: scp-action mengirim arsip tar, dan tar me-reset
+      #    permission direktori yang sudah ada di server (775 -> 755), sehingga
+      #    www-data kehilangan akses tulis (error tempnam saat login/render).
       - name: Prune excluded files before upload
-        run: rm -rf node_modules .git
+        run: rm -rf node_modules .git storage bootstrap/cache
 
       # 4. Deploy files to the server over SSH (SCP)
       - name: Deploy files via SCP
@@ -61,3 +63,10 @@ jobs:
             php artisan config:cache
             php artisan route:cache
             php artisan view:cache
+            # Self-healing permission: pastikan www-data selalu bisa menulis ke
+            # storage & bootstrap/cache. Tanpa sudo — sofistore-usr pemilik file
+            # dan anggota grup www-data. "|| true" agar file milik www-data yang
+            # tidak bisa diubah tidak menggagalkan deploy.
+            chgrp -R www-data storage bootstrap/cache || true
+            chmod -R ug+rwX storage bootstrap/cache || true
+            find storage bootstrap/cache -type d -exec chmod g+s {} + || true

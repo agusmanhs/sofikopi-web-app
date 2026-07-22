@@ -21,12 +21,20 @@
             <span class="text-muted fw-light">Mitra POS / {{ $mitra->name }} /</span> Produk
         </h4>
         <div class="d-flex gap-2">
+            @can('access', ['mitra-pos-manage.index', 'read'])
             <a href="{{ route('mitra-pos-manage.index') }}" class="btn btn-outline-secondary">
                 <i class="ri-arrow-left-line me-1"></i> Kembali
             </a>
+            @elsecan('access', ['mitra-stock.index', 'read'])
+            <a href="{{ route('mitra-stock.index') }}" class="btn btn-outline-secondary">
+                <i class="ri-arrow-left-line me-1"></i> Kembali
+            </a>
+            @endcan
+            @can('access', ['mitra-product.index', 'create'])
             <a href="{{ route('mitra-product.create', $mitra) }}" class="btn btn-primary">
                 <i class="ri-add-line me-1"></i> Tambah Produk
             </a>
+            @endcan
         </div>
     </div>
 
@@ -84,12 +92,16 @@
                         <td>
                             <div class="d-flex gap-1">
                                 <a href="{{ route('mitra-product.show', [$mitra, $product]) }}" class="btn btn-sm btn-icon btn-text-secondary" title="Detail"><i class="ri-eye-line"></i></a>
+                                @can('access', ['mitra-product.index', 'update'])
                                 <a href="{{ route('mitra-product.edit', [$mitra, $product]) }}" class="btn btn-sm btn-icon btn-text-secondary" title="Edit"><i class="ri-edit-box-line"></i></a>
+                                @endcan
+                                @can('access', ['mitra-product.index', 'delete'])
                                 <form action="{{ route('mitra-product.destroy', [$mitra, $product]) }}" method="POST" class="form-delete-confirm d-inline">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-icon btn-text-danger" title="Hapus"><i class="ri-delete-bin-line"></i></button>
                                 </form>
+                                @endcan
                             </div>
                         </td>
                     </tr>

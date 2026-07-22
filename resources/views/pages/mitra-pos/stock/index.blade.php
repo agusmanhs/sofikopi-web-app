@@ -8,6 +8,19 @@
         <h4 class="fw-bold py-3 mb-0">
             <span class="text-muted fw-light">Mitra POS /</span> Stok Material
         </h4>
+        {{-- auth()->user()->mitra is guaranteed non-null here: mitra.user middleware 403s any user with mitra_id === null before this page renders. --}}
+        <div class="d-flex gap-2">
+            @can('access', ['mitra-material.index', 'read'])
+            <a href="{{ route('mitra-material.index', auth()->user()->mitra) }}" class="btn btn-primary">
+                <i class="ri-archive-line me-1"></i> Kelola Material
+            </a>
+            @endcan
+            @can('access', ['mitra-product.index', 'read'])
+            <a href="{{ route('mitra-product.index', auth()->user()->mitra) }}" class="btn btn-primary">
+                <i class="ri-cup-line me-1"></i> Kelola Produk
+            </a>
+            @endcan
+        </div>
     </div>
 
     <div class="card">
@@ -64,9 +77,11 @@
             </table>
         </div>
     </div>
+    @cannot('access', ['mitra-material.index', 'read'])
     <p class="text-muted mt-2">
         <i class="ri-information-line me-1"></i>
         Halaman ini bersifat baca-saja. Untuk menambah, mengubah, atau menyesuaikan stok material, hubungi admin Sofikopi.
     </p>
+    @endcannot
 </div>
 @endsection

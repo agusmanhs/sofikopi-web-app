@@ -174,12 +174,13 @@ class AppServiceProvider extends ServiceProvider
             if ($role) {
                 $menus = $role->menus()
                     ->whereNull('parent_id')
+                    ->where('is_active', true)
                     ->wherePivot('can_read', true)
                     ->with(['children' => function($q) use ($role) {
-                        $q->whereHas('roles', function($rq) use ($role) {
+                        $q->where('is_active', true)->whereHas('roles', function($rq) use ($role) {
                             $rq->where('roles.id', $role->id)->where('can_read', true);
                         })->with(['children' => function($sq) use ($role) {
-                            $sq->whereHas('roles', function($srq) use ($role) {
+                            $sq->where('is_active', true)->whereHas('roles', function($srq) use ($role) {
                                 $srq->where('roles.id', $role->id)->where('can_read', true);
                             })->orderBy('order_no');
                         }])->orderBy('order_no');

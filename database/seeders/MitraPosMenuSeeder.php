@@ -98,10 +98,15 @@ class MitraPosMenuSeeder extends Seeder
                 ],
             ],
             [
+                // Hidden from the sidebar: these pages are mitra-scoped
+                // (/mitra-pos/manage/{mitra}/...) and only reachable via the
+                // Kelola Mitra POS picker. The menu row + role_menu pivots
+                // must stay — hasPermission() checks depend on them.
                 'name' => 'Material',
                 'slug' => 'mitra-material.index',
                 'path' => '#',
                 'order_no' => 6,
+                'is_active' => false,
                 'permissions' => [
                     'super-admin' => ['create' => true, 'read' => true, 'update' => true, 'delete' => true],
                 ],
@@ -111,6 +116,7 @@ class MitraPosMenuSeeder extends Seeder
                 'slug' => 'mitra-product.index',
                 'path' => '#',
                 'order_no' => 7,
+                'is_active' => false,
                 'permissions' => [
                     'super-admin' => ['create' => true, 'read' => true, 'update' => true, 'delete' => true],
                 ],
@@ -133,7 +139,7 @@ class MitraPosMenuSeeder extends Seeder
                     'name' => $menuData['name'],
                     'path' => $menuData['path'],
                     'order_no' => $menuData['order_no'],
-                    'is_active' => true,
+                    'is_active' => $menuData['is_active'] ?? true,
                 ]
             );
 

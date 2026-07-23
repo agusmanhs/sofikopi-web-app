@@ -74,7 +74,10 @@ class MitraPosMenuSeeder extends Seeder
                 'path' => '/mitra-pos/transaction',
                 'order_no' => 3,
                 'permissions' => [
-                    'mitra-owner' => ['create' => false, 'read' => true, 'update' => false, 'delete' => false],
+                    // delete=true -> owner can void a transaction (checks
+                    // CheckPermission's 'void' -> 'delete' mapping). Kasir
+                    // stays read-only so they can't void their own mistakes.
+                    'mitra-owner' => ['create' => false, 'read' => true, 'update' => false, 'delete' => true],
                     'mitra-kasir' => ['create' => false, 'read' => true, 'update' => false, 'delete' => false],
                 ],
             ],
@@ -89,10 +92,39 @@ class MitraPosMenuSeeder extends Seeder
                 ],
             ],
             [
+                'name' => 'Laporan Harian',
+                'slug' => 'mitra-report.index',
+                'path' => '/mitra-pos/report',
+                'order_no' => 5,
+                'permissions' => [
+                    'mitra-owner' => ['create' => false, 'read' => true, 'update' => false, 'delete' => false],
+                ],
+            ],
+            [
+                'name' => 'Stock Opname',
+                'slug' => 'mitra-opname.index',
+                'path' => '/mitra-pos/opname',
+                'order_no' => 6,
+                'permissions' => [
+                    'mitra-owner' => ['create' => true, 'read' => true, 'update' => false, 'delete' => false],
+                ],
+            ],
+            [
+                'name' => 'Pengaturan',
+                'slug' => 'mitra-setting.index',
+                'path' => '/mitra-pos/settings',
+                'order_no' => 7,
+                'permissions' => [
+                    // Owner-only: service charge/tax/fee percents affect
+                    // every future sale's totals, so kasir gets no pivot row.
+                    'mitra-owner' => ['create' => false, 'read' => true, 'update' => true, 'delete' => false],
+                ],
+            ],
+            [
                 'name' => 'Kelola Mitra POS',
                 'slug' => 'mitra-pos-manage.index',
                 'path' => '/mitra-pos/manage',
-                'order_no' => 5,
+                'order_no' => 8,
                 'permissions' => [
                     'super-admin' => ['create' => true, 'read' => true, 'update' => true, 'delete' => true],
                 ],

@@ -9,6 +9,7 @@ use App\Services\MitraPos\MitraMaterialService;
 use App\Services\MitraPos\MitraStockService;
 use App\Services\MitraPos\MitraContext;
 use App\Traits\LogsActivity;
+use Illuminate\Http\Request;
 
 class MitraStockController extends Controller
 {
@@ -31,6 +32,22 @@ class MitraStockController extends Controller
         $materials = $this->materialService->forMitra($mitraId);
 
         return view('pages.mitra-pos.stock.index', compact('materials'));
+    }
+
+    /**
+     * Portal route (`mitra-pos/stock/movements`) — filterable ledger view,
+     * reusing the 'mitra-stock.index' permission (segment 'movements' isn't
+     * in CheckPermission's action map -> defaults to 'read', same as index).
+     */
+    public function movements(Request $request)
+    {
+        $mitraId = $this->mitraContext->id();
+        $filters = $request->only(['material_id', 'type', 'from', 'to']);
+
+        $movements = $this->stockService->movementsForMitra($mitraId, $filters);
+        $materials = $this->materialService->forMitra($mitraId);
+
+        return view('pages.mitra-pos.stock.movements', compact('movements', 'materials', 'filters'));
     }
 
     /**

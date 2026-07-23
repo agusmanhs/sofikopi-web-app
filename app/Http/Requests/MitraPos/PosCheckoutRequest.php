@@ -14,7 +14,7 @@ class PosCheckoutRequest extends BaseRequest
             'items.*.qty' => 'required|numeric|min:0.001',
             'discount' => 'nullable|numeric|min:0',
             'sales_mode' => 'required|in:dine_in,take_away,online',
-            'payment_method' => 'required|in:cash,qris',
+            'payment_method' => 'required|in:cash,qris,transfer,edc',
         ];
     }
 }

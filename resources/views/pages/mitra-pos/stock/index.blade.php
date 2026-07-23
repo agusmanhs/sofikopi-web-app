@@ -10,6 +10,9 @@
         </h4>
         {{-- auth()->user()->mitra is guaranteed non-null here: mitra.user middleware 403s any user with mitra_id === null before this page renders. --}}
         <div class="d-flex gap-2">
+            <a href="{{ route('mitra-stock.movements') }}" class="btn btn-outline-secondary">
+                <i class="ri-history-line me-1"></i> Riwayat Mutasi
+            </a>
             @can('access', ['mitra-material.index', 'read'])
             <a href="{{ route('mitra-material.index', auth()->user()->mitra) }}" class="btn btn-primary">
                 <i class="ri-archive-line me-1"></i> Kelola Material
@@ -35,6 +38,7 @@
                         <th>Satuan</th>
                         <th>Harga Satuan</th>
                         <th>Stok Saat Ini</th>
+                        <th>Nilai Stok</th>
                         <th>Stok Minimum</th>
                         <th>Status</th>
                     </tr>
@@ -61,6 +65,7 @@
                                 {{ rtrim(rtrim(number_format($material->current_stock, 3, ',', '.'), '0'), ',') }}
                             </span>
                         </td>
+                        <td>Rp {{ number_format($material->stock_value, 0, ',', '.') }}</td>
                         <td>{{ rtrim(rtrim(number_format($material->min_stock, 3, ',', '.'), '0'), ',') }}</td>
                         <td>
                             <span class="badge {{ $material->is_active ? 'bg-label-success' : 'bg-label-secondary' }}">
@@ -70,10 +75,19 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="9" class="text-center">Belum ada data material.</td>
+                        <td colspan="10" class="text-center">Belum ada data material.</td>
                     </tr>
                     @endforelse
                 </tbody>
+                @if ($materials->isNotEmpty())
+                <tfoot>
+                    <tr class="fw-bold">
+                        <td colspan="6" class="text-end">Total Nilai Inventory</td>
+                        <td>Rp {{ number_format($materials->sum('stock_value'), 0, ',', '.') }}</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+                @endif
             </table>
         </div>
     </div>

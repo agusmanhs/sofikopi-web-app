@@ -22,15 +22,16 @@ class MitraDashboardService
         $today = now()->toDateString();
         $monthStart = now()->startOfMonth()->toDateString();
 
-        $todayQuery = PosTransaction::forMitra($mitraId)->whereDate('transacted_at', $today);
-        $monthQuery = PosTransaction::forMitra($mitraId)->whereDate('transacted_at', '>=', $monthStart);
+        $todayQuery = PosTransaction::forMitra($mitraId)->where('status', 'completed')->whereDate('transacted_at', $today);
+        $monthQuery = PosTransaction::forMitra($mitraId)->where('status', 'completed')->whereDate('transacted_at', '>=', $monthStart);
 
         $revenueToday = (float) $todayQuery->sum('grand_total');
         $revenueMonth = (float) $monthQuery->sum('grand_total');
-        $txCountToday = (int) PosTransaction::forMitra($mitraId)->whereDate('transacted_at', $today)->count();
-        $txCountMonth = (int) PosTransaction::forMitra($mitraId)->whereDate('transacted_at', '>=', $monthStart)->count();
+        $txCountToday = (int) PosTransaction::forMitra($mitraId)->where('status', 'completed')->whereDate('transacted_at', $today)->count();
+        $txCountMonth = (int) PosTransaction::forMitra($mitraId)->where('status', 'completed')->whereDate('transacted_at', '>=', $monthStart)->count();
 
         $monthTotals = PosTransaction::forMitra($mitraId)
+            ->where('status', 'completed')
             ->whereDate('transacted_at', '>=', $monthStart)
             ->selectRaw('COALESCE(SUM(grand_total), 0) as grand_total, COALESCE(SUM(total_cogs), 0) as total_cogs')
             ->first();
@@ -48,7 +49,7 @@ class MitraDashboardService
 
     public function paymentMix(int $mitraId, string $range = 'month'): array
     {
-        $query = PosTransaction::forMitra($mitraId);
+        $query = PosTransaction::forMitra($mitraId)->where('status', 'completed');
 
         if ($range === 'month') {
             $query->whereDate('transacted_at', '>=', now()->startOfMonth()->toDateString());
@@ -68,6 +69,7 @@ class MitraDashboardService
         return PosTransactionItem::query()
             ->join('pos_transactions', 'pos_transactions.id', '=', 'pos_transaction_items.pos_transaction_id')
             ->where('pos_transactions.mitra_id', $mitraId)
+            ->where('pos_transactions.status', 'completed')
             ->select(
                 'pos_transaction_items.mitra_product_id',
                 'pos_transaction_items.product_name',

@@ -19,21 +19,31 @@ class PosTransaction extends Model
         'payment_method',
         'subtotal',
         'discount',
+        'service_charge',
+        'tax',
         'grand_total',
         'total_hpp',
         'total_cogs',
+        'admin_fee',
         'status',
         'user_id',
         'transacted_at',
+        'voided_at',
+        'voided_by',
+        'void_reason',
     ];
 
     protected $casts = [
         'subtotal' => 'decimal:2',
         'discount' => 'decimal:2',
+        'service_charge' => 'decimal:2',
+        'tax' => 'decimal:2',
         'grand_total' => 'decimal:2',
         'total_hpp' => 'decimal:2',
         'total_cogs' => 'decimal:2',
+        'admin_fee' => 'decimal:2',
         'transacted_at' => 'datetime',
+        'voided_at' => 'datetime',
     ];
 
     /**
@@ -59,5 +69,10 @@ class PosTransaction extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function voidedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'voided_by');
     }
 }

@@ -10,13 +10,15 @@ use Illuminate\Support\Facades\Log;
 class BackupNotificationListener
 {
     /**
-     * Chat ID Khusus untuk Backup
+     * Chat ID Khusus untuk Backup (TELEGRAM_BACKUP_CHAT_ID)
      */
-    protected $backupChatId = '-5232586927';
+    protected string $backupChatId;
 
     public function __construct(
         protected TelegramService $telegramService
-    ) {}
+    ) {
+        $this->backupChatId = (string) config('services.telegram.backup_chat_id', '');
+    }
 
     /**
      * Handle backup successful event

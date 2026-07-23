@@ -4,12 +4,15 @@ namespace App\Services\MitraPos;
 
 use App\Models\Mitra;
 use App\Models\MitraMaterial;
+use App\Models\MitraPosSetting;
 use App\Models\MitraProduct;
+use App\Models\MitraStockMovement;
 use App\Models\PosTransaction;
 use App\Models\PosTransactionItem;
 use App\Repositories\MitraPos\PosTransactionRepository;
 use App\Services\BaseService;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class PosTransactionService extends BaseService
@@ -140,7 +143,18 @@ class PosTransactionService extends BaseService
             $mitra = Mitra::findOrFail($mitraId);
             $transactionNo = $this->generateTransactionNo($mitraId, $mitra->code);
 
-            $grandTotal = max(0, $subtotal - $discount);
+            // Service charge/tax/admin fee are always computed server-side
+            // from the mitra's own settings — never trust a client-sent
+            // amount for these. admin_fee is a provider deduction recorded
+            // for reporting only; it is never added to what the customer
+            // owes (see the pos_transactions.admin_fee migration comment).
+            $settings = MitraPosSetting::forMitra($mitraId)->first();
+
+            $base = max(0, $subtotal - $discount);
+            $serviceCharge = round($base * ((float) ($settings?->service_charge_percent ?? 0)) / 100, 2);
+            $tax = round(($base + $serviceCharge) * ((float) ($settings?->tax_percent ?? 0)) / 100, 2);
+            $grandTotal = $base + $serviceCharge + $tax;
+            $adminFee = round($grandTotal * ($settings?->feePercentFor($paymentMethod) ?? 0) / 100, 2);
 
             // 6. Create header + items.
             $transaction = PosTransaction::create([
@@ -150,9 +164,12 @@ class PosTransactionService extends BaseService
                 'payment_method' => $paymentMethod,
                 'subtotal' => $subtotal,
                 'discount' => $discount,
+                'service_charge' => $serviceCharge,
+                'tax' => $tax,
                 'grand_total' => $grandTotal,
                 'total_hpp' => 0,
                 'total_cogs' => 0,
+                'admin_fee' => $adminFee,
                 'status' => 'completed',
                 'user_id' => $userId,
                 'transacted_at' => now(),
@@ -196,6 +213,81 @@ class PosTransactionService extends BaseService
             return [
                 'transaction' => $transaction->fresh('items'),
                 'stock_warnings' => $stockWarnings,
+            ];
+        });
+    }
+
+    /**
+     * Voids a completed transaction and reverses its stock impact from the
+     * movement LEDGER (not a BOM replay) — the product's recipe may have
+     * changed since the sale, so the ledger's own `qty` per material is the
+     * only reliable source of what actually left stock.
+     *
+     * Materials that were soft-deleted since the sale can't be looked up
+     * through applyMovement() (its query excludes trashed rows), so they are
+     * skipped and surfaced as `skipped_materials` rather than 404-ing the
+     * whole void — the transaction must still be voidable even if some
+     * ingredient no longer exists.
+     */
+    public function void(int $mitraId, string $transactionNo, int $userId, string $reason): array
+    {
+        return DB::transaction(function () use ($mitraId, $transactionNo, $userId, $reason) {
+            $transaction = PosTransaction::forMitra($mitraId)
+                ->where('transaction_no', $transactionNo)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$transaction) {
+                throw new NotFoundHttpException('Transaksi tidak ditemukan.');
+            }
+
+            if ($transaction->status !== 'completed') {
+                throw new RuntimeException('Hanya transaksi berstatus completed yang bisa dibatalkan.');
+            }
+
+            $outMovements = MitraStockMovement::forMitra($mitraId)
+                ->where('reference_type', $transaction->getMorphClass())
+                ->where('reference_id', $transaction->id)
+                ->where('type', 'out')
+                ->get();
+
+            $skippedMaterials = [];
+
+            foreach ($outMovements as $movement) {
+                $materialExists = MitraMaterial::forMitra($mitraId)
+                    ->where('id', $movement->mitra_material_id)
+                    ->exists();
+
+                if (!$materialExists) {
+                    $skippedMaterials[] = [
+                        'material_id' => $movement->mitra_material_id,
+                        'qty' => (float) $movement->qty,
+                    ];
+                    continue;
+                }
+
+                $this->stockService->applyMovement(
+                    mitraId: $mitraId,
+                    materialId: $movement->mitra_material_id,
+                    type: 'in',
+                    qty: (float) $movement->qty,
+                    unitCost: $movement->unit_cost !== null ? (float) $movement->unit_cost : null,
+                    notes: "Void POS {$transactionNo}",
+                    reference: $transaction,
+                    userId: $userId,
+                );
+            }
+
+            $transaction->update([
+                'status' => 'voided',
+                'voided_at' => now(),
+                'voided_by' => $userId,
+                'void_reason' => $reason,
+            ]);
+
+            return [
+                'transaction' => $transaction->fresh(['items', 'voidedBy']),
+                'skipped_materials' => $skippedMaterials,
             ];
         });
     }

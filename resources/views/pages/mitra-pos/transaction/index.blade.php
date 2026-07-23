@@ -50,7 +50,7 @@
                             <td>Rp {{ number_format($transaction->grand_total, 0, ',', '.') }}</td>
                             <td><span class="badge {{ $statusBadge }}">{{ ucfirst($transaction->status) }}</span></td>
                             <td>
-                                <a href="{{ route('pos-transaction.show', $transaction) }}"
+                                <a href="{{ $routes['show']($transaction->transaction_no) }}"
                                     class="btn btn-sm btn-icon btn-text-secondary" title="Detail">
                                     <i class="ri-eye-line"></i>
                                 </a>

@@ -27,6 +27,7 @@ class CheckPermission
             'adjust' => 'update',
             'destroy' => 'delete',
             'destroy-bulk' => 'delete',
+            'void' => 'delete',
         ];
 
         $routeName = $request->route()->getName();

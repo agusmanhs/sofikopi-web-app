@@ -2,8 +2,11 @@
 
 namespace App\Services\MitraPos;
 
+use App\Models\Mitra;
 use App\Models\MitraMaterial;
 use App\Models\MitraStockMovement;
+use App\Models\MitraStockOpname;
+use App\Models\MitraStockOpnameItem;
 use App\Repositories\MitraPos\MitraStockMovementRepository;
 use App\Services\BaseService;
 use Illuminate\Database\Eloquent\Model;
@@ -49,7 +52,7 @@ class MitraStockService extends BaseService
             ->lockForUpdate()
             ->first();
 
-        if (!$material) {
+        if (! $material) {
             throw new NotFoundHttpException('Material tidak ditemukan.');
         }
 
@@ -82,6 +85,34 @@ class MitraStockService extends BaseService
     }
 
     /**
+     * Paginated stock movement ledger for a mitra, filterable by material/
+     * type/date range — the "riwayat mutasi stok" screen (sheet PERSEDIAAN's
+     * stok masuk/keluar columns, but browsable per-transaction instead of a
+     * single monthly total).
+     */
+    public function movementsForMitra(int $mitraId, array $filters = [], int $perPage = 20)
+    {
+        $query = MitraStockMovement::forMitra($mitraId)
+            ->with(['material', 'user'])
+            ->orderByDesc('created_at');
+
+        if (! empty($filters['material_id'])) {
+            $query->where('mitra_material_id', $filters['material_id']);
+        }
+        if (! empty($filters['type'])) {
+            $query->where('type', $filters['type']);
+        }
+        if (! empty($filters['from'])) {
+            $query->whereDate('created_at', '>=', $filters['from']);
+        }
+        if (! empty($filters['to'])) {
+            $query->whereDate('created_at', '<=', $filters['to']);
+        }
+
+        return $query->paginate($perPage)->appends($filters);
+    }
+
+    /**
      * Manual "stock adjust" admin action (not part of a checkout), so it
      * owns its own transaction boundary around applyMovement().
      */
@@ -97,5 +128,102 @@ class MitraStockService extends BaseService
                 userId: $userId,
             );
         });
+    }
+
+    /**
+     * Physical stock count (sheet PERSEDIAAN): records system vs physical
+     * qty per material and auto-corrects the cached balance via an
+     * 'adjustment' movement wherever they differ. $counts is
+     * [['mitra_material_id' => int, 'physical_qty' => float], ...].
+     *
+     * Materials are locked in id order (same deadlock-safe pattern as
+     * PosTransactionService::checkout()) so a concurrent sale/opname on the
+     * same material can't race with this one.
+     */
+    public function performOpname(int $mitraId, int $userId, array $counts, ?string $notes = null): MitraStockOpname
+    {
+        return DB::transaction(function () use ($mitraId, $userId, $counts, $notes) {
+            $materialIds = collect($counts)->pluck('mitra_material_id')->unique()->all();
+
+            $materials = MitraMaterial::forMitra($mitraId)
+                ->whereIn('id', $materialIds)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            $mitra = Mitra::findOrFail($mitraId);
+            $opnameNo = $this->generateOpnameNo($mitraId, $mitra->code);
+
+            $opname = MitraStockOpname::create([
+                'mitra_id' => $mitraId,
+                'opname_no' => $opnameNo,
+                'opname_date' => now()->toDateString(),
+                'user_id' => $userId,
+                'notes' => $notes,
+            ]);
+
+            foreach ($counts as $count) {
+                $material = $materials->get((int) $count['mitra_material_id']);
+                if (! $material) {
+                    throw new NotFoundHttpException("Material tidak ditemukan (id: {$count['mitra_material_id']}).");
+                }
+
+                $systemQty = (float) $material->current_stock;
+                $physicalQty = (float) $count['physical_qty'];
+                $difference = $physicalQty - $systemQty;
+                $unitCost = (float) $material->harga_satuan;
+
+                MitraStockOpnameItem::create([
+                    'mitra_stock_opname_id' => $opname->id,
+                    'mitra_material_id' => $material->id,
+                    'system_qty' => $systemQty,
+                    'physical_qty' => $physicalQty,
+                    'difference' => $difference,
+                    'unit_cost' => $unitCost,
+                ]);
+
+                // Skip a no-op adjustment movement when the count matches —
+                // avoids cluttering the ledger with zero-qty rows.
+                if (abs($difference) > 0.0001) {
+                    $this->applyMovement(
+                        mitraId: $mitraId,
+                        materialId: $material->id,
+                        type: 'adjustment',
+                        qty: $difference,
+                        unitCost: $unitCost,
+                        notes: "Stock opname {$opnameNo}",
+                        reference: $opname,
+                        userId: $userId,
+                    );
+                }
+            }
+
+            return $opname->fresh(['items.material']);
+        });
+    }
+
+    /**
+     * OPN/{mitra_code}/{Ymd}/{seq4}. Same locked-lookup pattern as
+     * PosTransactionService::generateTransactionNo() — locks the latest
+     * same-day-same-mitra row before computing the next sequence.
+     */
+    private function generateOpnameNo(int $mitraId, string $mitraCode): string
+    {
+        $ymd = now()->format('Ymd');
+        $prefix = "OPN/{$mitraCode}/{$ymd}/";
+
+        $latest = MitraStockOpname::forMitra($mitraId)
+            ->where('opname_no', 'like', $prefix.'%')
+            ->orderBy('opname_no', 'desc')
+            ->lockForUpdate()
+            ->first();
+
+        $nextSeq = 1;
+        if ($latest && preg_match('/(\d{4})$/', $latest->opname_no, $matches)) {
+            $nextSeq = intval($matches[1]) + 1;
+        }
+
+        return $prefix.str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
     }
 }

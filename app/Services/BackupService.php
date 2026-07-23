@@ -10,11 +10,12 @@ use Illuminate\Support\Facades\Config;
 class BackupService
 {
     protected TelegramService $telegramService;
-    protected string $backupChatId = '-5232586927';
+    protected string $backupChatId;
 
     public function __construct(TelegramService $telegramService)
     {
         $this->telegramService = $telegramService;
+        $this->backupChatId = (string) config('services.telegram.backup_chat_id', '');
     }
 
     /**

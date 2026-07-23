@@ -92,6 +92,9 @@
                         <a href="{{ route('mitra-product.index', $mitra) }}" class="btn btn-sm btn-outline-primary flex-fill">
                             <i class="ri-cup-line me-1"></i> Produk
                         </a>
+                        <a href="{{ route('mitra-pos-manage.transaction.index', $mitra) }}" class="btn btn-sm btn-outline-primary flex-fill">
+                            <i class="ri-receipt-line me-1"></i> Transaksi
+                        </a>
                         @can('access', ['mitra-pos-manage.index', 'delete'])
                         <form action="{{ route('mitra-pos-manage.destroy', $mitra) }}" method="POST" class="form-remove-mitra" data-code="{{ $mitra->code }}" data-name="{{ $mitra->name }}">
                             @csrf

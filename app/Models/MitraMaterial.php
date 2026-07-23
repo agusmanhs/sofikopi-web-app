@@ -75,4 +75,13 @@ class MitraMaterial extends Model
     {
         return $this->netto > 0 ? $this->price_per_pack / $this->netto : 0;
     }
+
+    /**
+     * Inventory value of what's currently on hand (sheet PERSEDIAAN's
+     * "NILAI STOK SISA"): current_stock * harga_satuan.
+     */
+    public function getStockValueAttribute()
+    {
+        return $this->current_stock * $this->harga_satuan;
+    }
 }

@@ -86,12 +86,18 @@
 
                     <div class="mb-3">
                         <label class="form-label">Metode Pembayaran</label>
-                        <div class="btn-group w-100" role="group" aria-label="payment method toggle">
+                        <div class="btn-group w-100 flex-wrap" role="group" aria-label="payment method toggle">
                             <input type="radio" class="btn-check" name="paymentMethod" id="pay_cash" value="cash" checked>
                             <label class="btn btn-outline-success" for="pay_cash">Cash</label>
 
                             <input type="radio" class="btn-check" name="paymentMethod" id="pay_qris" value="qris">
                             <label class="btn btn-outline-success" for="pay_qris">QRIS</label>
+
+                            <input type="radio" class="btn-check" name="paymentMethod" id="pay_transfer" value="transfer">
+                            <label class="btn btn-outline-success" for="pay_transfer">Transfer</label>
+
+                            <input type="radio" class="btn-check" name="paymentMethod" id="pay_edc" value="edc">
+                            <label class="btn btn-outline-success" for="pay_edc">EDC</label>
                         </div>
                     </div>
 
@@ -134,6 +140,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const csrfToken = document.querySelector('meta[name=csrf-token]').content;
     const productsUrl = "{{ route('pos.products') }}";
     const checkoutUrl = "{{ route('pos.store') }}";
+    // transaction_no (e.g. POS/LALLO/20260722/0001) contains literal slashes
+    // matched by the route's '.*' constraint — do NOT encodeURIComponent()
+    // the replacement, that would %2F-escape the slashes and break routing.
+    const receiptUrlTemplate = "{{ route('pos-transaction.receipt', '__TRANSACTION_NO__') }}";
 
     let cart = [];
 
@@ -301,6 +311,16 @@ document.addEventListener('DOMContentLoaded', function () {
             rows += '<tr><td class="text-start">' + item.product_name + '</td><td>' + item.qty + '</td><td class="text-end">' + formatRupiah(item.line_total) + '</td></tr>';
         });
 
+        const receiptUrl = receiptUrlTemplate.replace('__TRANSACTION_NO__', transaction.transaction_no);
+
+        let extraRows = '';
+        if (Number(transaction.service_charge) > 0) {
+            extraRows += '<p class="mb-1 d-flex justify-content-between"><span>Service Charge</span><span>' + formatRupiah(transaction.service_charge) + '</span></p>';
+        }
+        if (Number(transaction.tax) > 0) {
+            extraRows += '<p class="mb-1 d-flex justify-content-between"><span>Pajak</span><span>' + formatRupiah(transaction.tax) + '</span></p>';
+        }
+
         return `
             <div class="text-start small">
                 <p class="mb-1"><strong>No. Transaksi:</strong> ${transaction.transaction_no}</p>
@@ -308,7 +328,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     <thead><tr><th class="text-start">Produk</th><th>Qty</th><th class="text-end">Subtotal</th></tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
-                <p class="mb-0 text-end"><strong>Total: ${formatRupiah(transaction.grand_total)}</strong></p>
+                ${extraRows}
+                <p class="mb-2 text-end"><strong>Total: ${formatRupiah(transaction.grand_total)}</strong></p>
+                <p class="mb-0 text-center">
+                    <a href="${receiptUrl}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                        <i class="ri-printer-line me-1"></i> Cetak Struk
+                    </a>
+                </p>
             </div>
         `;
     }

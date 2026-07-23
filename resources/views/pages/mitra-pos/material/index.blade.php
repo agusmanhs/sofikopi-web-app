@@ -65,6 +65,7 @@
                         <th>Netto</th>
                         <th>Harga/Pack</th>
                         <th>Harga Satuan</th>
+                        <th>Nilai Stok</th>
                         <th>Stok</th>
                         <th>Status</th>
                         <th>Aksi</th>
@@ -81,6 +82,7 @@
                         <td>{{ rtrim(rtrim(number_format($material->netto, 3, ',', '.'), '0'), ',') }}</td>
                         <td>Rp {{ number_format($material->price_per_pack, 0, ',', '.') }}</td>
                         <td>Rp {{ rtrim(rtrim(number_format($material->harga_satuan, 2, ',', '.'), '0'), ',') }}</td>
+                        <td>Rp {{ number_format($material->stock_value, 0, ',', '.') }}</td>
                         <td>
                             @php
                                 $stockBadge = 'bg-label-success';

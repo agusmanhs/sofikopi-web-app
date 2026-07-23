@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -12,13 +13,34 @@ class TelegramService
 
     protected string $chatId;
 
+    protected string $absensiChatId;
+
     protected bool $enabled;
 
     public function __construct()
     {
         $this->token = config('services.telegram.token', '');
         $this->chatId = config('services.telegram.chat_id', '');
+        $this->absensiChatId = config('services.telegram.absensi_chat_id', '') ?: $this->chatId;
         $this->enabled = ! empty($this->token) && ! empty($this->chatId);
+    }
+
+    /**
+     * Base HTTP client for all Telegram API calls.
+     *
+     * force_ip_resolve v4: api.telegram.org publishes an IPv6 (AAAA) record,
+     * but many networks here resolve it without an actual IPv6 route — cURL
+     * then tries IPv6 first and dies with a connect timeout (error 28).
+     * Forcing IPv4 skips that entirely. retry(): one automatic retry after
+     * 500ms for transient network hiccups; throw:false keeps the existing
+     * "check successful(), never throw" flow of every caller intact.
+     */
+    protected function http(): PendingRequest
+    {
+        return Http::withOptions(['force_ip_resolve' => 'v4'])
+            ->retry(2, 500, throw: false)
+            ->timeout(15)
+            ->connectTimeout(5);
     }
 
     /**
@@ -35,7 +57,7 @@ class TelegramService
         $targetChatId = $chatId ?? $this->chatId;
 
         try {
-            $response = Http::timeout(15)->connectTimeout(5)->post("https://api.telegram.org/bot{$this->token}/sendMessage", [
+            $response = $this->http()->post("https://api.telegram.org/bot{$this->token}/sendMessage", [
                 'chat_id' => $targetChatId,
                 'text' => $message,
                 'parse_mode' => $parseMode,
@@ -71,7 +93,7 @@ class TelegramService
 
         try {
             // Build the request
-            $pendingRequest = Http::asMultipart()->timeout(20)->connectTimeout(5);
+            $pendingRequest = $this->http()->asMultipart()->timeout(20);
 
             // If it's a local file path and exists
             if (! empty($photoPath) && file_exists($photoPath)) {
@@ -120,7 +142,7 @@ class TelegramService
     {
         $targetChatId = $chatId ?? $this->chatId;
         try {
-            $response = Http::timeout(20)->connectTimeout(5)->post("https://api.telegram.org/bot{$this->token}/sendPhoto", [
+            $response = $this->http()->timeout(20)->post("https://api.telegram.org/bot{$this->token}/sendPhoto", [
                 'chat_id' => $targetChatId,
                 'photo' => $url,
                 'caption' => $caption,
@@ -151,7 +173,7 @@ class TelegramService
         $targetChatId = $chatId ?? $this->chatId;
 
         try {
-            $response = Http::post("https://api.telegram.org/bot{$this->token}/sendMessage", [
+            $response = $this->http()->post("https://api.telegram.org/bot{$this->token}/sendMessage", [
                 'chat_id' => $targetChatId,
                 'text' => $message,
                 'parse_mode' => $parseMode,
@@ -188,7 +210,7 @@ class TelegramService
         $targetChatId = $chatId ?? $this->chatId;
 
         try {
-            $response = Http::post("https://api.telegram.org/bot{$this->token}/sendMessage", [
+            $response = $this->http()->post("https://api.telegram.org/bot{$this->token}/sendMessage", [
                 'chat_id' => $targetChatId,
                 'text' => $message,
                 'parse_mode' => $parseMode,
@@ -237,8 +259,9 @@ class TelegramService
      * @param  array  $details  Array Key => Value untuk isi detail
      * @param  string  $icon  Emoji untuk ikon depan judul
      * @param  string|null  $photoPath  Path foto (opsional)
+     * @param  string|null  $chatId  Override tujuan chat (default: chat umum)
      */
-    public function notify(string $title, array $details, string $icon = 'ℹ️', ?string $photoPath = null): void
+    public function notify(string $title, array $details, string $icon = 'ℹ️', ?string $photoPath = null, ?string $chatId = null): void
     {
         $message = "<b>{$icon} {$title}</b>\n\n";
         foreach ($details as $label => $value) {
@@ -248,7 +271,7 @@ class TelegramService
         $sent = false;
         try {
             if ($photoPath) {
-                $sent = $this->sendPhoto($photoPath, $message);
+                $sent = $this->sendPhoto($photoPath, $message, 'HTML', $chatId);
                 if (! $sent) {
                     $this->safeLog('info', 'Telegram Service: Photo notification failed, falling back to text.');
                 }
@@ -258,7 +281,7 @@ class TelegramService
         }
 
         if (! $sent) {
-            $this->sendMessage($message);
+            $this->sendMessage($message, 'HTML', $chatId);
         }
     }
 
@@ -284,7 +307,7 @@ class TelegramService
             'Waktu Absen' => $time,
             'Status' => $status,
             'Lokasi' => $absensi->lokasi_masuk,
-        ], '✅', $photoPath);
+        ], '✅', $photoPath, $this->absensiChatId);
     }
 
     /**
@@ -314,7 +337,7 @@ class TelegramService
             $details['Keterangan'] = $keterangan;
         }
 
-        $this->notify('ABSEN PULANG', $details, '🚩', $photoPath);
+        $this->notify('ABSEN PULANG', $details, '🚩', $photoPath, $this->absensiChatId);
     }
 
     /**
@@ -362,7 +385,7 @@ class TelegramService
         $customerName = $salesOrder->customer_name ?? '-';
         $courierName = $do->assignedTo->name ?? '-';
         $receivedBy = $do->received_by_name ?? '-';
-        
+
         $photoPath = null;
         if ($do->proof_photo) {
             $photoPath = Storage::disk('public')->path($do->proof_photo);

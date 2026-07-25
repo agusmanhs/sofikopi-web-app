@@ -15,6 +15,8 @@ class TelegramService
 
     protected string $absensiChatId;
 
+    protected string $logistikChatId;
+
     protected bool $enabled;
 
     public function __construct()
@@ -22,6 +24,7 @@ class TelegramService
         $this->token = config('services.telegram.token', '');
         $this->chatId = config('services.telegram.chat_id', '');
         $this->absensiChatId = config('services.telegram.absensi_chat_id', '') ?: $this->chatId;
+        $this->logistikChatId = config('services.telegram.logistik_chat_id', '') ?: $this->chatId;
         $this->enabled = ! empty($this->token) && ! empty($this->chatId);
     }
 
@@ -397,6 +400,6 @@ class TelegramService
             'Kurir' => $courierName,
             'Diterima Oleh' => $receivedBy,
             'Waktu Selesai' => $do->delivered_at ? $do->delivered_at->format('d/m/Y H:i') : now()->format('d/m/Y H:i'),
-        ], '📦', $photoPath);
+        ], '📦', $photoPath, $this->logistikChatId);
     }
 }

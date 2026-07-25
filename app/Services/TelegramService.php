@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\SendTelegramNotification;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -265,6 +266,15 @@ class TelegramService
      * @param  string|null  $chatId  Override tujuan chat (default: chat umum)
      */
     public function notify(string $title, array $details, string $icon = 'ℹ️', ?string $photoPath = null, ?string $chatId = null): void
+    {
+        SendTelegramNotification::dispatch($title, $details, $icon, $photoPath, $chatId);
+    }
+
+    /**
+     * Actual send logic, executed inside the queued job (see SendTelegramNotification).
+     * Kept public so the job can call it without depending on notify()'s dispatch step.
+     */
+    public function sendNotificationNow(string $title, array $details, string $icon = 'ℹ️', ?string $photoPath = null, ?string $chatId = null): void
     {
         $message = "<b>{$icon} {$title}</b>\n\n";
         foreach ($details as $label => $value) {

@@ -5,9 +5,9 @@
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="fw-bold py-3 mb-0"><span class="text-muted fw-light">Mitra POS /</span> Stock Opname</h4>
-        @can('access', ['mitra-opname.index', 'create'])
-        <a href="{{ route('mitra-opname.create') }}" class="btn btn-primary">
+        <h4 class="fw-bold py-3 mb-0"><span class="text-muted fw-light">Mitra POS /</span> Stock Opname @if(isset($mitra)) <span class="text-muted fw-light">— {{ $mitra->name }}</span> @endif</h4>
+        @can('access', [isset($mitra) ? 'mitra-pos-manage.index' : 'mitra-opname.index', 'create'])
+        <a href="{{ $routes['create'] }}" class="btn btn-primary">
             <i class="ri-add-line me-1"></i> Opname Baru
         </a>
         @endcan
@@ -37,7 +37,7 @@
                         <td>{{ $opname->user->name ?? '-' }}</td>
                         <td>{{ $opname->notes ?? '-' }}</td>
                         <td>
-                            <a href="{{ route('mitra-opname.show', $opname) }}" class="btn btn-sm btn-icon btn-text-secondary" title="Detail">
+                            <a href="{{ $routes['show']($opname->opname_no) }}" class="btn btn-sm btn-icon btn-text-secondary" title="Detail">
                                 <i class="ri-eye-line"></i>
                             </a>
                         </td>

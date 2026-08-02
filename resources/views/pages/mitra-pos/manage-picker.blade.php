@@ -85,15 +85,36 @@
                             <span>{{ $mitra->phone ?? '-' }}</span>
                         </div>
                     </div>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a href="{{ route('mitra-pos-manage.dashboard.index', $mitra) }}" class="btn btn-sm btn-outline-primary flex-fill">
+                            <i class="ri-dashboard-line me-1"></i> Dashboard
+                        </a>
+                        <a href="{{ route('mitra-pos-manage.pos.index', $mitra) }}" class="btn btn-sm btn-outline-primary flex-fill">
+                            <i class="ri-shopping-cart-line me-1"></i> Kasir
+                        </a>
                         <a href="{{ route('mitra-material.index', $mitra) }}" class="btn btn-sm btn-outline-primary flex-fill">
                             <i class="ri-archive-line me-1"></i> Material
                         </a>
                         <a href="{{ route('mitra-product.index', $mitra) }}" class="btn btn-sm btn-outline-primary flex-fill">
                             <i class="ri-cup-line me-1"></i> Produk
                         </a>
+                        <a href="{{ route('mitra-pos-manage.stock.index', $mitra) }}" class="btn btn-sm btn-outline-primary flex-fill">
+                            <i class="ri-archive-2-line me-1"></i> Stok
+                        </a>
+                        <a href="{{ route('mitra-pos-manage.opname.index', $mitra) }}" class="btn btn-sm btn-outline-primary flex-fill">
+                            <i class="ri-scales-3-line me-1"></i> Opname
+                        </a>
                         <a href="{{ route('mitra-pos-manage.transaction.index', $mitra) }}" class="btn btn-sm btn-outline-primary flex-fill">
                             <i class="ri-receipt-line me-1"></i> Transaksi
+                        </a>
+                        <a href="{{ route('mitra-pos-manage.report.index', $mitra) }}" class="btn btn-sm btn-outline-primary flex-fill">
+                            <i class="ri-file-chart-line me-1"></i> Laporan
+                        </a>
+                        <a href="{{ route('mitra-pos-manage.setting.index', $mitra) }}" class="btn btn-sm btn-outline-primary flex-fill">
+                            <i class="ri-settings-3-line me-1"></i> Pengaturan
+                        </a>
+                        <a href="{{ route('mitra-pos-manage.akuntansi-coa.index', $mitra) }}" class="btn btn-sm btn-outline-primary flex-fill">
+                            <i class="ri-book-2-line me-1"></i> Akuntansi
                         </a>
                         @can('access', ['mitra-pos-manage.index', 'delete'])
                         <form action="{{ route('mitra-pos-manage.destroy', $mitra) }}" method="POST" class="form-remove-mitra" data-code="{{ $mitra->code }}" data-name="{{ $mitra->name }}">

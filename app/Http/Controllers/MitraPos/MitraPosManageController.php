@@ -5,6 +5,7 @@ namespace App\Http\Controllers\MitraPos;
 use App\Http\Controllers\Controller;
 use App\Models\Mitra;
 use App\Models\MitraPosSetting;
+use App\Services\MitraPos\AkuntansiCoaService;
 use App\Services\MitraPos\MitraPosResetService;
 use App\Traits\LogsActivity;
 use Illuminate\Http\Request;
@@ -26,7 +27,8 @@ class MitraPosManageController extends Controller
     use LogsActivity;
 
     public function __construct(
-        protected MitraPosResetService $resetService
+        protected MitraPosResetService $resetService,
+        protected AkuntansiCoaService $coaService
     ) {}
 
     /**
@@ -61,6 +63,7 @@ class MitraPosManageController extends Controller
         }
 
         MitraPosSetting::create(['mitra_id' => $mitra->id]);
+        $this->coaService->seedForMitra($mitra->id);
 
         $this->logActivity('created', 'mitra-pos', "Menambahkan mitra ke sistem POS: {$mitra->name}", $mitra);
 

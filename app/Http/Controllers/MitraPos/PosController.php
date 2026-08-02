@@ -5,6 +5,7 @@ namespace App\Http\Controllers\MitraPos;
 use App\Helpers\ResponseHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\MitraPos\PosCheckoutRequest;
+use App\Models\Mitra;
 use App\Services\MitraPos\MitraContext;
 use App\Services\MitraPos\MitraProductService;
 use App\Services\MitraPos\PosTransactionService;
@@ -17,11 +18,46 @@ class PosController extends Controller
         protected MitraContext $mitraContext
     ) {}
 
+    // --- Tenant portal (mitra-pos/pos), mitra context from MitraContext ---
+
     public function index()
     {
-        $products = $this->productService->listActiveForPos($this->mitraContext->id());
+        return $this->renderIndex($this->mitraContext->id(), null);
+    }
 
-        return view('pages.mitra-pos.pos.index', compact('products'));
+    public function products()
+    {
+        return $this->buildProductsPayload($this->mitraContext->id());
+    }
+
+    public function store(PosCheckoutRequest $request)
+    {
+        return $this->handleCheckout($request, $this->mitraContext->id());
+    }
+
+    // --- Sofikopi-staff admin (mitra-pos/manage/{mitra}/pos) ---
+
+    public function adminIndex(Mitra $mitra)
+    {
+        return $this->renderIndex($mitra->id, $mitra);
+    }
+
+    public function adminProducts(Mitra $mitra)
+    {
+        return $this->buildProductsPayload($mitra->id);
+    }
+
+    public function adminStore(PosCheckoutRequest $request, Mitra $mitra)
+    {
+        return $this->handleCheckout($request, $mitra->id);
+    }
+
+    private function renderIndex(int $mitraId, ?Mitra $mitra)
+    {
+        $products = $this->productService->listActiveForPos($mitraId);
+        $routes = $this->routesFor($mitra);
+
+        return view('pages.mitra-pos.pos.index', compact('products', 'mitra', 'routes'));
     }
 
     /**
@@ -31,9 +67,9 @@ class PosController extends Controller
      * a stock field on the product itself — mitra products have no stock
      * of their own, only their raw-material ingredients do.
      */
-    public function products()
+    private function buildProductsPayload(int $mitraId)
     {
-        $products = $this->productService->listActiveForPos($this->mitraContext->id());
+        $products = $this->productService->listActiveForPos($mitraId);
 
         $payload = $products->map(function ($product) {
             $makeable = null; // null = unconstrained (no ingredients defined yet)
@@ -64,13 +100,13 @@ class PosController extends Controller
      * Checkout endpoint. Must never 500 on business-rule failures — a
      * caught \Throwable becomes a 422 JSON error instead.
      */
-    public function store(PosCheckoutRequest $request)
+    private function handleCheckout(PosCheckoutRequest $request, int $mitraId)
     {
         $data = $request->validated();
 
         try {
             $result = $this->transactionService->checkout(
-                mitraId: $this->mitraContext->id(),
+                mitraId: $mitraId,
                 userId: auth()->id(),
                 items: $data['items'],
                 discount: (float) ($data['discount'] ?? 0),
@@ -83,7 +119,30 @@ class PosController extends Controller
                 'stock_warnings' => $result['stock_warnings'],
             ], 'Transaksi berhasil');
         } catch (\Throwable $e) {
-            return ResponseHelper::error('Checkout gagal: ' . $e->getMessage(), 422);
+            return ResponseHelper::error('Checkout gagal: '.$e->getMessage(), 422);
         }
+    }
+
+    /**
+     * Builds route URLs shared by pos/index.blade.php's inline JS so the
+     * same page works for both the tenant portal (no {mitra} param) and the
+     * Sofikopi-staff admin picker ({mitra} route param) — same technique as
+     * PosTransactionController::routesFor(), but 'receipt' here is a plain
+     * string template (client-side .replace()'d), not a closure, since the
+     * page builds it once at load time rather than per-row.
+     */
+    private function routesFor(?Mitra $mitra): array
+    {
+        return [
+            'products' => $mitra
+                ? route('mitra-pos-manage.pos.products', $mitra)
+                : route('pos.products'),
+            'store' => $mitra
+                ? route('mitra-pos-manage.pos.store', $mitra)
+                : route('pos.store'),
+            'receipt' => $mitra
+                ? route('mitra-pos-manage.transaction.receipt', [$mitra, '__TRANSACTION_NO__'])
+                : route('pos-transaction.receipt', '__TRANSACTION_NO__'),
+        ];
     }
 }

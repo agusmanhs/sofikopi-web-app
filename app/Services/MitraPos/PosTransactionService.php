@@ -19,7 +19,8 @@ class PosTransactionService extends BaseService
 {
     public function __construct(
         PosTransactionRepository $repository,
-        protected MitraStockService $stockService
+        protected MitraStockService $stockService,
+        protected AkuntansiJournalService $journalService
     ) {
         parent::__construct($repository);
     }
@@ -44,7 +45,7 @@ class PosTransactionService extends BaseService
             ->where('transaction_no', $transactionNo)
             ->first();
 
-        if (!$transaction || (int) $transaction->mitra_id !== $mitraId) {
+        if (! $transaction || (int) $transaction->mitra_id !== $mitraId) {
             throw new NotFoundHttpException('Transaksi tidak ditemukan.');
         }
 
@@ -86,7 +87,7 @@ class PosTransactionService extends BaseService
 
             foreach ($items as $line) {
                 $product = $products->get($line['mitra_product_id']);
-                if (!$product) {
+                if (! $product) {
                     throw new NotFoundHttpException("Produk tidak ditemukan (id: {$line['mitra_product_id']}).");
                 }
 
@@ -209,7 +210,12 @@ class PosTransactionService extends BaseService
                 'total_cogs' => $totalCogs,
             ]);
 
-            // 9. Return transaction + warnings.
+            // 9. Auto-post the accounting journal entry for this sale. Still
+            // inside this same DB::transaction — a missing/misconfigured COA
+            // account must fail the whole sale, not silently skip the books.
+            $this->journalService->postForSale($transaction);
+
+            // 10. Return transaction + warnings.
             return [
                 'transaction' => $transaction->fresh('items'),
                 'stock_warnings' => $stockWarnings,
@@ -237,7 +243,7 @@ class PosTransactionService extends BaseService
                 ->lockForUpdate()
                 ->first();
 
-            if (!$transaction) {
+            if (! $transaction) {
                 throw new NotFoundHttpException('Transaksi tidak ditemukan.');
             }
 
@@ -258,11 +264,12 @@ class PosTransactionService extends BaseService
                     ->where('id', $movement->mitra_material_id)
                     ->exists();
 
-                if (!$materialExists) {
+                if (! $materialExists) {
                     $skippedMaterials[] = [
                         'material_id' => $movement->mitra_material_id,
                         'qty' => (float) $movement->qty,
                     ];
+
                     continue;
                 }
 
@@ -285,6 +292,10 @@ class PosTransactionService extends BaseService
                 'void_reason' => $reason,
             ]);
 
+            // Reverse the sale's journal entry with a new mirrored entry —
+            // same immutable-ledger philosophy as the stock reversal above.
+            $this->journalService->reverseForTransaction($transaction, $reason);
+
             return [
                 'transaction' => $transaction->fresh(['items', 'voidedBy']),
                 'skipped_materials' => $skippedMaterials,
@@ -305,7 +316,7 @@ class PosTransactionService extends BaseService
         $prefix = "POS/{$mitraCode}/{$ymd}/";
 
         $latest = PosTransaction::forMitra($mitraId)
-            ->where('transaction_no', 'like', $prefix . '%')
+            ->where('transaction_no', 'like', $prefix.'%')
             ->orderBy('transaction_no', 'desc')
             ->lockForUpdate()
             ->first();
@@ -315,6 +326,6 @@ class PosTransactionService extends BaseService
             $nextSeq = intval($matches[1]) + 1;
         }
 
-        return $prefix . str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
+        return $prefix.str_pad((string) $nextSeq, 4, '0', STR_PAD_LEFT);
     }
 }

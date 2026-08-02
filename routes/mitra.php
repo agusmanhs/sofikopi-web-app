@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\MitraPos\AkuntansiCoaController;
+use App\Http\Controllers\MitraPos\AkuntansiJournalController;
+use App\Http\Controllers\MitraPos\AkuntansiReportController;
 use App\Http\Controllers\MitraPos\MitraDashboardController;
 use App\Http\Controllers\MitraPos\MitraMaterialController;
 use App\Http\Controllers\MitraPos\MitraOpnameController;
@@ -70,6 +73,12 @@ Route::middleware(['auth', 'mitra.user'])->prefix('mitra-pos')->group(function (
     Route::get('stock/movements', [MitraStockController::class, 'movements'])
         ->name('mitra-stock.movements')
         ->middleware('check.permission:mitra-stock.index');
+    // 'adjust' -> 'update' per CheckPermission's action map: only the owner
+    // has can_update on mitra-stock.index (see MitraPosMenuSeeder) — kasir
+    // stays read-only on stock.
+    Route::post('stock/{material}/adjust', [MitraStockController::class, 'portalAdjust'])
+        ->name('mitra-stock.adjust')
+        ->middleware('check.permission:mitra-stock.index');
     Route::get('stock', [MitraStockController::class, 'index'])
         ->name('mitra-stock.index')
         ->middleware('check.permission:mitra-stock.index');
@@ -106,6 +115,32 @@ Route::middleware(['auth', 'mitra.user'])->prefix('mitra-pos')->group(function (
         ->name('mitra-opname.show')
         ->where('opname', '.*')
         ->middleware('check.permission:mitra-opname.index');
+
+    Route::get('akuntansi/coa', [AkuntansiCoaController::class, 'index'])
+        ->name('akuntansi-coa.index')
+        ->middleware('check.permission:akuntansi-coa.index');
+    Route::put('akuntansi/coa', [AkuntansiCoaController::class, 'update'])
+        ->name('akuntansi-coa.update')
+        ->middleware('check.permission:akuntansi-coa.index');
+
+    // 'create' before 'index' purely for readability (no wildcard-swallowing
+    // risk here — akuntansi-jurnal has no {entry} show route yet).
+    Route::get('akuntansi/jurnal/create', [AkuntansiJournalController::class, 'create'])
+        ->name('akuntansi-jurnal.create')
+        ->middleware('check.permission:akuntansi-jurnal.index');
+    Route::get('akuntansi/jurnal', [AkuntansiJournalController::class, 'index'])
+        ->name('akuntansi-jurnal.index')
+        ->middleware('check.permission:akuntansi-jurnal.index');
+    Route::post('akuntansi/jurnal', [AkuntansiJournalController::class, 'store'])
+        ->name('akuntansi-jurnal.store')
+        ->middleware('check.permission:akuntansi-jurnal.index');
+
+    Route::get('akuntansi/neraca', [AkuntansiReportController::class, 'neraca'])
+        ->name('akuntansi-neraca.index')
+        ->middleware('check.permission:akuntansi-neraca.index');
+    Route::get('akuntansi/laba-rugi', [AkuntansiReportController::class, 'labaRugi'])
+        ->name('akuntansi-laba-rugi.index')
+        ->middleware('check.permission:akuntansi-laba-rugi.index');
 });
 
 // Admin setup — mitra picker landing page + enroll/de-enroll. No {mitra}
@@ -136,6 +171,57 @@ Route::middleware(['auth', 'check.pegawai.status', 'mitra.scope'])
             ->name('mitra-pos-manage.destroy')
             ->middleware('check.permission:mitra-pos-manage.index');
 
+        Route::get('dashboard', [MitraDashboardController::class, 'adminIndex'])
+            ->name('mitra-pos-manage.dashboard.index')
+            ->middleware('check.permission:mitra-pos-manage.index');
+
+        Route::get('pos/products', [PosController::class, 'adminProducts'])
+            ->name('mitra-pos-manage.pos.products')
+            ->middleware('check.permission:mitra-pos-manage.index');
+        Route::get('pos', [PosController::class, 'adminIndex'])
+            ->name('mitra-pos-manage.pos.index')
+            ->middleware('check.permission:mitra-pos-manage.index');
+        Route::post('pos', [PosController::class, 'adminStore'])
+            ->name('mitra-pos-manage.pos.store')
+            ->middleware('check.permission:mitra-pos-manage.index');
+
+        Route::get('stock/movements', [MitraStockController::class, 'adminMovements'])
+            ->name('mitra-pos-manage.stock.movements')
+            ->middleware('check.permission:mitra-pos-manage.index');
+        Route::get('stock', [MitraStockController::class, 'adminIndex'])
+            ->name('mitra-pos-manage.stock.index')
+            ->middleware('check.permission:mitra-pos-manage.index');
+
+        Route::get('report/export', [MitraReportController::class, 'adminExport'])
+            ->name('mitra-pos-manage.report.export')
+            ->middleware('check.permission:mitra-pos-manage.index');
+        Route::get('report', [MitraReportController::class, 'adminIndex'])
+            ->name('mitra-pos-manage.report.index')
+            ->middleware('check.permission:mitra-pos-manage.index');
+
+        Route::get('settings', [MitraSettingController::class, 'adminIndex'])
+            ->name('mitra-pos-manage.setting.index')
+            ->middleware('check.permission:mitra-pos-manage.index');
+        Route::put('settings', [MitraSettingController::class, 'adminUpdate'])
+            ->name('mitra-pos-manage.setting.update')
+            ->middleware('check.permission:mitra-pos-manage.index');
+
+        // 'create' before the {opname} wildcard show route below, same
+        // ordering reason as the portal group (opname_no contains slashes).
+        Route::get('opname/create', [MitraOpnameController::class, 'adminCreate'])
+            ->name('mitra-pos-manage.opname.create')
+            ->middleware('check.permission:mitra-pos-manage.index');
+        Route::get('opname', [MitraOpnameController::class, 'adminIndex'])
+            ->name('mitra-pos-manage.opname.index')
+            ->middleware('check.permission:mitra-pos-manage.index');
+        Route::post('opname', [MitraOpnameController::class, 'adminStore'])
+            ->name('mitra-pos-manage.opname.store')
+            ->middleware('check.permission:mitra-pos-manage.index');
+        Route::get('opname/{opname}', [MitraOpnameController::class, 'adminShow'])
+            ->name('mitra-pos-manage.opname.show')
+            ->where('opname', '.*')
+            ->middleware('check.permission:mitra-pos-manage.index');
+
         // Read/void access to a mitra's POS transactions for Sofikopi staff.
         // Gated by the existing 'mitra-pos-manage.index' permission (the
         // same one guarding this whole picker flow) — super-admin already
@@ -156,6 +242,34 @@ Route::middleware(['auth', 'check.pegawai.status', 'mitra.scope'])
         Route::get('transaction/{transaction}', [PosTransactionController::class, 'adminShow'])
             ->name('mitra-pos-manage.transaction.show')
             ->where('transaction', '.*')
+            ->middleware('check.permission:mitra-pos-manage.index');
+
+        // Full read+write Akuntansi access for Sofikopi staff — same
+        // 'mitra-pos-manage.index' permission as transaction above (staff
+        // already has full CRUD on it via the picker flow, no separate menu
+        // entry needed for these admin-only routes).
+        Route::get('akuntansi/coa', [AkuntansiCoaController::class, 'adminIndex'])
+            ->name('mitra-pos-manage.akuntansi-coa.index')
+            ->middleware('check.permission:mitra-pos-manage.index');
+        Route::put('akuntansi/coa', [AkuntansiCoaController::class, 'adminUpdate'])
+            ->name('mitra-pos-manage.akuntansi-coa.update')
+            ->middleware('check.permission:mitra-pos-manage.index');
+
+        Route::get('akuntansi/jurnal/create', [AkuntansiJournalController::class, 'adminCreate'])
+            ->name('mitra-pos-manage.akuntansi-jurnal.create')
+            ->middleware('check.permission:mitra-pos-manage.index');
+        Route::get('akuntansi/jurnal', [AkuntansiJournalController::class, 'adminIndex'])
+            ->name('mitra-pos-manage.akuntansi-jurnal.index')
+            ->middleware('check.permission:mitra-pos-manage.index');
+        Route::post('akuntansi/jurnal', [AkuntansiJournalController::class, 'adminStore'])
+            ->name('mitra-pos-manage.akuntansi-jurnal.store')
+            ->middleware('check.permission:mitra-pos-manage.index');
+
+        Route::get('akuntansi/neraca', [AkuntansiReportController::class, 'adminNeraca'])
+            ->name('mitra-pos-manage.akuntansi-neraca.index')
+            ->middleware('check.permission:mitra-pos-manage.index');
+        Route::get('akuntansi/laba-rugi', [AkuntansiReportController::class, 'adminLabaRugi'])
+            ->name('mitra-pos-manage.akuntansi-laba-rugi.index')
             ->middleware('check.permission:mitra-pos-manage.index');
 
         // Custom action route before the material resource.

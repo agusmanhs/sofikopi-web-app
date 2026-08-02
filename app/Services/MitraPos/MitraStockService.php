@@ -70,7 +70,9 @@ class MitraStockService extends BaseService
             'mitra_material_id' => $material->id,
             'type' => $type,
             'qty' => $qty,
-            'unit_cost' => $unitCost,
+            // Column is NOT NULL default(0); an explicit null bypasses the DB
+            // default and violates the constraint, so coalesce here.
+            'unit_cost' => $unitCost ?? 0,
             'balance_after' => $balanceAfter,
             'reference_type' => $reference ? $reference->getMorphClass() : null,
             'reference_id' => $reference?->getKey(),
@@ -119,11 +121,21 @@ class MitraStockService extends BaseService
     public function adjustStock(int $mitraId, int $materialId, float $signedDelta, string $notes, int $userId): MitraStockMovement
     {
         return DB::transaction(function () use ($mitraId, $materialId, $signedDelta, $notes, $userId) {
+            // Same unit_cost source as performOpname(): the material's own
+            // harga_satuan, so the ledger's "nilai selisih" stays meaningful
+            // for manual adjustments too.
+            $material = MitraMaterial::forMitra($mitraId)->where('id', $materialId)->first();
+
+            if (! $material) {
+                throw new NotFoundHttpException('Material tidak ditemukan.');
+            }
+
             return $this->applyMovement(
                 mitraId: $mitraId,
                 materialId: $materialId,
                 type: 'adjustment',
                 qty: $signedDelta,
+                unitCost: (float) $material->harga_satuan,
                 notes: $notes,
                 userId: $userId,
             );

@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
-    <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Mitra POS /</span> Pengaturan</h4>
+    <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Mitra POS /</span> Pengaturan @if(isset($mitra)) <span class="text-muted fw-light">— {{ $mitra->name }}</span> @endif</h4>
 
     @if (session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
@@ -24,7 +24,7 @@
     <div class="row">
         <div class="col-12 col-lg-8">
             <div class="card">
-                <form action="{{ route('mitra-setting.update') }}" method="POST">
+                <form action="{{ $routes['update'] }}" method="POST">
                     @csrf
                     @method('PUT')
                     <div class="card-header">

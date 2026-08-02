@@ -87,7 +87,10 @@ class MitraPosMenuSeeder extends Seeder
                 'path' => '/mitra-pos/stock',
                 'order_no' => 4,
                 'permissions' => [
-                    'mitra-owner' => ['create' => false, 'read' => true, 'update' => false, 'delete' => false],
+                    // update=true -> owner can quick-adjust stock (the
+                    // 'adjust' route segment maps to 'update' in
+                    // CheckPermission). Kasir stays read-only.
+                    'mitra-owner' => ['create' => false, 'read' => true, 'update' => true, 'delete' => false],
                     'mitra-kasir' => ['create' => false, 'read' => true, 'update' => false, 'delete' => false],
                 ],
             ],
@@ -121,10 +124,50 @@ class MitraPosMenuSeeder extends Seeder
                 ],
             ],
             [
+                'name' => 'Chart of Account',
+                'slug' => 'akuntansi-coa.index',
+                'path' => '/mitra-pos/akuntansi/coa',
+                'order_no' => 8,
+                'permissions' => [
+                    // Owner-only: enabling/disabling accounts or editing
+                    // opening balances directly affects Neraca figures.
+                    'mitra-owner' => ['create' => false, 'read' => true, 'update' => true, 'delete' => false],
+                ],
+            ],
+            [
+                'name' => 'Jurnal',
+                'slug' => 'akuntansi-jurnal.index',
+                'path' => '/mitra-pos/akuntansi/jurnal',
+                'order_no' => 9,
+                'permissions' => [
+                    // create -> 'create' flag, lets the owner submit manual
+                    // entries (beban operasional, setoran modal, dll).
+                    'mitra-owner' => ['create' => true, 'read' => true, 'update' => false, 'delete' => false],
+                ],
+            ],
+            [
+                'name' => 'Neraca',
+                'slug' => 'akuntansi-neraca.index',
+                'path' => '/mitra-pos/akuntansi/neraca',
+                'order_no' => 10,
+                'permissions' => [
+                    'mitra-owner' => ['create' => false, 'read' => true, 'update' => false, 'delete' => false],
+                ],
+            ],
+            [
+                'name' => 'Laba Rugi',
+                'slug' => 'akuntansi-laba-rugi.index',
+                'path' => '/mitra-pos/akuntansi/laba-rugi',
+                'order_no' => 11,
+                'permissions' => [
+                    'mitra-owner' => ['create' => false, 'read' => true, 'update' => false, 'delete' => false],
+                ],
+            ],
+            [
                 'name' => 'Kelola Mitra POS',
                 'slug' => 'mitra-pos-manage.index',
                 'path' => '/mitra-pos/manage',
-                'order_no' => 8,
+                'order_no' => 12,
                 'permissions' => [
                     'super-admin' => ['create' => true, 'read' => true, 'update' => true, 'delete' => true],
                 ],

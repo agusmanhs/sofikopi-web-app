@@ -37,8 +37,46 @@
              $displayMenu = $displayMenu->menu;
          }
 
+         if (!function_exists('collectMenuPaths')) {
+             function collectMenuPaths($menus): array
+             {
+                 $paths = [];
+                 foreach ($menus as $m) {
+                     if (isset($m->path) && $m->path && $m->path !== '#') {
+                         $paths[] = ltrim($m->path, '/');
+                     }
+                     $children = $m->submenu ?? ($m->children ?? null);
+                     if ($children) {
+                         $paths = array_merge($paths, collectMenuPaths($children));
+                     }
+                 }
+                 return $paths;
+             }
+         }
+
+         if (!function_exists('bestMenuPathPrefix')) {
+             // Longest sidebar path that the current URL falls under. Used by
+             // isMenuActive's prefix fallback so that on /absensi/history only
+             // the '/absensi/history' item lights up, never '/absensi' too.
+             function bestMenuPathPrefix(array $paths, string $currentPath): ?string
+             {
+                 $best = null;
+                 foreach ($paths as $p) {
+                     if ($p === '') {
+                         continue;
+                     }
+                     if ($currentPath === $p || str_starts_with($currentPath, $p . '/')) {
+                         if ($best === null || strlen($p) > strlen($best)) {
+                             $best = $p;
+                         }
+                     }
+                 }
+                 return $best;
+             }
+         }
+
          if (!function_exists('isMenuActive')) {
-             function isMenuActive($menu, $currentRouteName, $currentPath)
+             function isMenuActive($menu, $currentRouteName, $currentPath, $bestPrefix = null)
              {
                  $hasChildren =
                      (isset($menu->submenu) && count($menu->submenu) > 0) ||
@@ -91,12 +129,23 @@
                  }
 
                  // Priority 3: Path Match
-                 if (isset($menu->path) && $menu->path !== null && $menu->path !== '') {
+                 if (isset($menu->path) && $menu->path !== null && $menu->path !== '' && $menu->path !== '#') {
                      $path = ltrim($menu->path, '/');
                      $trimmedCurrentPath = ltrim($currentPath, '/');
 
                      if ($path !== '') {
                          if ($trimmedCurrentPath === $path) {
+                             return true;
+                         }
+
+                         // 3.1: Prefix match for nested pages whose route
+                         // action isn't in the resource map above (e.g.
+                         // /mitra-pos/stock/movements under /mitra-pos/stock,
+                         // /mitra-pos/opname/create, /mitra-pos/manage/{mitra}/...
+                         // under /mitra-pos/manage). Only the LONGEST matching
+                         // sidebar path wins ($bestPrefix), so sibling items
+                         // like '/izin' vs '/izin/create' never both light up.
+                         if (str_starts_with($trimmedCurrentPath, $path . '/') && $path === $bestPrefix) {
                              return true;
                          }
                      } elseif ($trimmedCurrentPath === '') {
@@ -108,7 +157,7 @@
                  if ($hasChildren) {
                      $children = $menu->submenu ?? $menu->children;
                      foreach ($children as $child) {
-                         if (isMenuActive($child, $currentRouteName, $currentPath)) {
+                         if (isMenuActive($child, $currentRouteName, $currentPath, $bestPrefix)) {
                              return true;
                          }
                      }
@@ -137,7 +186,9 @@
                    (isset($menu->submenu) && count($menu->submenu) > 0) ||
                    (isset($menu->children) && count($menu->children) > 0);
 
-               $isActive = isMenuActive($menu, $currentRouteName, $currentPath);
+               $menuBestPrefix = $menuBestPrefix
+                   ?? bestMenuPathPrefix(collectMenuPaths($displayMenu), ltrim($currentPath, '/'));
+               $isActive = isMenuActive($menu, $currentRouteName, $currentPath, $menuBestPrefix);
                $activeClass = $isActive ? ($hasChildren ? 'active open' : 'active') : '';
             @endphp
 
@@ -163,6 +214,7 @@
                   @include('layouts.sections.menu.submenu', [
                       'menu' => $submenuData,
                       'configData' => $configData,
+                      'menuBestPrefix' => $menuBestPrefix,
                   ])
                @endif
             </li>

@@ -3,12 +3,76 @@
 namespace App\Providers;
 
 use App\Helpers\ViewConfigHelper;
+use App\Interfaces\Repositories\AbsensiRepositoryInterface;
+use App\Interfaces\Repositories\DeliveryOrderRepositoryInterface;
+use App\Interfaces\Repositories\DivisiRepositoryInterface;
+use App\Interfaces\Repositories\InformasiRepositoryInterface;
+use App\Interfaces\Repositories\InvoiceRepositoryInterface;
+use App\Interfaces\Repositories\IzinRepositoryInterface;
+use App\Interfaces\Repositories\JenisIzinRepositoryInterface;
+use App\Interfaces\Repositories\KantorRepositoryInterface;
+use App\Interfaces\Repositories\KunjunganRepositoryInterface;
+use App\Interfaces\Repositories\MenuRepositoryInterface;
+use App\Interfaces\Repositories\MitraCategoryRepositoryInterface;
+use App\Interfaces\Repositories\MitraPos\AkuntansiAccountRepositoryInterface;
+use App\Interfaces\Repositories\MitraPos\AkuntansiJournalEntryRepositoryInterface;
+use App\Interfaces\Repositories\MitraPos\MitraMaterialRepositoryInterface;
+use App\Interfaces\Repositories\MitraPos\MitraProductRepositoryInterface;
+use App\Interfaces\Repositories\MitraPos\MitraStockMovementRepositoryInterface;
+use App\Interfaces\Repositories\MitraPos\PosTransactionRepositoryInterface;
+use App\Interfaces\Repositories\MitraRepositoryInterface;
+use App\Interfaces\Repositories\PegawaiRepositoryInterface;
+use App\Interfaces\Repositories\ProductCategoryRepositoryInterface;
+use App\Interfaces\Repositories\ProductsRepositoryInterface;
+use App\Interfaces\Repositories\ProductSubCategoryRepositoryInterface;
+use App\Interfaces\Repositories\ProduksiRepositoryInterface;
+use App\Interfaces\Repositories\RoleRepositoryInterface;
+use App\Interfaces\Repositories\SalesOrderLogRepositoryInterface;
+use App\Interfaces\Repositories\SalesOrderRepositoryInterface;
+use App\Interfaces\Repositories\ShiftRepositoryInterface;
 use App\Interfaces\Repositories\UserRepositoryInterface;
+use App\Listeners\BackupNotificationListener;
+use App\Models\Role;
+use App\Repositories\AbsensiRepository;
+use App\Repositories\DeliveryOrderRepository;
+use App\Repositories\DivisiRepository;
+use App\Repositories\InformasiRepository;
+use App\Repositories\InvoiceRepository;
+use App\Repositories\IzinRepository;
+use App\Repositories\JenisIzinRepository;
+use App\Repositories\KantorRepository;
+use App\Repositories\KunjunganRepository;
+use App\Repositories\MenuRepository;
+use App\Repositories\MitraCategoryRepository;
+use App\Repositories\MitraPos\AkuntansiAccountRepository;
+use App\Repositories\MitraPos\AkuntansiJournalEntryRepository;
+use App\Repositories\MitraPos\MitraMaterialRepository;
+use App\Repositories\MitraPos\MitraProductRepository;
+use App\Repositories\MitraPos\MitraStockMovementRepository;
+use App\Repositories\MitraPos\PosTransactionRepository;
+use App\Repositories\MitraRepository;
+use App\Repositories\PegawaiRepository;
+use App\Repositories\ProductCategoryRepository;
+use App\Repositories\ProductsRepository;
+use App\Repositories\ProductSubCategoryRepository;
+use App\Repositories\ProduksiRepository;
+use App\Repositories\RoleRepository;
+use App\Repositories\SalesOrderLogRepository;
+use App\Repositories\SalesOrderRepository;
+use App\Repositories\ShiftRepository;
 use App\Repositories\UserRepository;
-use Illuminate\Support\Facades\View;
-use Illuminate\Support\Facades\Event;
-use Illuminate\Support\ServiceProvider;
+use App\Services\MitraPos\MitraContext;
+use Google\Client;
+use Google\Service\Drive;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\View;
+use Illuminate\Support\ServiceProvider;
+use League\Flysystem\Filesystem;
+use Masbug\Flysystem\GoogleDriveAdapter;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -20,118 +84,126 @@ class AppServiceProvider extends ServiceProvider
         // Repository bindings
         $this->app->bind(UserRepositoryInterface::class, UserRepository::class);
         $this->app->bind(
-            \App\Interfaces\Repositories\RoleRepositoryInterface::class,
-            \App\Repositories\RoleRepository::class
+            RoleRepositoryInterface::class,
+            RoleRepository::class
         );
         $this->app->bind(
-            \App\Interfaces\Repositories\MenuRepositoryInterface::class,
-            \App\Repositories\MenuRepository::class
+            MenuRepositoryInterface::class,
+            MenuRepository::class
         );
         $this->app->bind(
-            \App\Interfaces\Repositories\ProductsRepositoryInterface::class,
-            \App\Repositories\ProductsRepository::class
+            ProductsRepositoryInterface::class,
+            ProductsRepository::class
         );
 
         // Absensi System Repositories
         $this->app->bind(
-            \App\Interfaces\Repositories\DivisiRepositoryInterface::class,
-            \App\Repositories\DivisiRepository::class
+            DivisiRepositoryInterface::class,
+            DivisiRepository::class
         );
         $this->app->bind(
-            \App\Interfaces\Repositories\KantorRepositoryInterface::class,
-            \App\Repositories\KantorRepository::class
+            KantorRepositoryInterface::class,
+            KantorRepository::class
         );
         $this->app->bind(
-            \App\Interfaces\Repositories\JenisIzinRepositoryInterface::class,
-            \App\Repositories\JenisIzinRepository::class
+            JenisIzinRepositoryInterface::class,
+            JenisIzinRepository::class
         );
         $this->app->bind(
-            \App\Interfaces\Repositories\PegawaiRepositoryInterface::class,
-            \App\Repositories\PegawaiRepository::class
+            PegawaiRepositoryInterface::class,
+            PegawaiRepository::class
         );
         $this->app->bind(
-            \App\Interfaces\Repositories\AbsensiRepositoryInterface::class,
-            \App\Repositories\AbsensiRepository::class
+            AbsensiRepositoryInterface::class,
+            AbsensiRepository::class
         );
         $this->app->bind(
-            \App\Interfaces\Repositories\IzinRepositoryInterface::class,
-            \App\Repositories\IzinRepository::class
+            IzinRepositoryInterface::class,
+            IzinRepository::class
         );
         $this->app->bind(
-            \App\Interfaces\Repositories\ShiftRepositoryInterface::class,
-            \App\Repositories\ShiftRepository::class
+            ShiftRepositoryInterface::class,
+            ShiftRepository::class
         );
         $this->app->bind(
-            \App\Interfaces\Repositories\InformasiRepositoryInterface::class,
-            \App\Repositories\InformasiRepository::class
+            InformasiRepositoryInterface::class,
+            InformasiRepository::class
         );
 
         // Product & Mitra Module Repositories
         $this->app->bind(
-            \App\Interfaces\Repositories\ProductCategoryRepositoryInterface::class,
-            \App\Repositories\ProductCategoryRepository::class
+            ProductCategoryRepositoryInterface::class,
+            ProductCategoryRepository::class
         );
         $this->app->bind(
-            \App\Interfaces\Repositories\ProductSubCategoryRepositoryInterface::class,
-            \App\Repositories\ProductSubCategoryRepository::class
+            ProductSubCategoryRepositoryInterface::class,
+            ProductSubCategoryRepository::class
         );
         $this->app->bind(
-            \App\Interfaces\Repositories\MitraCategoryRepositoryInterface::class,
-            \App\Repositories\MitraCategoryRepository::class
+            MitraCategoryRepositoryInterface::class,
+            MitraCategoryRepository::class
         );
         $this->app->bind(
-            \App\Interfaces\Repositories\MitraRepositoryInterface::class,
-            \App\Repositories\MitraRepository::class
+            MitraRepositoryInterface::class,
+            MitraRepository::class
         );
 
         // Kunjungan Module Repository
         $this->app->bind(
-            \App\Interfaces\Repositories\KunjunganRepositoryInterface::class,
-            \App\Repositories\KunjunganRepository::class
+            KunjunganRepositoryInterface::class,
+            KunjunganRepository::class
         );
 
         // Produksi Module Repository
         $this->app->bind(
-            \App\Interfaces\Repositories\ProduksiRepositoryInterface::class,
-            \App\Repositories\ProduksiRepository::class
+            ProduksiRepositoryInterface::class,
+            ProduksiRepository::class
         );
 
         // Sales Order Module Repositories
         $this->app->bind(
-            \App\Interfaces\Repositories\SalesOrderRepositoryInterface::class,
-            \App\Repositories\SalesOrderRepository::class
+            SalesOrderRepositoryInterface::class,
+            SalesOrderRepository::class
         );
         $this->app->bind(
-            \App\Interfaces\Repositories\DeliveryOrderRepositoryInterface::class,
-            \App\Repositories\DeliveryOrderRepository::class
+            DeliveryOrderRepositoryInterface::class,
+            DeliveryOrderRepository::class
         );
         $this->app->bind(
-            \App\Interfaces\Repositories\InvoiceRepositoryInterface::class,
-            \App\Repositories\InvoiceRepository::class
+            InvoiceRepositoryInterface::class,
+            InvoiceRepository::class
         );
         $this->app->bind(
-            \App\Interfaces\Repositories\SalesOrderLogRepositoryInterface::class,
-            \App\Repositories\SalesOrderLogRepository::class
+            SalesOrderLogRepositoryInterface::class,
+            SalesOrderLogRepository::class
         );
 
         // Mitra POS Module Repositories
         $this->app->bind(
-            \App\Interfaces\Repositories\MitraPos\MitraMaterialRepositoryInterface::class,
-            \App\Repositories\MitraPos\MitraMaterialRepository::class
+            MitraMaterialRepositoryInterface::class,
+            MitraMaterialRepository::class
         );
         $this->app->bind(
-            \App\Interfaces\Repositories\MitraPos\MitraStockMovementRepositoryInterface::class,
-            \App\Repositories\MitraPos\MitraStockMovementRepository::class
+            MitraStockMovementRepositoryInterface::class,
+            MitraStockMovementRepository::class
         );
         $this->app->bind(
-            \App\Interfaces\Repositories\MitraPos\MitraProductRepositoryInterface::class,
-            \App\Repositories\MitraPos\MitraProductRepository::class
+            MitraProductRepositoryInterface::class,
+            MitraProductRepository::class
         );
         $this->app->bind(
-            \App\Interfaces\Repositories\MitraPos\PosTransactionRepositoryInterface::class,
-            \App\Repositories\MitraPos\PosTransactionRepository::class
+            PosTransactionRepositoryInterface::class,
+            PosTransactionRepository::class
         );
-        $this->app->scoped(\App\Services\MitraPos\MitraContext::class);
+        $this->app->bind(
+            AkuntansiAccountRepositoryInterface::class,
+            AkuntansiAccountRepository::class
+        );
+        $this->app->bind(
+            AkuntansiJournalEntryRepositoryInterface::class,
+            AkuntansiJournalEntryRepository::class
+        );
+        $this->app->scoped(MitraContext::class);
     }
 
     /**
@@ -142,33 +214,33 @@ class AppServiceProvider extends ServiceProvider
         Paginator::useBootstrapFive();
 
         // Define Gates for authorization
-        \Illuminate\Support\Facades\Gate::before(function ($user, $ability) {
+        Gate::before(function ($user, $ability) {
             if ($user->role && $user->role->slug === 'super-admin') {
                 return true;
             }
         });
 
         // Register Backup Notification Subscriber
-        Event::subscribe(\App\Listeners\BackupNotificationListener::class);
+        Event::subscribe(BackupNotificationListener::class);
 
-        \Illuminate\Support\Facades\Gate::define('access', function ($user, $slug, $action) {
+        Gate::define('access', function ($user, $slug, $action) {
             return $user->hasPermission($slug, $action);
         });
         // Create Helper alias for ViewConfigHelper
-        if (!class_exists('Helper')) {
+        if (! class_exists('Helper')) {
             class_alias(ViewConfigHelper::class, 'Helper');
         }
 
         // Share menu data with all views
         View::composer('*', function ($view) {
             $menus = collect();
-            
+
             if (auth()->check()) {
                 $role = auth()->user()->role;
             } else {
                 // Fallback to Super Admin menus for Guest/Demo if no auth
                 // Or just the first role found
-                $role = \App\Models\Role::where('slug', 'super-admin')->first();
+                $role = Role::where('slug', 'super-admin')->first();
             }
 
             if ($role) {
@@ -176,11 +248,11 @@ class AppServiceProvider extends ServiceProvider
                     ->whereNull('parent_id')
                     ->where('is_active', true)
                     ->wherePivot('can_read', true)
-                    ->with(['children' => function($q) use ($role) {
-                        $q->where('is_active', true)->whereHas('roles', function($rq) use ($role) {
+                    ->with(['children' => function ($q) use ($role) {
+                        $q->where('is_active', true)->whereHas('roles', function ($rq) use ($role) {
                             $rq->where('roles.id', $role->id)->where('can_read', true);
-                        })->with(['children' => function($sq) use ($role) {
-                            $sq->where('is_active', true)->whereHas('roles', function($srq) use ($role) {
+                        })->with(['children' => function ($sq) use ($role) {
+                            $sq->where('is_active', true)->whereHas('roles', function ($srq) use ($role) {
                                 $srq->where('roles.id', $role->id)->where('can_read', true);
                             })->orderBy('order_no');
                         }])->orderBy('order_no');
@@ -218,17 +290,17 @@ class AppServiceProvider extends ServiceProvider
 
         // Register Google Drive Storage Driver
         try {
-            \Illuminate\Support\Facades\Storage::extend('google', function ($app, $config) {
-                $client = new \Google\Client();
+            Storage::extend('google', function ($app, $config) {
+                $client = new Client;
                 $client->setClientId($config['clientId']);
                 $client->setClientSecret($config['clientSecret']);
                 $client->refreshToken($config['refreshToken']);
-                
-                $service = new \Google\Service\Drive($client);
-                $adapter = new \Masbug\Flysystem\GoogleDriveAdapter($service, $config['folderId'] ?? '/', []);
-                $driver = new \League\Flysystem\Filesystem($adapter);
 
-                return new \Illuminate\Filesystem\FilesystemAdapter($driver, $adapter);
+                $service = new Drive($client);
+                $adapter = new GoogleDriveAdapter($service, $config['folderId'] ?? '/', []);
+                $driver = new Filesystem($adapter);
+
+                return new FilesystemAdapter($driver, $adapter);
             });
         } catch (\Exception $e) {
             // Silently fail if dependencies are missing

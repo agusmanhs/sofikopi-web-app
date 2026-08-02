@@ -5,8 +5,8 @@
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="fw-bold py-3 mb-0"><span class="text-muted fw-light">Mitra POS / Stok Material /</span> Riwayat Mutasi</h4>
-        <a href="{{ route('mitra-stock.index') }}" class="btn btn-outline-secondary">
+        <h4 class="fw-bold py-3 mb-0"><span class="text-muted fw-light">Mitra POS / Stok Material /</span> Riwayat Mutasi @if(isset($mitra)) <span class="text-muted fw-light">— {{ $mitra->name }}</span> @endif</h4>
+        <a href="{{ $routes['index'] }}" class="btn btn-outline-secondary">
             <i class="ri-arrow-left-line me-1"></i> Kembali
         </a>
     </div>

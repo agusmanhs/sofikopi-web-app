@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             // AbsensiRoleMenuSeeder::class,
             // SalesOrderMenuSeeder::class,
             MitraPosMenuSeeder::class,
+            AkuntansiCoaBackfillSeeder::class,
         ]);
     }
 }

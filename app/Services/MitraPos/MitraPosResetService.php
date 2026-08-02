@@ -25,6 +25,8 @@ class MitraPosResetService
             'Pergerakan stok' => DB::table('mitra_stock_movements')->where('mitra_id', $mitraId)->count(),
             'Produk (menu)' => DB::table('mitra_products')->where('mitra_id', $mitraId)->count(),
             'Material' => DB::table('mitra_materials')->where('mitra_id', $mitraId)->count(),
+            'Jurnal akuntansi' => DB::table('akuntansi_journal_entries')->where('mitra_id', $mitraId)->count(),
+            'Chart of Account' => DB::table('akuntansi_accounts')->where('mitra_id', $mitraId)->count(),
         ];
     }
 
@@ -40,10 +42,14 @@ class MitraPosResetService
             // pos_transactions → items (cascade); mitra_products →
             // ingredients (cascade, and ingredients restrictOnDelete their
             // material, so products must go before materials);
-            // mitra_materials → stock movements (cascade).
+            // mitra_materials → stock movements (cascade). Journal entries
+            // must go before accounts — akuntansi_journal_lines restricts
+            // deleting the account it points to.
             DB::table('pos_transactions')->where('mitra_id', $mitraId)->delete();
             DB::table('mitra_products')->where('mitra_id', $mitraId)->delete();
             DB::table('mitra_materials')->where('mitra_id', $mitraId)->delete();
+            DB::table('akuntansi_journal_entries')->where('mitra_id', $mitraId)->delete();
+            DB::table('akuntansi_accounts')->where('mitra_id', $mitraId)->delete();
             DB::table('mitra_pos_settings')->where('mitra_id', $mitraId)->delete();
         });
 

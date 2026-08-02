@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\MitraPos;
 
 use App\Http\Controllers\Controller;
+use App\Models\Mitra;
 use App\Services\MitraPos\MitraContext;
 use App\Services\MitraPos\MitraDashboardService;
 
@@ -13,10 +14,22 @@ class MitraDashboardController extends Controller
         protected MitraContext $mitraContext
     ) {}
 
+    // --- Tenant portal (mitra-pos/dashboard), mitra context from MitraContext ---
+
     public function index()
     {
-        $mitraId = $this->mitraContext->id();
+        return $this->render($this->mitraContext->id(), null);
+    }
 
+    // --- Sofikopi-staff admin (mitra-pos/manage/{mitra}/dashboard) ---
+
+    public function adminIndex(Mitra $mitra)
+    {
+        return $this->render($mitra->id, $mitra);
+    }
+
+    private function render(int $mitraId, ?Mitra $mitra)
+    {
         $stats = $this->service->stats($mitraId);
         $paymentMix = $this->service->paymentMix($mitraId);
         $topProducts = $this->service->topProducts($mitraId);
@@ -28,7 +41,8 @@ class MitraDashboardController extends Controller
             'paymentMix',
             'topProducts',
             'stockAlerts',
-            'target'
+            'target',
+            'mitra'
         ));
     }
 }

@@ -16,7 +16,7 @@
                 (isset($submenu->submenu) && count($submenu->submenu) > 0) ||
                 (isset($submenu->children) && count($submenu->children) > 0);
 
-            $isActive = isMenuActive($submenu, $currentRouteName, $currentPath);
+            $isActive = isMenuActive($submenu, $currentRouteName, $currentPath, $menuBestPrefix ?? null);
             $activeClass = $isActive ? ($hasSubChildren ? $active : 'active') : '';
          @endphp
 
@@ -41,6 +41,7 @@
                @include('layouts.sections.menu.submenu', [
                    'menu' => $nextSubmenu,
                    'configData' => $configData,
+                   'menuBestPrefix' => $menuBestPrefix ?? null,
                ])
             @endif
          </li>

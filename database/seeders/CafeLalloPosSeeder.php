@@ -10,6 +10,7 @@ use App\Models\MitraProduct;
 use App\Models\Products;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\MitraPos\AkuntansiCoaService;
 use App\Services\MitraPos\MitraMaterialService;
 use App\Services\MitraPos\MitraProductService;
 use App\Services\MitraPos\MitraStockService;
@@ -114,6 +115,10 @@ class CafeLalloPosSeeder extends Seeder
         // seeded material/product data for wouldn't even show up on the
         // Kelola Mitra POS screen (index() only lists enrolled mitras).
         MitraPosSetting::firstOrCreate(['mitra_id' => $mitra->id]);
+
+        // Mirrors MitraPosManageController::store()'s enrollment hook — a
+        // real enrolled mitra always gets its Chart of Account seeded too.
+        app(AkuntansiCoaService::class)->seedForMitra($mitra->id);
 
         return $mitra;
     }

@@ -56,6 +56,15 @@ $container = ($configData['contentLayout'] === 'compact') ? 'container-xxl' : 'c
       <!-- Content wrapper -->
       <div class="content-wrapper">
 
+        {{-- Admin-context bar: Sofikopi staff browsing a mitra's POS pages.
+             Guarded by route name so a $mitra variable from any other module
+             never triggers it; receipt is excluded (print-oriented page). --}}
+        @if (isset($mitra) && $mitra instanceof \App\Models\Mitra
+            && request()->routeIs('mitra-pos-manage.*', 'mitra-material.*', 'mitra-product.*')
+            && !request()->routeIs('mitra-pos-manage.transaction.receipt'))
+          @include('pages.mitra-pos._admin-nav')
+        @endif
+
         <!-- Content -->
         @if ($isFlex)
         <div class="{{$container}} d-flex align-items-stretch flex-grow-1 p-0">

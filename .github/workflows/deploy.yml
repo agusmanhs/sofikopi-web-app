@@ -60,6 +60,11 @@ jobs:
             # updateOrInsert), aman dijalankan di setiap deploy. Tidak menimpa
             # perubahan permission yang diubah manual lewat halaman Permission.
             php artisan db:seed --class=MitraPosMenuSeeder --force
+            # Backfill Chart of Account modul Akuntansi untuk mitra yang sudah
+            # terdaftar di POS SEBELUM modul ini ada — idempotent (no-op kalau
+            # mitra sudah punya akun), tanpa ini penjualan pertama mitra lama
+            # akan gagal checkout (jurnal wajib, akun belum ter-seed).
+            php artisan db:seed --class=AkuntansiCoaBackfillSeeder --force
             php artisan config:cache
             php artisan route:cache
             php artisan view:cache

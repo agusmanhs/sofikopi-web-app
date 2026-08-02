@@ -18,25 +18,53 @@ class MitraReportController extends Controller
         protected MitraContext $mitraContext
     ) {}
 
+    // --- Tenant portal (mitra-pos/report), mitra context from MitraContext ---
+
     public function index(Request $request)
+    {
+        return $this->renderIndex($request, $this->mitraContext->id(), null);
+    }
+
+    public function export(Request $request)
+    {
+        $mitra = Mitra::findOrFail($this->mitraContext->id());
+
+        return $this->downloadExport($request, $mitra);
+    }
+
+    // --- Sofikopi-staff admin (mitra-pos/manage/{mitra}/report) ---
+
+    public function adminIndex(Request $request, Mitra $mitra)
+    {
+        return $this->renderIndex($request, $mitra->id, $mitra);
+    }
+
+    public function adminExport(Request $request, Mitra $mitra)
+    {
+        return $this->downloadExport($request, $mitra);
+    }
+
+    private function renderIndex(Request $request, int $mitraId, ?Mitra $mitra)
     {
         [$from, $to] = $this->resolvePeriod($request);
 
-        $rows = $this->service->dailyRecap($this->mitraContext->id(), $from, $to);
+        $rows = $this->service->dailyRecap($mitraId, $from, $to);
         $totals = $this->sumTotals($rows);
+        $routes = $this->routesFor($mitra, $from, $to);
 
         return view('pages.mitra-pos.report.index', [
             'rows' => $rows,
             'totals' => $totals,
             'from' => $from,
             'to' => $to,
+            'mitra' => $mitra,
+            'routes' => $routes,
         ]);
     }
 
-    public function export(Request $request)
+    private function downloadExport(Request $request, Mitra $mitra)
     {
         [$from, $to] = $this->resolvePeriod($request);
-        $mitra = Mitra::findOrFail($this->mitraContext->id());
 
         $rows = $this->service->dailyRecap($mitra->id, $from, $to);
 
@@ -81,6 +109,24 @@ class MitraReportController extends Controller
             'void_total' => $rows->sum('void_total'),
             'void_count' => $rows->sum('void_count'),
             'jumlah_transaksi' => $rows->sum('jumlah_transaksi'),
+        ];
+    }
+
+    /**
+     * Builds route URLs shared by report/index.blade.php so the same view
+     * renders for both the tenant portal (no {mitra} param) and the
+     * Sofikopi-staff admin picker ({mitra} route param) — same technique as
+     * PosTransactionController::routesFor(). The export link needs the
+     * current from/to query params preserved regardless of context.
+     */
+    private function routesFor(?Mitra $mitra, Carbon $from, Carbon $to): array
+    {
+        $query = ['from' => $from->toDateString(), 'to' => $to->toDateString()];
+
+        return [
+            'export' => $mitra
+                ? route('mitra-pos-manage.report.export', array_merge(['mitra' => $mitra], $query))
+                : route('mitra-report.export', $query),
         ];
     }
 }

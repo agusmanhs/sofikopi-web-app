@@ -16,7 +16,7 @@
 
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
-    <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Mitra POS /</span> Kasir</h4>
+    <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Mitra POS /</span> Kasir @if(isset($mitra)) <span class="text-muted fw-light">— {{ $mitra->name }}</span> @endif</h4>
 
     <div class="row g-4">
         <!-- Product grid -->
@@ -138,12 +138,12 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const csrfToken = document.querySelector('meta[name=csrf-token]').content;
-    const productsUrl = "{{ route('pos.products') }}";
-    const checkoutUrl = "{{ route('pos.store') }}";
+    const productsUrl = "{{ $routes['products'] }}";
+    const checkoutUrl = "{{ $routes['store'] }}";
     // transaction_no (e.g. POS/LALLO/20260722/0001) contains literal slashes
     // matched by the route's '.*' constraint — do NOT encodeURIComponent()
     // the replacement, that would %2F-escape the slashes and break routing.
-    const receiptUrlTemplate = "{{ route('pos-transaction.receipt', '__TRANSACTION_NO__') }}";
+    const receiptUrlTemplate = "{{ $routes['receipt'] }}";
 
     let cart = [];
 

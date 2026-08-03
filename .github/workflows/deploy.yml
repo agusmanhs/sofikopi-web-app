@@ -65,6 +65,9 @@ jobs:
             # mitra sudah punya akun), tanpa ini penjualan pertama mitra lama
             # akan gagal checkout (jurnal wajib, akun belum ter-seed).
             php artisan db:seed --class=AkuntansiCoaBackfillSeeder --force
+            # Idempotent: no-ops if the symlink already exists. Needed for
+            # public/storage to serve uploaded files (e.g. mitra receipt logo).
+            php artisan storage:link || true
             php artisan config:cache
             php artisan route:cache
             php artisan view:cache

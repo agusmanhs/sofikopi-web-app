@@ -24,7 +24,7 @@
     <div class="row">
         <div class="col-12 col-lg-8">
             <div class="card">
-                <form action="{{ $routes['update'] }}" method="POST">
+                <form action="{{ $routes['update'] }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
                     <div class="card-header">
@@ -42,6 +42,22 @@
                             <div class="col-12">
                                 <label class="form-label">Catatan Kaki Struk</label>
                                 <textarea name="receipt_footer" class="form-control" rows="2" placeholder="Contoh: Terima kasih atas kunjungan Anda">{{ old('receipt_footer', $setting->receipt_footer) }}</textarea>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <label class="form-label">Logo Struk</label>
+                                @if ($setting->receipt_logo_path)
+                                <div class="d-flex align-items-center gap-3 mb-2">
+                                    <img src="{{ Storage::url($setting->receipt_logo_path) }}" alt="Logo saat ini" style="max-width: 120px; max-height: 120px; object-fit: contain;" class="border rounded p-1">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="remove_logo" value="1" id="removeLogo">
+                                        <label class="form-check-label" for="removeLogo">Hapus logo ini</label>
+                                    </div>
+                                </div>
+                                @endif
+                                <input type="file" name="receipt_logo" class="form-control" accept="image/png,image/jpeg">
+                                <small class="text-muted">JPG/PNG, maks 2MB. Tampil di bagian atas struk cetak.</small>
                             </div>
                         </div>
                     </div>

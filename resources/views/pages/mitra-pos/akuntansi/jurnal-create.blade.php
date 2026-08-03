@@ -2,6 +2,18 @@
 
 @section('title', 'Jurnal Manual')
 
+@section('vendor-style')
+@vite([
+  'resources/assets/vendor/libs/select2/select2.scss'
+])
+@endsection
+
+@section('vendor-script')
+@vite([
+  'resources/assets/vendor/libs/select2/select2.js'
+])
+@endsection
+
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
     <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Mitra POS / Akuntansi / Jurnal /</span> Manual</h4>
@@ -47,7 +59,7 @@
                         @for($i = 0; $i < 2; $i++)
                         <tr class="jurnal-line">
                             <td>
-                                <select name="lines[{{ $i }}][account_id]" class="form-select" required>
+                                <select name="lines[{{ $i }}][account_id]" class="form-select select2 account-select" required>
                                     <option value="">-- Pilih Akun --</option>
                                     @foreach($accounts as $account)
                                     <option value="{{ $account->id }}">{{ $account->code }} - {{ $account->name }}</option>
@@ -87,15 +99,14 @@
 @section('page-script')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const jq = window.$ || window.jQuery;
         const body = document.getElementById('jurnal-lines-body');
-        const template = body.querySelector('.jurnal-line').cloneNode(true);
         let index = body.querySelectorAll('.jurnal-line').length;
 
-        function reindex(row, i) {
-            row.querySelectorAll('[name]').forEach(function (el) {
-                el.name = el.name.replace(/lines\[\d+\]/, 'lines[' + i + ']');
-            });
-        }
+        // Options string baked once at render time — new rows reuse it
+        // instead of re-querying $accounts, same idea as product/create's
+        // ingredient-material select2 rows.
+        const accountOptionsHtml = document.querySelector('.account-select').innerHTML;
 
         function updateBalanceHint() {
             let debit = 0, credit = 0;
@@ -109,23 +120,42 @@
             hint.className = 'fw-bold ' + (balanced ? 'text-success' : 'text-danger');
         }
 
+        function initSelect2(scope) {
+            if (!jq) return;
+            jq(scope).find('.select2').select2({
+                placeholder: '-- Pilih Akun --',
+                allowClear: true,
+                width: '100%',
+            });
+        }
+
         document.getElementById('add-line').addEventListener('click', function () {
-            const row = template.cloneNode(true);
-            row.querySelectorAll('input').forEach(function (el) { el.value = ''; });
-            row.querySelector('select').selectedIndex = 0;
-            reindex(row, index++);
+            // Built from scratch (not cloneNode) — select2 injects sibling
+            // markup next to the original <select> that cloning would
+            // duplicate and break on re-init.
+            const i = index++;
+            const row = document.createElement('tr');
+            row.className = 'jurnal-line';
+            row.innerHTML =
+                '<td><select name="lines[' + i + '][account_id]" class="form-select select2 account-select" required>' + accountOptionsHtml + '</select></td>' +
+                '<td><input type="number" step="0.01" min="0" name="lines[' + i + '][debit]" class="form-control"></td>' +
+                '<td><input type="number" step="0.01" min="0" name="lines[' + i + '][credit]" class="form-control"></td>' +
+                '<td><button type="button" class="btn btn-sm btn-outline-danger remove-line" title="Hapus baris"><i class="ri-close-line"></i></button></td>';
             body.appendChild(row);
+            initSelect2(row);
         });
 
         body.addEventListener('click', function (e) {
             const btn = e.target.closest('.remove-line');
             if (!btn) return;
             if (body.querySelectorAll('.jurnal-line').length <= 2) return;
+            if (jq) jq(btn.closest('.jurnal-line')).find('.select2').select2('destroy');
             btn.closest('.jurnal-line').remove();
             updateBalanceHint();
         });
 
         body.addEventListener('input', updateBalanceHint);
+        initSelect2(body);
         updateBalanceHint();
     });
 </script>

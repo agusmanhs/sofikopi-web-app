@@ -4,6 +4,7 @@ use App\Http\Controllers\MitraPos\AkuntansiCoaController;
 use App\Http\Controllers\MitraPos\AkuntansiJournalController;
 use App\Http\Controllers\MitraPos\AkuntansiReportController;
 use App\Http\Controllers\MitraPos\MitraDashboardController;
+use App\Http\Controllers\MitraPos\MitraKasirUserController;
 use App\Http\Controllers\MitraPos\MitraMaterialController;
 use App\Http\Controllers\MitraPos\MitraOpnameController;
 use App\Http\Controllers\MitraPos\MitraPosManageController;
@@ -115,6 +116,22 @@ Route::middleware(['auth', 'mitra.user'])->prefix('mitra-pos')->group(function (
         ->name('mitra-opname.show')
         ->where('opname', '.*')
         ->middleware('check.permission:mitra-opname.index');
+
+    // Owner self-service kasir accounts. 'destroy' -> 'delete' flag; kasir
+    // has no pivot row at all on mitra-kasir-user.index, so this whole group
+    // 403s for them automatically (see MitraPosMenuSeeder).
+    Route::get('kasir-user', [MitraKasirUserController::class, 'index'])
+        ->name('mitra-kasir-user.index')
+        ->middleware('check.permission:mitra-kasir-user.index');
+    Route::post('kasir-user', [MitraKasirUserController::class, 'store'])
+        ->name('mitra-kasir-user.store')
+        ->middleware('check.permission:mitra-kasir-user.index');
+    Route::put('kasir-user/{user}', [MitraKasirUserController::class, 'update'])
+        ->name('mitra-kasir-user.update')
+        ->middleware('check.permission:mitra-kasir-user.index');
+    Route::delete('kasir-user/{user}', [MitraKasirUserController::class, 'destroy'])
+        ->name('mitra-kasir-user.destroy')
+        ->middleware('check.permission:mitra-kasir-user.index');
 
     Route::get('akuntansi/coa', [AkuntansiCoaController::class, 'index'])
         ->name('akuntansi-coa.index')

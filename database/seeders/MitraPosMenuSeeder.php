@@ -124,10 +124,22 @@ class MitraPosMenuSeeder extends Seeder
                 ],
             ],
             [
+                // Owner-only self-service: create/edit/remove the mitra's own
+                // kasir accounts. Hard cap of 2 active kasir is enforced in
+                // MitraKasirUserService, not just the UI.
+                'name' => 'User Kasir',
+                'slug' => 'mitra-kasir-user.index',
+                'path' => '/mitra-pos/kasir-user',
+                'order_no' => 8,
+                'permissions' => [
+                    'mitra-owner' => ['create' => true, 'read' => true, 'update' => true, 'delete' => true],
+                ],
+            ],
+            [
                 'name' => 'Chart of Account',
                 'slug' => 'akuntansi-coa.index',
                 'path' => '/mitra-pos/akuntansi/coa',
-                'order_no' => 8,
+                'order_no' => 9,
                 'permissions' => [
                     // Owner-only: enabling/disabling accounts or editing
                     // opening balances directly affects Neraca figures.
@@ -138,7 +150,7 @@ class MitraPosMenuSeeder extends Seeder
                 'name' => 'Jurnal',
                 'slug' => 'akuntansi-jurnal.index',
                 'path' => '/mitra-pos/akuntansi/jurnal',
-                'order_no' => 9,
+                'order_no' => 10,
                 'permissions' => [
                     // create -> 'create' flag, lets the owner submit manual
                     // entries (beban operasional, setoran modal, dll).
@@ -149,7 +161,7 @@ class MitraPosMenuSeeder extends Seeder
                 'name' => 'Neraca',
                 'slug' => 'akuntansi-neraca.index',
                 'path' => '/mitra-pos/akuntansi/neraca',
-                'order_no' => 10,
+                'order_no' => 11,
                 'permissions' => [
                     'mitra-owner' => ['create' => false, 'read' => true, 'update' => false, 'delete' => false],
                 ],
@@ -158,7 +170,7 @@ class MitraPosMenuSeeder extends Seeder
                 'name' => 'Laba Rugi',
                 'slug' => 'akuntansi-laba-rugi.index',
                 'path' => '/mitra-pos/akuntansi/laba-rugi',
-                'order_no' => 11,
+                'order_no' => 12,
                 'permissions' => [
                     'mitra-owner' => ['create' => false, 'read' => true, 'update' => false, 'delete' => false],
                 ],
@@ -167,7 +179,7 @@ class MitraPosMenuSeeder extends Seeder
                 'name' => 'Kelola Mitra POS',
                 'slug' => 'mitra-pos-manage.index',
                 'path' => '/mitra-pos/manage',
-                'order_no' => 12,
+                'order_no' => 13,
                 'permissions' => [
                     'super-admin' => ['create' => true, 'read' => true, 'update' => true, 'delete' => true],
                 ],

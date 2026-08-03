@@ -8,6 +8,7 @@ use App\Models\Mitra;
 use App\Models\MitraPosSetting;
 use App\Services\MitraPos\MitraContext;
 use App\Services\MitraPos\PosTransactionService;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 class PosTransactionController extends Controller
@@ -90,9 +91,11 @@ class PosTransactionController extends Controller
     private function renderReceipt(int $mitraId, $transaction, ?Mitra $mitra = null)
     {
         $mitra ??= Mitra::findOrFail($mitraId);
-        $footer = MitraPosSetting::forMitra($mitraId)->first()?->receipt_footer;
+        $setting = MitraPosSetting::forMitra($mitraId)->first();
+        $footer = $setting?->receipt_footer;
+        $logoUrl = $setting?->receipt_logo_path ? Storage::disk('public')->url($setting->receipt_logo_path) : null;
 
-        return view('pages.mitra-pos.transaction.receipt', compact('transaction', 'mitra', 'footer'));
+        return view('pages.mitra-pos.transaction.receipt', compact('transaction', 'mitra', 'footer', 'logoUrl'));
     }
 
     private function handleVoid(VoidTransactionRequest $request, int $mitraId, string $transaction, string $redirectRoute, array $redirectParams)

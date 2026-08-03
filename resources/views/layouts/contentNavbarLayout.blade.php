@@ -57,12 +57,19 @@ $container = ($configData['contentLayout'] === 'compact') ? 'container-xxl' : 'c
       <div class="content-wrapper">
 
         {{-- Admin-context bar: Sofikopi staff browsing a mitra's POS pages.
-             Guarded by route name so a $mitra variable from any other module
-             never triggers it; receipt is excluded (print-oriented page). --}}
-        @if (isset($mitra) && $mitra instanceof \App\Models\Mitra
+             Reads the {mitra} ROUTE PARAM (resolved by ResolveMitraScope),
+             never a bare $mitra variable — Blade's @extends leaks the calling
+             view's own variables (e.g. manage-picker's @forelse($mitras as
+             $mitra) leftover) into this layout, which previously made the
+             bar appear on the picker page itself. routeIs() still narrows to
+             the actual admin routes; receipt is excluded (print page). --}}
+        @php
+          $adminNavMitra = request()->route('mitra');
+        @endphp
+        @if ($adminNavMitra instanceof \App\Models\Mitra
             && request()->routeIs('mitra-pos-manage.*', 'mitra-material.*', 'mitra-product.*')
             && !request()->routeIs('mitra-pos-manage.transaction.receipt'))
-          @include('pages.mitra-pos._admin-nav')
+          @include('pages.mitra-pos._admin-nav', ['mitra' => $adminNavMitra])
         @endif
 
         <!-- Content -->

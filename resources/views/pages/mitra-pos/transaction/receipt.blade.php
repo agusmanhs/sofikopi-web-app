@@ -82,6 +82,9 @@
         <button onclick="window.print()">Cetak</button>
     </div>
 
+    @if ($logoUrl ?? null)
+        <div class="center"><img src="{{ $logoUrl }}" alt="Logo" style="max-width: 140px; max-height: 80px; object-fit: contain;"></div>
+    @endif
     <div class="center bold">{{ $mitra->name }}</div>
     @if ($mitra->address)
         <div class="center">{{ $mitra->address }}</div>

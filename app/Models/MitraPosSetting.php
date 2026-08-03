@@ -14,6 +14,7 @@ class MitraPosSetting extends Model
         'mitra_id',
         'monthly_revenue_target',
         'receipt_footer',
+        'receipt_logo_path',
         'service_charge_percent',
         'tax_percent',
         'qris_fee_percent',

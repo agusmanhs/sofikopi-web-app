@@ -27,6 +27,8 @@ class MitraSettingRequest extends BaseRequest
         return [
             'monthly_revenue_target' => 'nullable|numeric|min:0',
             'receipt_footer' => 'nullable|string|max:500',
+            'receipt_logo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'remove_logo' => 'nullable|boolean',
             'service_charge_percent' => 'required|numeric|min:0|max:100',
             'tax_percent' => 'required|numeric|min:0|max:100',
             'qris_fee_percent' => 'required|numeric|min:0|max:100',

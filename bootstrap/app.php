@@ -1,26 +1,37 @@
 <?php
 
+use App\Helpers\ResponseHelper;
+use App\Http\Middleware\CheckPegawaiStatus;
+use App\Http\Middleware\CheckPermission;
+use App\Http\Middleware\EnsureMitraUser;
+use App\Http\Middleware\ResolveMitraScope;
+use App\Listeners\ErrorAlertListener;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Route;
+use Sentry\Laravel\Integration;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        web: __DIR__ . '/../routes/web.php',
-        api: __DIR__ . '/../routes/api.php',
-        commands: __DIR__ . '/../routes/console.php',
+        web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
+        commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function () {
-            \Illuminate\Support\Facades\Route::middleware('web')->group(base_path('routes/mitra.php'));
+            Route::middleware('web')->group(base_path('routes/mitra.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'check.permission' => \App\Http\Middleware\CheckPermission::class,
-            'check.pegawai.status' => \App\Http\Middleware\CheckPegawaiStatus::class,
-            'mitra.user' => \App\Http\Middleware\EnsureMitraUser::class,
-            'mitra.scope' => \App\Http\Middleware\ResolveMitraScope::class,
+            'check.permission' => CheckPermission::class,
+            'check.pegawai.status' => CheckPegawaiStatus::class,
+            'mitra.user' => EnsureMitraUser::class,
+            'mitra.scope' => ResolveMitraScope::class,
         ]);
 
         $middleware->redirectTo(
@@ -29,26 +40,34 @@ return Application::configure(basePath: dirname(__DIR__))
         );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->render(function (\Throwable $e, $request) {
+        // Sentry: full stack trace, dedup, dan histori — sumber kebenaran untuk debugging.
+        Integration::handles($exceptions);
+
+        // Telegram: alert instan yang pasti dilihat (throttled per-fingerprint di listener).
+        $exceptions->reportable(function (Throwable $e) {
+            app(ErrorAlertListener::class)->handle($e);
+        });
+
+        $exceptions->render(function (Throwable $e, $request) {
             // Jika request meminta JSON (API), berikan response JSON
             if ($request->is('api/*') || $request->expectsJson()) {
                 Log::error($e);
-                
-                $code = $e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface ? $e->getStatusCode() : 500;
-                
-                return \App\Helpers\ResponseHelper::error(
+
+                $code = $e instanceof HttpExceptionInterface ? $e->getStatusCode() : 500;
+
+                return ResponseHelper::error(
                     $e->getMessage() ?: 'Internal Server Error',
                     code: $code
                 );
             }
 
             // Untuk Web, biarkan Laravel menangani AuthenticationException agar bisa redirect ke login
-            if ($e instanceof \Illuminate\Auth\AuthenticationException) {
+            if ($e instanceof AuthenticationException) {
                 return null; // Biarkan default handling (redirect ke /login)
             }
 
             // Handle CSRF Token Mismatch (Error 419)
-            if ($e instanceof \Illuminate\Session\TokenMismatchException) {
+            if ($e instanceof TokenMismatchException) {
                 return redirect()->back()->withInput()->with('error', 'Sesi login telah habis atau token tidak valid. Silakan coba lagi.');
             }
         });

@@ -42,6 +42,7 @@ return [
         'kunjungan_chat_id' => env('TELEGRAM_KUNJUNGAN_CHAT_ID', '-5232586927'),
         'logistik_chat_id' => env('TELEGRAM_LOGISTIK_CHAT_ID', ''),
         'backup_chat_id' => env('TELEGRAM_BACKUP_CHAT_ID', '-5232586927'),
+        'error_chat_id' => env('TELEGRAM_ERROR_CHAT_ID', '-5232586927'),
     ],
 
 ];

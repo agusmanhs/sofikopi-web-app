@@ -2,8 +2,8 @@
 
 namespace App\Repositories;
 
-use App\Models\DeliveryOrder;
 use App\Interfaces\Repositories\DeliveryOrderRepositoryInterface;
+use App\Models\DeliveryOrder;
 
 class DeliveryOrderRepository extends BaseRepository implements DeliveryOrderRepositoryInterface
 {
@@ -14,6 +14,11 @@ class DeliveryOrderRepository extends BaseRepository implements DeliveryOrderRep
 
     public function getByAssignedUser($userId)
     {
-        return $this->model->where('assigned_to', $userId)->get();
+        return $this->model->with('salesOrder.mitra')->where('assigned_to', $userId)->get();
+    }
+
+    public function allForIndex()
+    {
+        return $this->model->with('salesOrder.mitra')->orderBy('created_at', 'desc')->orderBy('id', 'desc')->get();
     }
 }

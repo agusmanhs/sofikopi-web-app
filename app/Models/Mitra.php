@@ -6,6 +6,7 @@ use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\Storage;
 
 class Mitra extends Model
 {
@@ -16,6 +17,7 @@ class Mitra extends Model
         'code',
         'pic',
         'name',
+        'logo',
         'phone',
         'address',
         'province_code',
@@ -29,6 +31,13 @@ class Mitra extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    protected $appends = ['logo_url'];
+
+    public function getLogoUrlAttribute(): ?string
+    {
+        return $this->logo ? Storage::url($this->logo) : null;
+    }
 
     /**
      * URL-facing routes resolve mitras by their unique `code`, not the
@@ -90,6 +99,7 @@ class Mitra extends Model
         if ($this->latitude && $this->longitude) {
             return "{$this->latitude}, {$this->longitude}";
         }
+
         return null;
     }
 

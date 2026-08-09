@@ -48,7 +48,7 @@
     @php
         $company = config('company');
         $so = $data->salesOrder;
-        $billName = $so->mitra->name ?? $so->customer_name ?? '-';
+        $billName = $so->customer_display_name ?? '-';
     @endphp
 
     <table class="header-table">
@@ -82,7 +82,6 @@
             <td>
                 <div class="party-title">Tagihan Untuk</div>
                 <div class="party-name">{{ $billName }}</div>
-                <div class="party-line">{{ $so->customer_name ?? '-' }}</div>
                 <div class="party-line">{{ $so->customer_address ?? '-' }}</div>
                 <div class="party-line">Telp: {{ $so->customer_phone ?? '-' }}</div>
                 <div class="party-line">Email: {{ $so->customer_email ?? '-' }}</div>

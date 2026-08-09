@@ -8,6 +8,8 @@ class InvoiceRequest extends BaseRequest
     {
         return [
             'status' => 'required|in:belum_lunas,lunas',
+            'due_date' => 'nullable|date',
+            'payment_method' => 'nullable|required_if:status,lunas|in:cash,cashless',
             'paid_at' => 'nullable|date',
             'notes' => 'nullable|string',
         ];

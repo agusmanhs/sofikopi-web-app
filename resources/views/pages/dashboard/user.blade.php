@@ -350,16 +350,35 @@
             <!-- Shift Selection & Today's Attendance -->
             <div class="card mb-4 border-0 shadow-sm">
                <div class="card-header bg-transparent">
-                  <h5 class="mb-0"><i class="ri-user-follow-line me-2"></i>Pilih Jadwal Absen</h5>
-                  <p class="text-muted small mb-0 mt-1">Silakan pilih shift yang ingin Anda ambil hari ini.</p>
+                  @if ($hasSchedule)
+                     <h5 class="mb-0"><i class="ri-user-follow-line me-2"></i>Jadwal Anda Hari Ini</h5>
+                     <p class="text-muted small mb-0 mt-1">
+                        {{ $scheduledShift ? 'Shift terjadwal untuk Anda hari ini.' : 'Hari ini adalah jadwal libur Anda.' }}
+                     </p>
+                  @else
+                     <h5 class="mb-0"><i class="ri-user-follow-line me-2"></i>Pilih Jadwal Absen</h5>
+                     <p class="text-muted small mb-0 mt-1">Silakan pilih shift yang ingin Anda ambil hari ini.</p>
+                  @endif
                </div>
                <div class="card-body">
+                  @if ($hasSchedule && !$scheduledShift)
+                     <div class="text-center py-4">
+                        <i class="ri-moon-clear-line text-muted" style="font-size: 2rem;"></i>
+                        <p class="text-muted mb-0 mt-2">Hari ini jadwal Anda libur. Tidak ada shift yang bisa
+                           diambil.</p>
+                     </div>
+                  @else
                   <div class="row g-3">
                      @php
-                        // Ambil semua shift aktif di divisi pegawai
-                        $shifts = \App\Models\Shift::where('divisi_id', $pegawai->divisi_id)
-                            ->where('is_aktif', true)
-                            ->get();
+                        if ($hasSchedule && $scheduledShift) {
+                            // Pegawai punya jadwal terkonfigurasi (override/pola) untuk hari ini -> hanya shift itu
+                            $shifts = collect([$scheduledShift]);
+                        } else {
+                            // Belum punya jadwal terkonfigurasi sama sekali -> fallback perilaku lama (bebas pilih shift divisi)
+                            $shifts = \App\Models\Shift::where('divisi_id', $pegawai->divisi_id)
+                                ->where('is_aktif', true)
+                                ->get();
+                        }
                         $now = now();
 
                         // CARI SESI AKTIF GLOBAL (User sedang masuk di shift mana pun)
@@ -604,6 +623,7 @@
                         </div>
                      @endforelse
                   </div>
+                  @endif
                </div>
             </div>
 

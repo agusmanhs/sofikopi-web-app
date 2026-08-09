@@ -37,8 +37,14 @@
                     @forelse($data as $item)
                     <tr>
                         <td class="fw-semibold">{{ $item->invoice_number }}</td>
-                        <td>{{ $item->salesOrder->customer_name ?? '-' }}</td>
-                        <td>{{ $item->due_date ? $item->due_date->format('d/m/Y') : '-' }}</td>
+                        <td>{{ $item->salesOrder->customer_display_name ?? '-' }}</td>
+                        <td>
+                            @if($item->due_date)
+                                <span class="badge bg-label-{{ $item->due_badge_class }}">{{ $item->due_date->format('d/m/Y') }}</span>
+                            @else
+                                -
+                            @endif
+                        </td>
                         <td>Rp {{ number_format($item->grand_total, 0, ',', '.') }}</td>
                         <td>
                             @if($item->status == 'lunas')
@@ -48,9 +54,11 @@
                             @endif
                         </td>
                         <td>
+                            @can('access', ['invoice.index', 'read'])
                             <a href="{{ route('invoice.show', $item->id) }}" class="btn btn-sm btn-outline-secondary">
                                 <i class="ri-eye-line me-1"></i> Detail
                             </a>
+                            @endcan
                         </td>
                     </tr>
                     @empty

@@ -55,19 +55,21 @@ class MitraSettingController extends Controller
     private function renderIndex(int $mitraId, ?Mitra $mitra)
     {
         $setting = MitraPosSetting::forMitra($mitraId)->firstOrFail();
+        $currentMitra = Mitra::findOrFail($mitraId);
         $routes = $this->routesFor($mitra);
 
-        return view('pages.mitra-pos.setting.index', compact('setting', 'mitra', 'routes'));
+        return view('pages.mitra-pos.setting.index', compact('setting', 'mitra', 'currentMitra', 'routes'));
     }
 
     private function handleUpdate(MitraSettingRequest $request, int $mitraId, string $redirectRoute, array $redirectParams)
     {
         $setting = MitraPosSetting::forMitra($mitraId)->firstOrFail();
 
-        // receipt_logo/remove_logo aren't columns — handled separately below,
-        // never mass-assigned.
+        // receipt_logo/remove_logo and mitra_logo/remove_mitra_logo aren't
+        // columns on MitraPosSetting — handled separately below, never
+        // mass-assigned.
         $data = $request->validated();
-        unset($data['receipt_logo'], $data['remove_logo']);
+        unset($data['receipt_logo'], $data['remove_logo'], $data['mitra_logo'], $data['remove_mitra_logo']);
 
         if ($request->hasFile('receipt_logo')) {
             $this->deleteExistingLogo($setting);
@@ -82,6 +84,20 @@ class MitraSettingController extends Controller
         }
 
         $setting->update($data);
+
+        $mitraModel = Mitra::findOrFail($mitraId);
+
+        if ($request->hasFile('mitra_logo')) {
+            $this->deleteExistingMitraLogo($mitraModel);
+            $media = $this->fileUploadService->upload($request->file('mitra_logo'), 'mitra/logo', 'public', [
+                'width' => 300,
+                'quality' => 85,
+            ]);
+            $mitraModel->update(['logo' => $media->path]);
+        } elseif ($request->boolean('remove_mitra_logo')) {
+            $this->deleteExistingMitraLogo($mitraModel);
+            $mitraModel->update(['logo' => null]);
+        }
 
         $this->logActivity('updated', 'mitra-pos', 'Memperbarui pengaturan Mitra POS', $setting);
 
@@ -106,6 +122,26 @@ class MitraSettingController extends Controller
             $this->fileUploadService->delete($media);
         } else {
             Storage::disk('public')->delete($setting->receipt_logo_path);
+        }
+    }
+
+    /**
+     * Removes the currently-stored mitra logo file (and its Media row, if
+     * the upload created one) before a replacement or explicit removal —
+     * otherwise every re-upload orphans the previous file on disk.
+     */
+    private function deleteExistingMitraLogo(Mitra $mitra): void
+    {
+        if (! $mitra->logo) {
+            return;
+        }
+
+        $media = Media::where('path', $mitra->logo)->first();
+
+        if ($media) {
+            $this->fileUploadService->delete($media);
+        } else {
+            Storage::disk('public')->delete($mitra->logo);
         }
     }
 

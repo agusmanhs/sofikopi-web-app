@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Traits\LogsActivity;
 
 class SalesOrder extends Model
 {
@@ -70,5 +70,10 @@ class SalesOrder extends Model
     public function logs()
     {
         return $this->hasMany(SalesOrderLog::class, 'sales_order_id');
+    }
+
+    public function getCustomerDisplayNameAttribute()
+    {
+        return $this->mitra?->name ?? $this->customer_name;
     }
 }

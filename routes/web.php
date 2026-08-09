@@ -1,25 +1,44 @@
 <?php
 
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\DivisiController;
-use App\Http\Controllers\ShiftController;
-use App\Http\Controllers\KantorController;
-use App\Http\Controllers\JenisIzinController;
-use App\Http\Controllers\PegawaiController;
 use App\Http\Controllers\AbsensiController;
-use App\Http\Controllers\IzinController;
-use Illuminate\Support\Facades\Route;
-
+use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BackupController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DeliveryOrderController;
+use App\Http\Controllers\DivisiController;
+use App\Http\Controllers\HariLiburController;
+use App\Http\Controllers\InformasiController;
+use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\IzinController;
+use App\Http\Controllers\JadwalKerjaController;
+use App\Http\Controllers\JenisIzinController;
+use App\Http\Controllers\KantorController;
+use App\Http\Controllers\KunjunganController;
+use App\Http\Controllers\MenuController;
+use App\Http\Controllers\MitraCategoryController;
+use App\Http\Controllers\MitraController;
+use App\Http\Controllers\PegawaiController;
+use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\ProductsController;
-use App\Services\TelegramService;
+use App\Http\Controllers\ProductSubCategoryController;
+use App\Http\Controllers\ProduksiController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SalesDashboardController;
+use App\Http\Controllers\SalesOrderController;
+use App\Http\Controllers\SalesOrderManageController;
+use App\Http\Controllers\ShiftController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\WilayahController;
+use Illuminate\Support\Facades\Route;
 
 // Tes telegram
 // Route::get('test-telegram', function () {
 //     $telegramService = app(\App\Services\TelegramService::class);
 //     $success = $telegramService->sendMessage('Kiw Kiw - Tes Koneksi');
-    
+
 //     if ($success) {
 //         return "Berhasil mengirim pesan ke Telegram!";
 //     } else {
@@ -41,17 +60,15 @@ Route::middleware(['auth', 'check.pegawai.status'])->group(function () {
     Route::resource('user', UserController::class)->middleware('check.permission:user.index');
 
     // Role & Menu Management
-    Route::resource('role', \App\Http\Controllers\RoleController::class)->middleware('check.permission:role.index');
-    Route::resource('menu', \App\Http\Controllers\MenuController::class)->middleware('check.permission:menu.index');
-    Route::get('permission', [\App\Http\Controllers\PermissionController::class, 'index'])->name('permission.index')->middleware('check.permission:permission.index');
-    Route::put('permission', [\App\Http\Controllers\PermissionController::class, 'update'])->name('permission.update')->middleware('check.permission:permission.index');
-
-
+    Route::resource('role', RoleController::class)->middleware('check.permission:role.index');
+    Route::resource('menu', MenuController::class)->middleware('check.permission:menu.index');
+    Route::get('permission', [PermissionController::class, 'index'])->name('permission.index')->middleware('check.permission:permission.index');
+    Route::put('permission', [PermissionController::class, 'update'])->name('permission.update')->middleware('check.permission:permission.index');
 
     // Activity Log
-    Route::get('activity-log', [\App\Http\Controllers\ActivityLogController::class, 'index'])->name('activity-log.index');
-    Route::get('activity-log/data', [\App\Http\Controllers\ActivityLogController::class, 'getData'])->name('activity-log.data');
-    Route::get('activity-log/statistics', [\App\Http\Controllers\ActivityLogController::class, 'statistics'])->name('activity-log.statistics');
+    Route::get('activity-log', [ActivityLogController::class, 'index'])->name('activity-log.index');
+    Route::get('activity-log/data', [ActivityLogController::class, 'getData'])->name('activity-log.data');
+    Route::get('activity-log/statistics', [ActivityLogController::class, 'statistics'])->name('activity-log.statistics');
 
     // ============== DATA MASTER ==============
     // Divisi
@@ -60,6 +77,14 @@ Route::middleware(['auth', 'check.pegawai.status'])->group(function () {
     // Shift
     Route::resource('shift', ShiftController::class)->middleware('check.permission:shift.index');
     Route::get('api/shifts/by-divisi/{divisi}', [ShiftController::class, 'getByDivisi'])->name('shift.by-divisi');
+
+    // Jadwal Kerja (Penjadwalan Absen)
+    Route::prefix('jadwal-kerja')->name('jadwal-kerja.')->middleware('check.permission:jadwal-kerja.index')->group(function () {
+        Route::get('/', [JadwalKerjaController::class, 'index'])->name('index');
+        Route::post('/pattern/{pegawai}', [JadwalKerjaController::class, 'savePattern'])->name('pattern');
+        Route::post('/override', [JadwalKerjaController::class, 'storeOverride'])->name('override.store');
+        Route::delete('/override/{id}', [JadwalKerjaController::class, 'destroyOverride'])->name('override.destroy');
+    });
 
     // Kantor
     Route::resource('kantor', KantorController::class)->middleware('check.permission:kantor.index');
@@ -71,33 +96,33 @@ Route::middleware(['auth', 'check.pegawai.status'])->group(function () {
     Route::resource('pegawai', PegawaiController::class)->middleware('check.permission:pegawai.index');
 
     // Hari Libur
-    Route::post('hari-libur/sync', [\App\Http\Controllers\HariLiburController::class, 'sync'])->name('hari-libur.sync')->middleware('check.permission:hari-libur.index');
-    Route::resource('hari-libur', \App\Http\Controllers\HariLiburController::class)->middleware('check.permission:hari-libur.index');
-    Route::get('api/hari-libur/events', [\App\Http\Controllers\HariLiburController::class, 'getEvents'])->name('api.hari-libur.events');
+    Route::post('hari-libur/sync', [HariLiburController::class, 'sync'])->name('hari-libur.sync')->middleware('check.permission:hari-libur.index');
+    Route::resource('hari-libur', HariLiburController::class)->middleware('check.permission:hari-libur.index');
+    Route::get('api/hari-libur/events', [HariLiburController::class, 'getEvents'])->name('api.hari-libur.events');
 
     // Product & Mitra Module (DATA MASTER)
     Route::prefix('master')->group(function () {
         // Product Management
-        Route::get('products/template', [\App\Http\Controllers\ProductsController::class, 'downloadTemplate'])->name('products.template');
-        Route::post('products/import', [\App\Http\Controllers\ProductsController::class, 'import'])->name('products.import');
-        Route::resource('product-category', \App\Http\Controllers\ProductCategoryController::class);
-        Route::resource('product-sub-category', \App\Http\Controllers\ProductSubCategoryController::class);
-        Route::resource('products', \App\Http\Controllers\ProductsController::class);
-        Route::get('api/product-sub-categories/by-category/{categoryId}', [\App\Http\Controllers\ProductSubCategoryController::class, 'getByCategory']);
+        Route::get('products/template', [ProductsController::class, 'downloadTemplate'])->name('products.template');
+        Route::post('products/import', [ProductsController::class, 'import'])->name('products.import');
+        Route::resource('product-category', ProductCategoryController::class);
+        Route::resource('product-sub-category', ProductSubCategoryController::class);
+        Route::resource('products', ProductsController::class);
+        Route::get('api/product-sub-categories/by-category/{categoryId}', [ProductSubCategoryController::class, 'getByCategory']);
 
         // Mitra Management
-        Route::get('mitra/template', [\App\Http\Controllers\MitraController::class, 'downloadTemplate'])->name('mitra.template');
-        Route::post('mitra/import', [\App\Http\Controllers\MitraController::class, 'import'])->name('mitra.import');
-        Route::resource('mitra-category', \App\Http\Controllers\MitraCategoryController::class);
-        Route::resource('mitra', \App\Http\Controllers\MitraController::class);
+        Route::get('mitra/template', [MitraController::class, 'downloadTemplate'])->name('mitra.template');
+        Route::post('mitra/import', [MitraController::class, 'import'])->name('mitra.import');
+        Route::resource('mitra-category', MitraCategoryController::class);
+        Route::resource('mitra', MitraController::class);
 
         // Wilayah (Regional Data)
-        Route::get('wilayah/provinces', [\App\Http\Controllers\WilayahController::class, 'provinces'])->name('wilayah.provinces');
-        Route::get('wilayah/regencies/{provinceCode}', [\App\Http\Controllers\WilayahController::class, 'regencies'])->name('wilayah.regencies');
-        Route::get('wilayah/districts/{regencyCode}', [\App\Http\Controllers\WilayahController::class, 'districts'])->name('wilayah.districts');
-        Route::post('wilayah/sync-provinces', [\App\Http\Controllers\WilayahController::class, 'syncProvinces'])->name('wilayah.sync-provinces');
-        Route::post('wilayah/sync-regencies', [\App\Http\Controllers\WilayahController::class, 'syncRegencies'])->name('wilayah.sync-regencies');
-        Route::post('wilayah/sync-districts', [\App\Http\Controllers\WilayahController::class, 'syncDistricts'])->name('wilayah.sync-districts');
+        Route::get('wilayah/provinces', [WilayahController::class, 'provinces'])->name('wilayah.provinces');
+        Route::get('wilayah/regencies/{provinceCode}', [WilayahController::class, 'regencies'])->name('wilayah.regencies');
+        Route::get('wilayah/districts/{regencyCode}', [WilayahController::class, 'districts'])->name('wilayah.districts');
+        Route::post('wilayah/sync-provinces', [WilayahController::class, 'syncProvinces'])->name('wilayah.sync-provinces');
+        Route::post('wilayah/sync-regencies', [WilayahController::class, 'syncRegencies'])->name('wilayah.sync-regencies');
+        Route::post('wilayah/sync-districts', [WilayahController::class, 'syncDistricts'])->name('wilayah.sync-districts');
     });
 
     // ============== ABSENSI ==============
@@ -143,83 +168,80 @@ Route::middleware(['auth', 'check.pegawai.status'])->group(function () {
         Route::prefix('kunjungan')->name('kunjungan.')->group(function () {
             // Admin melihat semua kunjungan
             Route::prefix('admin')->name('admin.')->middleware('check.permission:kunjungan.admin')->group(function () {
-                Route::get('/', [\App\Http\Controllers\KunjunganController::class, 'adminIndex'])->name('index');
-                Route::get('/export', [\App\Http\Controllers\KunjunganController::class, 'adminExport'])->name('export');
-                Route::get('/{kunjungan}', [\App\Http\Controllers\KunjunganController::class, 'adminShow'])->name('show');
-                Route::delete('/{kunjungan}', [\App\Http\Controllers\KunjunganController::class, 'adminDestroy'])->name('destroy');
+                Route::get('/', [KunjunganController::class, 'adminIndex'])->name('index');
+                Route::get('/export', [KunjunganController::class, 'adminExport'])->name('export');
+                Route::get('/{kunjungan}', [KunjunganController::class, 'adminShow'])->name('show');
+                Route::delete('/{kunjungan}', [KunjunganController::class, 'adminDestroy'])->name('destroy');
             });
 
             // Form kunjungan baru (Menu: Kunjungan → /aktivitas/kunjungan)
-            Route::get('/', [\App\Http\Controllers\KunjunganController::class, 'create'])->name('create');
-            Route::post('/', [\App\Http\Controllers\KunjunganController::class, 'store'])->name('store');
-            Route::get('/{kunjungan}', [\App\Http\Controllers\KunjunganController::class, 'show'])->name('show');
+            Route::get('/', [KunjunganController::class, 'create'])->name('create');
+            Route::post('/', [KunjunganController::class, 'store'])->name('store');
+            Route::get('/{kunjungan}', [KunjunganController::class, 'show'])->name('show');
         });
 
         // Riwayat Kunjungan (Menu: Riwayat Kunjungan → /aktivitas/riwayat)
-        Route::get('/riwayat', [\App\Http\Controllers\KunjunganController::class, 'index'])->name('riwayat.index');
-        
+        Route::get('/riwayat', [KunjunganController::class, 'index'])->name('riwayat.index');
+
         // ============== PRODUKSI & STOK ==============
-        Route::resource('produksi', \App\Http\Controllers\ProduksiController::class);
+        Route::resource('produksi', ProduksiController::class);
     });
 
     // ============== PROFILE ==============
-    Route::get('profile', [\App\Http\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
-    Route::put('profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
-    Route::get('profile/password', [\App\Http\Controllers\ProfileController::class, 'editPassword'])->name('profile.password.edit');
-    Route::put('profile/password', [\App\Http\Controllers\ProfileController::class, 'updatePassword'])->name('profile.password.update');
+    Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::get('profile/password', [ProfileController::class, 'editPassword'])->name('profile.password.edit');
+    Route::put('profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
 
     // ============== INFORMASI ==============
-    Route::resource('informasi', \App\Http\Controllers\InformasiController::class)
+    Route::resource('informasi', InformasiController::class)
         ->middleware('check.permission:informasi');
 
     // ============== BACKUP ==============
     Route::prefix('backup')->name('backup.')->middleware('check.permission:backup')->group(function () {
-        Route::get('/', [\App\Http\Controllers\BackupController::class, 'index'])->name('index');
-        Route::post('/export', [\App\Http\Controllers\BackupController::class, 'export'])->name('export');
+        Route::get('/', [BackupController::class, 'index'])->name('index');
+        Route::post('/export', [BackupController::class, 'export'])->name('export');
     });
 
-
-    
     // ============== PENJUALAN ==============
     Route::prefix('penjualan')->group(function () {
         // Dashboard Penjualan
-        Route::get('dashboard', [\App\Http\Controllers\SalesDashboardController::class, 'index'])
+        Route::get('dashboard', [SalesDashboardController::class, 'index'])
             ->name('sales-dashboard.index')
             ->middleware('check.permission:sales-dashboard.index');
 
         // Sales Order (Draft -> Submit)
-        Route::post('sales-order/{id}/submit', [\App\Http\Controllers\SalesOrderController::class, 'submit'])->name('sales-order.submit');
-        Route::get('sales-order/{id}/print', [\App\Http\Controllers\SalesOrderController::class, 'printPdf'])->name('sales-order.print');
-        Route::resource('sales-order', \App\Http\Controllers\SalesOrderController::class)
+        Route::post('sales-order/{id}/submit', [SalesOrderController::class, 'submit'])->name('sales-order.submit');
+        Route::get('sales-order/{id}/print', [SalesOrderController::class, 'printPdf'])->name('sales-order.print');
+        Route::resource('sales-order', SalesOrderController::class)
             ->middleware('check.permission:sales-order.index');
 
         // Kelola Order (Warehouse: Approve, Edit, Reject)
-        Route::post('kelola-order/{id}/approve', [\App\Http\Controllers\SalesOrderManageController::class, 'approve'])->name('sales-order.approve');
-        Route::post('kelola-order/{id}/reject', [\App\Http\Controllers\SalesOrderManageController::class, 'reject'])->name('sales-order.reject');
-        Route::resource('kelola-order', \App\Http\Controllers\SalesOrderManageController::class)
+        Route::post('kelola-order/{id}/approve', [SalesOrderManageController::class, 'approve'])->name('sales-order.approve');
+        Route::post('kelola-order/{id}/reject', [SalesOrderManageController::class, 'reject'])->name('sales-order.reject');
+        Route::resource('kelola-order', SalesOrderManageController::class)
             ->parameters(['kelola-order' => 'id'])
             ->names('sales-order.manage')
             ->except(['create', 'store', 'destroy'])
             ->middleware('check.permission:sales-order.manage');
 
         // Delivery Order (HRD Reassign & Kurir Upload)
-        Route::post('delivery-order/{id}/reassign', [\App\Http\Controllers\DeliveryOrderController::class, 'reassign'])->name('delivery-order.reassign');
-        Route::post('delivery-order/{id}/start', [\App\Http\Controllers\DeliveryOrderController::class, 'start'])->name('delivery-order.start');
-        Route::post('delivery-order/{id}/upload-proof', [\App\Http\Controllers\DeliveryOrderController::class, 'uploadProof'])->name('delivery-order.upload-proof');
-        Route::post('delivery-order/{id}/complete-pickup', [\App\Http\Controllers\DeliveryOrderController::class, 'completePickup'])->name('delivery-order.complete-pickup');
-        Route::get('delivery-order/{id}/print', [\App\Http\Controllers\DeliveryOrderController::class, 'printPdf'])->name('delivery-order.print');
-        Route::resource('delivery-order', \App\Http\Controllers\DeliveryOrderController::class)
+        Route::post('delivery-order/{id}/reassign', [DeliveryOrderController::class, 'reassign'])->name('delivery-order.reassign');
+        Route::post('delivery-order/{id}/start', [DeliveryOrderController::class, 'start'])->name('delivery-order.start');
+        Route::post('delivery-order/{id}/upload-proof', [DeliveryOrderController::class, 'uploadProof'])->name('delivery-order.upload-proof');
+        Route::post('delivery-order/{id}/complete-pickup', [DeliveryOrderController::class, 'completePickup'])->name('delivery-order.complete-pickup');
+        Route::get('delivery-order/{id}/print', [DeliveryOrderController::class, 'printPdf'])->name('delivery-order.print');
+        Route::resource('delivery-order', DeliveryOrderController::class)
             ->parameters(['delivery-order' => 'id'])
             ->only(['index', 'show'])
             ->middleware('check.permission:delivery-order.index');
 
         // Invoice
-        Route::post('invoice/{id}/status', [\App\Http\Controllers\InvoiceController::class, 'updateStatus'])->name('invoice.update-status');
-        Route::get('invoice/{id}/print', [\App\Http\Controllers\InvoiceController::class, 'printPdf'])->name('invoice.print');
-        Route::resource('invoice', \App\Http\Controllers\InvoiceController::class)
+        Route::post('invoice/{id}/status', [InvoiceController::class, 'updateStatus'])->name('invoice.update-status')->middleware('check.permission:invoice.index');
+        Route::get('invoice/{id}/print', [InvoiceController::class, 'printPdf'])->name('invoice.print')->middleware('check.permission:invoice.index');
+        Route::resource('invoice', InvoiceController::class)
             ->parameters(['invoice' => 'id'])
             ->only(['index', 'show'])
             ->middleware('check.permission:invoice.index');
     });
 });
-

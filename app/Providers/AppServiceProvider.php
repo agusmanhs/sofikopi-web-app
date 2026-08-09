@@ -9,6 +9,7 @@ use App\Interfaces\Repositories\DivisiRepositoryInterface;
 use App\Interfaces\Repositories\InformasiRepositoryInterface;
 use App\Interfaces\Repositories\InvoiceRepositoryInterface;
 use App\Interfaces\Repositories\IzinRepositoryInterface;
+use App\Interfaces\Repositories\JadwalKerjaRepositoryInterface;
 use App\Interfaces\Repositories\JenisIzinRepositoryInterface;
 use App\Interfaces\Repositories\KantorRepositoryInterface;
 use App\Interfaces\Repositories\KunjunganRepositoryInterface;
@@ -39,6 +40,7 @@ use App\Repositories\DivisiRepository;
 use App\Repositories\InformasiRepository;
 use App\Repositories\InvoiceRepository;
 use App\Repositories\IzinRepository;
+use App\Repositories\JadwalKerjaRepository;
 use App\Repositories\JenisIzinRepository;
 use App\Repositories\KantorRepository;
 use App\Repositories\KunjunganRepository;
@@ -124,6 +126,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             ShiftRepositoryInterface::class,
             ShiftRepository::class
+        );
+        $this->app->bind(
+            JadwalKerjaRepositoryInterface::class,
+            JadwalKerjaRepository::class
         );
         $this->app->bind(
             InformasiRepositoryInterface::class,

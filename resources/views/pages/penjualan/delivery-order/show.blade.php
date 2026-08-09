@@ -124,7 +124,7 @@
                         </div>
                         <div class="col-sm-6">
                             <span class="text-muted d-block small">Customer:</span>
-                            <span class="fw-semibold text-heading">{{ $data->salesOrder->customer_name ?? '-' }}</span>
+                            <span class="fw-semibold text-heading">{{ $data->salesOrder->customer_display_name ?? '-' }}</span>
                         </div>
                         <div class="col-sm-6">
                             <span class="text-muted d-block small">Tipe Pengiriman:</span>

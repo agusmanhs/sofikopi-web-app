@@ -63,7 +63,7 @@
             <td>
                 <div class="addr-box">
                     <div class="addr-title">Ditujukan untuk:</div>
-                    <div class="addr-name">{{ $data->salesOrder->customer_name ?? '-' }}</div>
+                    <div class="addr-name">{{ $data->salesOrder->customer_display_name ?? '-' }}</div>
                     <div class="addr-line">{{ $data->salesOrder->customer_address ?? '-' }}</div>
                     <div class="addr-line">Telp: {{ $data->salesOrder->customer_phone ?? '-' }}</div>
                 </div>

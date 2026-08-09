@@ -18,7 +18,7 @@ class DeliveryOrderController extends Controller
     {
         $user = auth()->user();
         if (in_array($user->role->slug, ['hrd', 'super-admin'])) {
-            $data = $this->service->all();
+            $data = $this->service->allForIndex();
         } else {
             $data = $this->service->getByAssignedUser($user->id);
         }
@@ -29,6 +29,7 @@ class DeliveryOrderController extends Controller
     public function show($id)
     {
         $data = $this->service->find($id);
+        $data->load('salesOrder.mitra', 'salesOrder.items.product');
         $loopers = User::whereHas('pegawai', function ($q) {
             $q->where('status_aktif', true);
         })->with(['role', 'pegawai'])
@@ -114,7 +115,7 @@ class DeliveryOrderController extends Controller
     {
         try {
             $data = $this->service->find($id);
-            $data->load('salesOrder.items.product');
+            $data->load('salesOrder.mitra', 'salesOrder.items.product');
             $pdf = Pdf::loadView('pages.penjualan.pdf.delivery-order', compact('data'));
 
             return $pdf->stream('SuratJalan-'.str_replace('/', '-', $data->do_number).'.pdf');

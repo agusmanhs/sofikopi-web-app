@@ -2,28 +2,34 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\SalesOrder;
 use App\Models\DeliveryOrder;
-use App\Models\Invoice;
+use App\Models\SalesOrder;
+use Illuminate\Http\Request;
 
 class SalesDashboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        // Simple mock for now
-        $totalOrder = SalesOrder::whereMonth('created_at', date('m'))->count();
+        $bulan = (int) $request->input('bulan', now()->month);
+        $tahun = (int) $request->input('tahun', now()->year);
+
+        $totalOrder = SalesOrder::whereMonth('created_at', $bulan)
+            ->whereYear('created_at', $tahun)
+            ->count();
         $totalRevenue = SalesOrder::where('status', 'completed')
-                        ->whereMonth('created_at', date('m'))
-                        ->sum('grand_total');
+            ->whereMonth('created_at', $bulan)
+            ->whereYear('created_at', $tahun)
+            ->sum('grand_total');
         $pendingApproval = SalesOrder::where('status', 'submitted')->count();
         $activeDelivery = DeliveryOrder::whereIn('status', ['pending', 'assigned', 'in_delivery'])->count();
-        
+
         return view('pages.penjualan.dashboard.index', compact(
             'totalOrder',
             'totalRevenue',
             'pendingApproval',
-            'activeDelivery'
+            'activeDelivery',
+            'bulan',
+            'tahun'
         ));
     }
 }

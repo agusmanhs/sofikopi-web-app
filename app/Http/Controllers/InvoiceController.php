@@ -14,7 +14,7 @@ class InvoiceController extends Controller
 
     public function index()
     {
-        $data = $this->service->all();
+        $data = $this->service->allForIndex();
 
         return view('pages.penjualan.invoice.index', compact('data'));
     }
@@ -22,6 +22,7 @@ class InvoiceController extends Controller
     public function show($id)
     {
         $data = $this->service->find($id);
+        $data->load('salesOrder.mitra', 'salesOrder.items.product');
 
         return view('pages.penjualan.invoice.show', compact('data'));
     }
@@ -43,7 +44,7 @@ class InvoiceController extends Controller
     {
         try {
             $data = $this->service->find($id);
-            $data->load('salesOrder.items.product');
+            $data->load('salesOrder.mitra', 'salesOrder.items.product');
             $pdf = Pdf::loadView('pages.penjualan.pdf.invoice', compact('data'));
 
             return $pdf->stream('Invoice-'.str_replace('/', '-', $data->invoice_number).'.pdf');

@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
-use App\Traits\LogsActivity;
 
 class Pegawai extends Model
 {
@@ -100,6 +100,22 @@ class Pegawai extends Model
     }
 
     /**
+     * Pola jadwal kerja mingguan pegawai
+     */
+    public function jadwalKerjas()
+    {
+        return $this->hasMany(JadwalKerja::class);
+    }
+
+    /**
+     * Override jadwal per tanggal pegawai
+     */
+    public function jadwalOverrides()
+    {
+        return $this->hasMany(JadwalOverride::class);
+    }
+
+    /**
      * URL foto pegawai
      */
     public function getFotoUrlAttribute()
@@ -107,7 +123,8 @@ class Pegawai extends Model
         if ($this->foto) {
             return Storage::url($this->foto);
         }
-        return asset('assets/img/avatars/' . ($this->gender == 'P' ? '8.png' : '1.png'));
+
+        return asset('assets/img/avatars/'.($this->gender == 'P' ? '8.png' : '1.png'));
     }
 
     /**
@@ -132,6 +149,7 @@ class Pegawai extends Model
     public function sudahAbsenMasukHariIni()
     {
         $absensi = $this->absensiHariIni();
+
         return $absensi && $absensi->jam_masuk;
     }
 
@@ -141,6 +159,7 @@ class Pegawai extends Model
     public function sudahAbsenPulangHariIni()
     {
         $absensi = $this->absensiHariIni();
+
         return $absensi && $absensi->jam_pulang;
     }
 }

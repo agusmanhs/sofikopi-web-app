@@ -28,6 +28,28 @@
                     @csrf
                     @method('PUT')
                     <div class="card-header">
+                        <h5 class="mb-0">Logo Mitra</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <label class="form-label">Logo Mitra</label>
+                                @if ($currentMitra->logo)
+                                <div class="d-flex align-items-center gap-3 mb-2">
+                                    <img src="{{ Storage::url($currentMitra->logo) }}" alt="Logo mitra saat ini" style="max-width: 120px; max-height: 120px; object-fit: contain;" class="border rounded p-1">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="remove_mitra_logo" value="1" id="removeMitraLogo">
+                                        <label class="form-check-label" for="removeMitraLogo">Hapus logo ini</label>
+                                    </div>
+                                </div>
+                                @endif
+                                <input type="file" name="mitra_logo" class="form-control" accept="image/png,image/jpeg">
+                                <small class="text-muted">JPG/PNG, maks 2MB. Logo utama mitra — tampil di halaman profil/identitas mitra.</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-header border-top">
                         <h5 class="mb-0">Target &amp; Struk</h5>
                     </div>
                     <div class="card-body">

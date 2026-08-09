@@ -18,14 +18,18 @@ class AbsensiService extends BaseService
 
     protected TelegramService $telegramService;
 
+    protected JadwalKerjaService $jadwalKerjaService;
+
     public function __construct(
         AbsensiRepository $repository,
         FileUploadService $fileUploadService,
-        TelegramService $telegramService
+        TelegramService $telegramService,
+        JadwalKerjaService $jadwalKerjaService
     ) {
         parent::__construct($repository);
         $this->fileUploadService = $fileUploadService;
         $this->telegramService = $telegramService;
+        $this->jadwalKerjaService = $jadwalKerjaService;
     }
 
     /**
@@ -93,6 +97,26 @@ class AbsensiService extends BaseService
             throw new \Exception('Shift tidak ditemukan atau tidak aktif.');
         }
 
+        // CEK JADWAL PER-PEGAWAI (Override tanggal / Pola mingguan)
+        // Jika pegawai punya jadwal terkonfigurasi, jadwal tsb menjadi sumber kebenaran:
+        // - libur terjadwal (shift null) -> tolak absen
+        // - shift yang dipilih tidak sama dengan shift terjadwal -> tolak absen
+        // Jika pegawai TIDAK punya jadwal sama sekali, perilaku lama (bebas pilih shift divisi) tetap berlaku.
+        $jadwalHariIni = $this->jadwalKerjaService->resolveShiftFor($pegawai, today());
+        $adaJadwalPegawai = $jadwalHariIni['scheduled'];
+
+        if ($adaJadwalPegawai) {
+            $shiftTerjadwal = $jadwalHariIni['shift'];
+
+            if (! $shiftTerjadwal) {
+                throw new \Exception('Hari ini bukan jadwal kerja Anda.');
+            }
+
+            if ((int) $shiftTerjadwal->id !== (int) $shift->id) {
+                throw new \Exception("Shift tidak sesuai jadwal Anda hari ini (Jadwal: {$shiftTerjadwal->nama}).");
+            }
+        }
+
         // Check apakah ada sesi yang masih "MENGGANTUNG" (sudah masuk tapi belum pulang) secara global
         $activeSession = Absensi::where('pegawai_id', $pegawai->id)
             ->whereNotNull('jam_masuk')
@@ -132,9 +156,13 @@ class AbsensiService extends BaseService
         }
 
         // CEK HARI KERJA (Sesuai kolom hari_kerja)
-        $namaHariIni = now()->format('l'); // Monday, Tuesday, etc.
-        if ($shift->hari_kerja && ! in_array($namaHariIni, $shift->hari_kerja)) {
-            throw new \Exception("Hari ini ({$namaHariIni}) bukan jadwal hari kerja untuk shift '{$shift->nama}'.");
+        // Dilewati jika pegawai punya jadwal per-pegawai terkonfigurasi (sudah divalidasi di atas,
+        // jadwal per-pegawai menggantikan guard hari_kerja milik shift secara umum).
+        if (! $adaJadwalPegawai) {
+            $namaHariIni = now()->format('l'); // Monday, Tuesday, etc.
+            if ($shift->hari_kerja && ! in_array($namaHariIni, $shift->hari_kerja)) {
+                throw new \Exception("Hari ini ({$namaHariIni}) bukan jadwal hari kerja untuk shift '{$shift->nama}'.");
+            }
         }
 
         // VALIDASI WAKTU MASUK
@@ -546,7 +574,7 @@ class AbsensiService extends BaseService
             return false;
         })->unique(fn ($i) => $i->tanggal->format('Y-m-d'))->count();
 
-    // Hanya izin yang sudah di-approve yang sah. Izin Pending TIDAK menggugurkan alpha
+        // Hanya izin yang sudah di-approve yang sah. Izin Pending TIDAK menggugurkan alpha
         // (hari tetap dihitung alpha sampai izin disetujui & record absensi izin dibuat).
         $pendingIzinDates = [];
 

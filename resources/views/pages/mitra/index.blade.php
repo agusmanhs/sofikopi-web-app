@@ -144,7 +144,7 @@
                <h5 class="modal-title" id="modalMitraTitle">Tambah Mitra</h5>
                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="formMitra" onsubmit="window.saveMitra(event)">
+            <form id="formMitra" onsubmit="window.saveMitra(event)" enctype="multipart/form-data">
                @csrf
                <input type="hidden" name="id" id="mitra_id">
                <div class="modal-body">
@@ -168,6 +168,23 @@
                            <label class="form-label">Nama Mitra <span class="text-danger">*</span></label>
                            <input type="text" name="name" id="mitra_name" class="form-control"
                               placeholder="Nama Usaha / Individu" required>
+                        </div>
+
+                        <div class="mb-3">
+                           <label class="form-label">Logo Mitra</label>
+                           <div id="mitra_logo_preview_wrapper" class="d-flex align-items-center gap-3 mb-2 d-none">
+                              <img id="mitra_logo_preview" src="" alt="Logo saat ini"
+                                 style="max-width: 80px; max-height: 80px; object-fit: contain;"
+                                 class="border rounded p-1">
+                              <div class="form-check">
+                                 <input class="form-check-input" type="checkbox" name="remove_logo" value="1"
+                                    id="mitra_remove_logo">
+                                 <label class="form-check-label" for="mitra_remove_logo">Hapus logo ini</label>
+                              </div>
+                           </div>
+                           <input type="file" name="logo" id="mitra_logo" class="form-control"
+                              accept="image/png,image/jpeg">
+                           <small class="text-muted">JPG/PNG, maks 2MB.</small>
                         </div>
 
                         <div class="mb-3">
@@ -754,6 +771,9 @@
          $('#formMitra')[0].reset();
          $('#mitra_id').val('');
          $('#mitra_category_id').val('').trigger('change');
+         $('#mitra_logo_preview_wrapper').addClass('d-none');
+         $('#mitra_logo_preview').attr('src', '');
+         $('#mitra_remove_logo').prop('checked', false);
          window.loadRegional();
          $('#modalMitraTitle').text('Tambah Mitra');
          new bootstrap.Modal($('#modalMitra')).show();
@@ -775,6 +795,14 @@
             $('#mitra_titik_lokasi').val(data.latitude && data.longitude ? `${data.latitude}, ${data.longitude}` :
                '');
             $('#mitra_is_active').prop('checked', !!data.is_active);
+            $('#mitra_remove_logo').prop('checked', false);
+            if (data.logo_url) {
+               $('#mitra_logo_preview').attr('src', data.logo_url);
+               $('#mitra_logo_preview_wrapper').removeClass('d-none');
+            } else {
+               $('#mitra_logo_preview').attr('src', '');
+               $('#mitra_logo_preview_wrapper').addClass('d-none');
+            }
             $('#modalMitraTitle').text('Edit Mitra');
             new bootstrap.Modal($('#modalMitra')).show();
          } catch (err) {

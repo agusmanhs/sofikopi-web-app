@@ -36,7 +36,7 @@
                     @forelse($data as $item)
                     <tr>
                         <td class="fw-semibold">{{ $item->order_number ?? '[DRAFT - Belum Disubmit]' }}</td>
-                        <td>{{ $item->customer_name }}</td>
+                        <td>{{ $item->customer_display_name ?? '-' }}</td>
                         <td>{{ $item->delivery_type == 'delivery' ? 'Diantar' : 'Ambil Sendiri' }}</td>
                         <td>
                             @php

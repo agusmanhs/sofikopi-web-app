@@ -37,7 +37,7 @@
                         </div>
                         <div class="col-sm-6">
                             <span class="text-muted d-block mb-1">Customer:</span>
-                            <span class="fw-semibold text-heading">{{ $data->customer_name }}</span>
+                            <span class="fw-semibold text-heading">{{ $data->customer_display_name ?? '-' }}</span>
                         </div>
                         <div class="col-sm-6 text-sm-end">
                             <span class="text-muted d-block mb-1">Tanggal Order:</span>

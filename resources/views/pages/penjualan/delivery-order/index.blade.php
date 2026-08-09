@@ -39,7 +39,7 @@
                     <tr>
                         <td class="fw-semibold">{{ $item->do_number }}</td>
                         <td>{{ $item->salesOrder->order_number ?? '-' }}</td>
-                        <td>{{ $item->salesOrder->customer_name ?? '-' }}</td>
+                        <td>{{ $item->salesOrder->customer_display_name ?? '-' }}</td>
                         <td>
                             @if($item->delivery_type == 'self_pickup')
                                 <span class="badge bg-label-info">Ambil di Store</span>

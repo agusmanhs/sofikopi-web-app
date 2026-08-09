@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Mitra;
+use App\Models\Products;
+use App\Models\SalesOrder;
 use App\Services\SalesOrderService;
 use Illuminate\Http\Request;
 
@@ -14,17 +17,20 @@ class SalesOrderManageController extends Controller
     public function index()
     {
         // Show only submitted, approved, completed, rejected
-        $data = \App\Models\SalesOrder::where('status', '!=', 'draft')
+        $data = SalesOrder::with('mitra')
+            ->where('status', '!=', 'draft')
             ->orderBy('id', 'desc')
             ->get();
+
         return view('pages.penjualan.kelola-order.index', compact('data'));
     }
 
     public function edit($id)
     {
         $data = $this->service->find($id);
-        $products = \App\Models\Products::all();
-        $mitras = \App\Models\Mitra::all();
+        $products = Products::all();
+        $mitras = Mitra::all();
+
         return view('pages.penjualan.kelola-order.edit', compact('data', 'products', 'mitras'));
     }
 
@@ -37,13 +43,14 @@ class SalesOrderManageController extends Controller
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
         ]);
-        
+
         try {
             $this->service->updateWithItems($id, $validated);
+
             return redirect()->route('sales-order.manage.index')
                 ->with('success', 'Order berhasil disesuaikan!');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Gagal menyesuaikan order: ' . $e->getMessage())->withInput();
+            return redirect()->back()->with('error', 'Gagal menyesuaikan order: '.$e->getMessage())->withInput();
         }
     }
 
@@ -51,26 +58,27 @@ class SalesOrderManageController extends Controller
     {
         try {
             $this->service->approveOrder($id, auth()->id() ?? 1);
+
             return redirect()->route('sales-order.manage.index')
                 ->with('success', 'Order berhasil disetujui, DO dan Invoice telah digenerate!');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Gagal menyetujui order: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal menyetujui order: '.$e->getMessage());
         }
     }
-    
+
     public function reject($id, Request $request)
     {
         $request->validate([
-            'rejected_reason' => 'required|string|max:500'
+            'rejected_reason' => 'required|string|max:500',
         ]);
-        
+
         try {
             $this->service->rejectOrder($id, $request->rejected_reason, auth()->id() ?? 1);
+
             return redirect()->route('sales-order.manage.index')
                 ->with('success', 'Order berhasil ditolak!');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Gagal menolak order: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal menolak order: '.$e->getMessage());
         }
     }
 }
-

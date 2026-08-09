@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Traits\LogsActivity;
 
 class Invoice extends Model
 {
@@ -26,6 +26,7 @@ class Invoice extends Model
         'terms',
         'notes',
         'status',
+        'payment_method',
         'paid_at',
     ];
 
@@ -43,5 +44,36 @@ class Invoice extends Model
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function getDueStateAttribute(): string
+    {
+        if ($this->status === 'lunas') {
+            return 'paid';
+        }
+
+        if (! $this->due_date) {
+            return 'ok';
+        }
+
+        if ($this->due_date->lt(today())) {
+            return 'overdue';
+        }
+
+        if ($this->due_date->lte(today()->addDays(3))) {
+            return 'near_due';
+        }
+
+        return 'ok';
+    }
+
+    public function getDueBadgeClassAttribute(): string
+    {
+        return match ($this->due_state) {
+            'paid' => 'success',
+            'overdue' => 'danger',
+            'near_due' => 'warning',
+            default => 'secondary',
+        };
     }
 }

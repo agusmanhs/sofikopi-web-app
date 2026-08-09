@@ -44,7 +44,7 @@
                     <tr>
                         <td>{{ $index + 1 }}</td>
                         <td>{{ $item->order_number ?? '[DRAFT - Belum Disubmit]' }}</td>
-                        <td>{{ $item->customer_name }}</td>
+                        <td>{{ $item->customer_display_name ?? '-' }}</td>
                         <td>{{ $item->order_date ? $item->order_date->format('d/m/Y') : '-' }}</td>
                         <td>
                             @php

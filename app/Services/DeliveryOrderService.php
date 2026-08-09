@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\SalesOrderLog;
 use App\Repositories\DeliveryOrderRepository;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class DeliveryOrderService extends BaseService
 {
@@ -16,6 +17,11 @@ class DeliveryOrderService extends BaseService
     public function getByAssignedUser($userId)
     {
         return $this->repository->getByAssignedUser($userId);
+    }
+
+    public function allForIndex()
+    {
+        return $this->repository->allForIndex();
     }
 
     public function reassignOrder($id, $assignedTo, $userId, $notes = null)
@@ -142,9 +148,9 @@ class DeliveryOrderService extends BaseService
         });
 
         try {
-            app(\App\Services\TelegramService::class)->notifyDeliveryCompleted($result);
+            app(TelegramService::class)->notifyDeliveryCompleted($result);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Telegram notification error: '.$e->getMessage());
+            Log::error('Telegram notification error: '.$e->getMessage());
         }
 
         return $result;

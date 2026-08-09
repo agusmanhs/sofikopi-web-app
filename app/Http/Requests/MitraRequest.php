@@ -7,11 +7,14 @@ class MitraRequest extends BaseRequest
     public function rules(): array
     {
         $id = $this->route('mitra');
+
         return [
             'mitra_category_id' => 'required|exists:mitra_categories,id',
-            'code' => 'required|string|unique:mitras,code,' . $id,
+            'code' => 'required|string|unique:mitras,code,'.$id,
             'pic' => 'nullable|string|max:255',
             'name' => 'required|string|max:255',
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'remove_logo' => 'nullable|boolean',
             'phone' => 'nullable|string|max:20',
             'address' => 'nullable|string',
             'province_code' => 'nullable|string|exists:provinces,code',

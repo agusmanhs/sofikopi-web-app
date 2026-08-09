@@ -25,9 +25,12 @@ class CheckPermission
             'approve' => 'update',
             'reject' => 'update',
             'adjust' => 'update',
+            'pattern' => 'update',
             'destroy' => 'delete',
             'destroy-bulk' => 'delete',
             'void' => 'delete',
+            'update-status' => 'update',
+            'print' => 'read',
         ];
 
         $routeName = $request->route()->getName();

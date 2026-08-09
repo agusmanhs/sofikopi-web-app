@@ -9,9 +9,11 @@
             <span class="text-muted fw-light">Penjualan / Invoice /</span> Detail
         </h4>
         <div class="d-flex gap-2">
+            @can('access', ['invoice.index', 'read'])
             <a href="{{ route('invoice.print', $data->id) }}" target="_blank" class="btn btn-outline-danger">
                 <i class="ri-file-pdf-line me-1"></i> Cetak PDF
             </a>
+            @endcan
             <a href="{{ route('invoice.index') }}" class="btn btn-outline-secondary">
                 <i class="ri-arrow-left-line me-1"></i> Kembali
             </a>
@@ -56,7 +58,7 @@
                         </div>
                         <div class="col-sm-6">
                             <span class="text-muted d-block small">Customer:</span>
-                            <span class="fw-semibold text-heading">{{ $data->salesOrder->customer_name ?? '-' }}</span>
+                            <span class="fw-semibold text-heading">{{ $data->salesOrder->customer_display_name ?? '-' }}</span>
                         </div>
                         <div class="col-sm-6">
                             <span class="text-muted d-block small">Tanggal Terbit:</span>
@@ -64,11 +66,15 @@
                         </div>
                         <div class="col-sm-6">
                             <span class="text-muted d-block small">Jatuh Tempo:</span>
-                            <span class="fw-semibold text-heading text-danger">{{ $data->due_date ? $data->due_date->format('d/m/Y') : '-' }}</span>
+                            <span class="fw-semibold text-heading text-{{ $data->due_badge_class }}">{{ $data->due_date ? $data->due_date->format('d/m/Y') : '-' }}</span>
                         </div>
                         <div class="col-sm-6">
                             <span class="text-muted d-block small">Tanggal Pelunasan:</span>
                             <span class="fw-semibold text-heading text-success">{{ $data->paid_at ? $data->paid_at->format('d/m/Y H:i') : 'Belum Lunas' }}</span>
+                        </div>
+                        <div class="col-sm-6">
+                            <span class="text-muted d-block small">Metode Pembayaran:</span>
+                            <span class="fw-semibold text-heading">{{ $data->payment_method ? ucfirst($data->payment_method) : '-' }}</span>
                         </div>
                     </div>
 
@@ -162,7 +168,7 @@
             </div>
 
             <!-- Finance Status Update Panel -->
-            @if(in_array(auth()->user()->role->slug, ['finance', 'super-admin']))
+            @can('access', ['invoice.index', 'update'])
             <div class="card mb-4 border-primary border">
                 <div class="card-header border-bottom py-3">
                     <h5 class="mb-0 fw-bold"><i class="ri-hand-coin-line me-1 text-primary"></i> Kelola Pembayaran (Finance)</h5>
@@ -172,9 +178,20 @@
                     <div class="card-body pt-3">
                         <div class="mb-3">
                             <label class="form-label">Ubah Status Pembayaran</label>
-                            <select name="status" class="form-select" required>
+                            <select name="status" id="invoice-status-select" class="form-select" required>
                                 <option value="belum_lunas" {{ $data->status == 'belum_lunas' ? 'selected' : '' }}>Belum Lunas</option>
                                 <option value="lunas" {{ $data->status == 'lunas' ? 'selected' : '' }}>Lunas (Tandai Bayar)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tanggal Jatuh Tempo</label>
+                            <input type="date" name="due_date" class="form-control" value="{{ $data->due_date?->format('Y-m-d') }}">
+                        </div>
+                        <div class="mb-3" id="payment-method-wrapper" style="{{ $data->status == 'lunas' ? '' : 'display:none;' }}">
+                            <label class="form-label">Metode Pembayaran</label>
+                            <select name="payment_method" id="invoice-payment-method-select" class="form-select" {{ $data->status == 'lunas' ? 'required' : '' }}>
+                                <option value="cash" {{ $data->payment_method == 'cash' ? 'selected' : '' }}>Cash</option>
+                                <option value="cashless" {{ $data->payment_method == 'cashless' ? 'selected' : '' }}>Cashless</option>
                             </select>
                         </div>
                         <div class="mb-3">
@@ -192,8 +209,26 @@
                     </div>
                 </form>
             </div>
-            @endif
+            @endcan
         </div>
     </div>
 </div>
+@endsection
+
+@section('page-script')
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const statusSelect = document.getElementById('invoice-status-select');
+        const paymentMethodWrapper = document.getElementById('payment-method-wrapper');
+        const paymentMethodSelect = document.getElementById('invoice-payment-method-select');
+
+        if (statusSelect && paymentMethodWrapper && paymentMethodSelect) {
+            statusSelect.addEventListener('change', function() {
+                const isLunas = this.value === 'lunas';
+                paymentMethodWrapper.style.display = isLunas ? '' : 'none';
+                paymentMethodSelect.required = isLunas;
+            });
+        }
+    });
+</script>
 @endsection

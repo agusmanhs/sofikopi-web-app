@@ -16,7 +16,7 @@ class SalesOrderController extends Controller
 
     public function index()
     {
-        $data = $this->service->all();
+        $data = $this->service->allForIndex();
 
         return view('pages.penjualan.sales-order.index', compact('data'));
     }
@@ -43,6 +43,7 @@ class SalesOrderController extends Controller
     public function show($id)
     {
         $data = $this->service->find($id);
+        $data->load('mitra');
 
         return view('pages.penjualan.sales-order.show', compact('data'));
     }

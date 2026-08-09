@@ -3,13 +3,14 @@
 namespace App\Services;
 
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
-use Illuminate\Support\Facades\Config;
 
 class BackupService
 {
     protected TelegramService $telegramService;
+
     protected string $backupChatId;
 
     public function __construct(TelegramService $telegramService)
@@ -35,7 +36,7 @@ class BackupService
         $tempPath = storage_path("app/temp/{$fileName}");
 
         // Pastikan folder temp ada
-        if (!is_dir(storage_path('app/temp'))) {
+        if (! is_dir(storage_path('app/temp'))) {
             mkdir(storage_path('app/temp'), 0755, true);
         }
 
@@ -57,7 +58,7 @@ class BackupService
             }
 
             // Cek apakah file berhasil dibuat dan tidak kosong
-            if (!file_exists($tempPath) || filesize($tempPath) === 0) {
+            if (! file_exists($tempPath) || filesize($tempPath) === 0) {
                 throw new \Exception('File SQL yang dihasilkan kosong atau tidak ditemukan.');
             }
 
@@ -73,7 +74,7 @@ class BackupService
                 'file_size' => $fileSize,
             ];
         } catch (\Exception $e) {
-            Log::error("Database export gagal: " . $e->getMessage());
+            Log::error('Database export gagal: '.$e->getMessage());
 
             // Kirim notifikasi Telegram GAGAL
             $this->notifyTelegram(false, $fileName, null, $e->getMessage());
@@ -85,7 +86,7 @@ class BackupService
 
             return [
                 'success' => false,
-                'message' => 'Gagal export database: ' . $e->getMessage(),
+                'message' => 'Gagal export database: '.$e->getMessage(),
             ];
         }
     }
@@ -97,23 +98,24 @@ class BackupService
     {
         try {
             if ($success) {
-                $message = "<b>✅ DATABASE EXPORT SUKSES</b>\n\n";
-                $message .= "<b>File:</b> {$fileName}\n";
-                $message .= "<b>Ukuran:</b> {$fileSize}\n";
-                $message .= "<b>Metode:</b> Manual Export (Admin)\n";
-                $message .= "<b>Waktu:</b> " . now()->format('d M Y, H:i:s') . "\n\n";
-                $message .= "📥 <i>File langsung diunduh ke perangkat admin.</i>";
+                // Queued dispatch (non-blocking) instead of calling sendMessage() directly.
+                $this->telegramService->notify('DATABASE EXPORT SUKSES', [
+                    'File' => $fileName,
+                    'Ukuran' => $fileSize,
+                    'Metode' => 'Manual Export (Admin)',
+                    'Waktu' => now()->format('d M Y, H:i:s'),
+                    'Catatan' => 'File langsung diunduh ke perangkat admin.',
+                ], '✅', null, $this->backupChatId);
             } else {
                 $shortError = mb_substr($error ?? 'Unknown error', 0, 500);
-                $message = "<b>❌ DATABASE EXPORT GAGAL!</b>\n\n";
-                $message .= "<b>Penyebab:</b> <code>{$shortError}</code>\n";
-                $message .= "<b>Waktu:</b> " . now()->format('d M Y, H:i:s') . "\n\n";
-                $message .= "🚨 <i>Mohon cek server segera.</i>";
+                $this->telegramService->notify('DATABASE EXPORT GAGAL!', [
+                    'Penyebab' => "<code>{$shortError}</code>",
+                    'Waktu' => now()->format('d M Y, H:i:s'),
+                    'Catatan' => 'Mohon cek server segera.',
+                ], '❌', null, $this->backupChatId);
             }
-
-            $this->telegramService->sendMessage($message, 'HTML', $this->backupChatId);
         } catch (\Exception $e) {
-            Log::warning("Telegram notification gagal: " . $e->getMessage());
+            Log::warning('Telegram notification gagal: '.$e->getMessage());
         }
     }
 
@@ -128,6 +130,6 @@ class BackupService
         $pow = min($pow, count($units) - 1);
         $bytes /= pow(1024, $pow);
 
-        return round($bytes, $precision) . ' ' . $units[$pow];
+        return round($bytes, $precision).' '.$units[$pow];
     }
 }

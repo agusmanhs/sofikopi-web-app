@@ -150,7 +150,10 @@ class DeliveryOrderService extends BaseService
         try {
             app(TelegramService::class)->notifyDeliveryCompleted($result);
         } catch (\Exception $e) {
+            // Don't fail the delivery completion just because the notify failed —
+            // but still surface it to Sentry/Telegram so it isn't invisible.
             Log::error('Telegram notification error: '.$e->getMessage());
+            report($e);
         }
 
         return $result;

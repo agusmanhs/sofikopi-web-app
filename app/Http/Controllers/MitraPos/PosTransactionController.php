@@ -110,6 +110,8 @@ class PosTransactionController extends Controller
                 reason: $data['reason'],
             );
         } catch (RuntimeException $e) {
+            // Intentional, no report(): this is the service's own business-rule
+            // validation (e.g. already voided), not an unexpected failure.
             return back()->with('error', $e->getMessage());
         }
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\InvoiceRequest;
 use App\Services\InvoiceService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Log;
 
 class InvoiceController extends Controller
 {
@@ -36,7 +37,12 @@ class InvoiceController extends Controller
             return redirect()->route('invoice.show', $id)
                 ->with('success', 'Status invoice berhasil diperbarui!');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Gagal memperbarui status invoice: '.$e->getMessage());
+            // Real detail goes to logs/Sentry only — the raw message may include
+            // internal validation/DB detail that shouldn't reach the user.
+            Log::error('Gagal memperbarui status invoice: '.$e->getMessage());
+            report($e);
+
+            return redirect()->back()->with('error', 'Gagal memperbarui status invoice. Silakan coba lagi atau hubungi admin.');
         }
     }
 
@@ -49,7 +55,12 @@ class InvoiceController extends Controller
 
             return $pdf->stream('Invoice-'.str_replace('/', '-', $data->invoice_number).'.pdf');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Gagal mencetak PDF Invoice: '.$e->getMessage());
+            // DomPDF render failures can leak internal file paths in the message —
+            // keep the real detail in logs/Sentry, show a generic message to the user.
+            Log::error('Gagal mencetak PDF Invoice: '.$e->getMessage());
+            report($e);
+
+            return redirect()->back()->with('error', 'Gagal mencetak PDF Invoice. Silakan coba lagi atau hubungi admin.');
         }
     }
 }

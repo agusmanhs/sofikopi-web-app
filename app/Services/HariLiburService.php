@@ -21,7 +21,7 @@ class HariLiburService
             $response = Http::timeout(10)->get($url);
 
             if ($response->failed()) {
-                throw new \Exception("Gagal menghubungi API Hari Libur.");
+                throw new \Exception('Gagal menghubungi API Hari Libur.');
             }
 
             $data = $response->json();
@@ -29,7 +29,9 @@ class HariLiburService
             $count = 0;
             foreach ($data as $item) {
                 // API format check: usually has 'holiday_date', 'holiday_name', 'is_national_holiday'
-                if (!isset($item['holiday_date'])) continue;
+                if (! isset($item['holiday_date'])) {
+                    continue;
+                }
 
                 HariLibur::updateOrCreate(
                     ['tanggal' => $item['holiday_date']],
@@ -45,15 +47,17 @@ class HariLiburService
             }
 
             return [
-                'success' => true, 
-                'message' => "Berhasil menyinkronkan {$count} hari libur untuk tahun {$year}."
+                'success' => true,
+                'message' => "Berhasil menyinkronkan {$count} hari libur untuk tahun {$year}.",
             ];
 
         } catch (\Exception $e) {
-            Log::error("HariLibur Sync Error: " . $e->getMessage());
+            Log::error('HariLibur Sync Error: '.$e->getMessage());
+            report($e); // Surface intermittent external-API failures to Sentry over time.
+
             return [
-                'success' => false, 
-                'message' => "Terjadi kesalahan: " . $e->getMessage()
+                'success' => false,
+                'message' => 'Terjadi kesalahan: '.$e->getMessage(),
             ];
         }
     }
@@ -64,6 +68,7 @@ class HariLiburService
         if ($year) {
             $query->whereYear('tanggal', $year);
         }
+
         return $query->orderBy('tanggal')->get();
     }
 
@@ -73,6 +78,7 @@ class HariLiburService
         if ($year) {
             $query->whereYear('tanggal', $year);
         }
+
         return $query->orderBy('tanggal')->paginate($perPage);
     }
 
@@ -90,6 +96,7 @@ class HariLiburService
     {
         $item = $this->find($id);
         $item->update($data);
+
         return $item;
     }
 
@@ -97,6 +104,7 @@ class HariLiburService
     {
         $item = $this->find($id);
         $item->delete();
+
         return true;
     }
 }

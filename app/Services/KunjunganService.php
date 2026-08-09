@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Mitra;
 use App\Repositories\KunjunganRepository;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -33,7 +34,7 @@ class KunjunganService extends BaseService
 
         // 1. Cek Jarak (Geofencing 50m)
         $kunjunganData = $this->validateDistance($data);
-        
+
         // 2. Upload foto (Wajib karena di request sudah divalidasi)
         if ($foto) {
             $data['foto_kunjungan'] = $foto->store('kunjungan', 'public');
@@ -52,7 +53,7 @@ class KunjunganService extends BaseService
      */
     protected function validateDistance(array $data)
     {
-        $mitra = \App\Models\Mitra::findOrFail($data['mitra_id']);
+        $mitra = Mitra::findOrFail($data['mitra_id']);
         $distance = null;
 
         // Jika mitra punya koordinat, wajib cek jarak
@@ -72,7 +73,7 @@ class KunjunganService extends BaseService
         }
 
         return [
-            'distance' => $distance
+            'distance' => $distance,
         ];
     }
 
@@ -121,12 +122,12 @@ class KunjunganService extends BaseService
     protected function calculateDistance($lat1, $lon1, $lat2, $lon2)
     {
         $theta = $lon1 - $lon2;
-        $dist = sin(deg2rad($lat1)) * sin(deg2rad($lat2)) +  cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta));
+        $dist = sin(deg2rad($lat1)) * sin(deg2rad($lat2)) + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta));
         $dist = acos($dist);
         $dist = rad2deg($dist);
         $miles = $dist * 60 * 1.1515;
 
-        return ($miles * 1.609344);
+        return $miles * 1.609344;
     }
 
     /**
@@ -144,52 +145,46 @@ class KunjunganService extends BaseService
         $photoPath = null;
         if ($kunjungan->foto_kunjungan) {
             $root = config('filesystems.disks.public.root');
-            $photoPath = rtrim($root, '/') . '/' . ltrim($kunjungan->foto_kunjungan, '/');
+            $photoPath = rtrim($root, '/').'/'.ltrim($kunjungan->foto_kunjungan, '/');
         }
 
-        // Build message
         $vType = $kunjungan->visit_type == 'routine' ? 'Kunjungan Rutin' : 'By Request';
-        
-        $message = "<b>📋 LAPORAN KUNJUNGAN QC ({$vType})</b>\n";
-        $message .= "━━━━━━━━━━━━━━━━━━━━━\n";
-        $message .= "<b>📅 Tanggal:</b> " . $kunjungan->tanggal_kunjungan->format('d M Y') . "\n";
-        $message .= "<b>👤 Petugas:</b> {$pegawaiName}\n";
-        $message .= "<b>🏪 Outlet:</b> " . ($kunjungan->mitra->name ?? '-') . "\n";
-        
-        if ($distance !== null) {
-            $message .= "<b>📍 Jarak dari Lokasi Mitra:</b> " . round($distance * 1000) . " meter\n";
-        } else {
-            $message .= "<b>📍 Jarak dari Lokasi Mitra:</b> (Titik outlet belum diatur)\n";
-        }
 
-        $message .= "━━━━━━━━━━━━━━━━━━━━━\n";
-        $message .= "<b>☕ Espresso Calibration:</b>\n<i>{$kunjungan->espresso_calibration}</i>\n\n";
-        $message .= "<b>👅 Taste Notes:</b>\n<i>{$kunjungan->taste_notes}</i>\n\n";
+        $details = [
+            'Tanggal' => $kunjungan->tanggal_kunjungan->format('d M Y'),
+            'Petugas' => $pegawaiName,
+            'Outlet' => $kunjungan->mitra->name ?? '-',
+            'Jarak dari Lokasi Mitra' => $distance !== null
+                ? round($distance * 1000).' meter'
+                : '(Titik outlet belum diatur)',
+            'Espresso Calibration' => "<i>{$kunjungan->espresso_calibration}</i>",
+            'Taste Notes' => "<i>{$kunjungan->taste_notes}</i>",
+        ];
 
         if ($kunjungan->flow_of_customers) {
-            $message .= "<b>🌊 Flow of Customers:</b>\n{$kunjungan->flow_of_customers}\n\n";
+            $details['Flow of Customers'] = $kunjungan->flow_of_customers;
         }
 
         if ($kunjungan->feedback) {
-            $message .= "<b>💬 Feedback:</b>\n{$kunjungan->feedback}\n\n";
+            $details['Feedback'] = $kunjungan->feedback;
         }
 
         if ($kunjungan->problem) {
-            $message .= "<b>⚠️ Problem:</b>\n<pre>{$kunjungan->problem}</pre>\n\n";
+            $details['Problem'] = "<pre>{$kunjungan->problem}</pre>";
         }
 
         if ($kunjungan->note) {
-            $message .= "<b>📝 Note:</b>\n{$kunjungan->note}\n";
+            $details['Note'] = $kunjungan->note;
         }
 
-        $message .= "━━━━━━━━━━━━━━━━━━━━━";
-
-        // Kirim ke chat ID khusus (hardcoded)
-        if ($photoPath && file_exists($photoPath)) {
-            $this->telegramService->sendPhoto($photoPath, $message, 'HTML', $this->kunjunganChatId);
-        } else {
-            $this->telegramService->sendMessage($message, 'HTML', $this->kunjunganChatId);
-        }
+        // Queued dispatch (non-blocking) instead of calling sendPhoto()/sendMessage()
+        // directly — keeps this request from blocking on the Telegram API.
+        $this->telegramService->notify(
+            "LAPORAN KUNJUNGAN QC ({$vType})",
+            $details,
+            '📋',
+            $photoPath && file_exists($photoPath) ? $photoPath : null,
+            $this->kunjunganChatId
+        );
     }
 }
-

@@ -89,6 +89,8 @@ class AkuntansiJournalController extends Controller
                 lines: $data['lines'],
             );
         } catch (RuntimeException $e) {
+            // Intentional, no report(): this is the service's own business-rule
+            // validation (e.g. unbalanced journal), not an unexpected failure.
             return back()->withInput()->withErrors(['lines' => $e->getMessage()]);
         }
 

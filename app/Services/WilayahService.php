@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\District;
 use App\Models\Province;
 use App\Models\Regency;
-use App\Models\District;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -18,7 +18,7 @@ class WilayahService
             $response = Http::timeout(10)->get("{$this->baseUrl}/provinces.json");
 
             if ($response->failed()) {
-                throw new \Exception("Gagal menghubungi API Wilayah (Provinces).");
+                throw new \Exception('Gagal menghubungi API Wilayah (Provinces).');
             }
 
             $data = $response->json();
@@ -34,7 +34,9 @@ class WilayahService
 
             return ['success' => true, 'message' => "Berhasil menyinkronkan {$count} provinsi."];
         } catch (\Exception $e) {
-            Log::error("Wilayah Sync (Provinces) Error: " . $e->getMessage());
+            Log::error('Wilayah Sync (Provinces) Error: '.$e->getMessage());
+            report($e); // Surface intermittent external-API failures to Sentry over time.
+
             return ['success' => false, 'message' => $e->getMessage()];
         }
     }
@@ -64,7 +66,9 @@ class WilayahService
 
             return ['success' => true, 'message' => "Berhasil menyinkronkan {$count} kabupaten/kota."];
         } catch (\Exception $e) {
-            Log::error("Wilayah Sync (Regencies) Error: " . $e->getMessage());
+            Log::error('Wilayah Sync (Regencies) Error: '.$e->getMessage());
+            report($e); // Surface intermittent external-API failures to Sentry over time.
+
             return ['success' => false, 'message' => $e->getMessage()];
         }
     }
@@ -94,7 +98,9 @@ class WilayahService
 
             return ['success' => true, 'message' => "Berhasil menyinkronkan {$count} kecamatan."];
         } catch (\Exception $e) {
-            Log::error("Wilayah Sync (Districts) Error: " . $e->getMessage());
+            Log::error('Wilayah Sync (Districts) Error: '.$e->getMessage());
+            report($e); // Surface intermittent external-API failures to Sentry over time.
+
             return ['success' => false, 'message' => $e->getMessage()];
         }
     }

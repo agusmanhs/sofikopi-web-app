@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\DeliveryOrderService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class DeliveryOrderController extends Controller
 {
@@ -120,7 +121,12 @@ class DeliveryOrderController extends Controller
 
             return $pdf->stream('SuratJalan-'.str_replace('/', '-', $data->do_number).'.pdf');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Gagal mencetak PDF Surat Jalan: '.$e->getMessage());
+            // DomPDF render failures can leak internal file paths in the message —
+            // keep the real detail in logs/Sentry, show a generic message to the user.
+            Log::error('Gagal mencetak PDF Surat Jalan: '.$e->getMessage());
+            report($e);
+
+            return redirect()->back()->with('error', 'Gagal mencetak PDF Surat Jalan. Silakan coba lagi atau hubungi admin.');
         }
     }
 }

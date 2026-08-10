@@ -65,7 +65,7 @@ class JadwalKerjaController extends Controller
 
         $override = $this->service->saveOverride($data);
 
-        return ResponseHelper::success($override, 'Override jadwal berhasil disimpan');
+        return ResponseHelper::success($override, 'Perubahan jadwal berhasil disimpan');
     }
 
     /**
@@ -75,6 +75,6 @@ class JadwalKerjaController extends Controller
     {
         $this->service->deleteOverride($id);
 
-        return ResponseHelper::success(null, 'Override jadwal berhasil dihapus');
+        return ResponseHelper::success(null, 'Perubahan jadwal berhasil dihapus');
     }
 }

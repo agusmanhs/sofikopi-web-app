@@ -105,9 +105,10 @@
 
       <div class="card">
          <div class="card-header">
-            <h5 class="card-title mb-0">Override Jadwal per Tanggal</h5>
-            <p class="text-muted small mb-0 mt-1">Untuk pengecualian jadwal pada tanggal tertentu (misal tukar
-               shift atau cuti mendadak). Override selalu menang atas pola mingguan.</p>
+            <h5 class="card-title mb-0">Ubah Jadwal untuk Tanggal Tertentu</h5>
+            <p class="text-muted small mb-0 mt-1">Gunakan ini kalau ada perubahan jadwal pegawai hanya untuk satu
+               hari saja (misalnya tukar shift atau libur mendadak). Perubahan ini akan tetap dipakai walaupun
+               berbeda dari jadwal mingguan biasanya.</p>
          </div>
          <div class="card-body border-bottom">
             <form id="formOverride" class="row g-3">
@@ -181,8 +182,8 @@
                      </tr>
                   @empty
                      <tr>
-                        <td colspan="5" class="text-center text-muted py-4">Belum ada override jadwal mendatang.
-                        </td>
+                        <td colspan="5" class="text-center text-muted py-4">Belum ada perubahan jadwal untuk
+                           tanggal mendatang.</td>
                      </tr>
                   @endforelse
                </tbody>
@@ -339,7 +340,7 @@
                   .catch(function(error) {
                      console.error('Error:', error);
                      if (window.AlertHandler) {
-                        window.AlertHandler.showError('Terjadi kesalahan sistem saat menyimpan override jadwal.');
+                        window.AlertHandler.showError('Terjadi kesalahan sistem saat menyimpan perubahan jadwal.');
                      }
                   });
             });
@@ -352,8 +353,8 @@
 
                if (window.AlertHandler) {
                   window.AlertHandler.confirm(
-                     'Hapus Override?',
-                     'Apakah Anda yakin ingin menghapus override jadwal ini?',
+                     'Hapus Perubahan Jadwal?',
+                     'Apakah Anda yakin ingin menghapus perubahan jadwal ini? Pegawai akan kembali mengikuti jadwal mingguan biasanya.',
                      'Ya, Hapus!',
                      function() {
                         fetch(`{{ url('jadwal-kerja/override') }}/${id}`, {

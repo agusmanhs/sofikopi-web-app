@@ -17,6 +17,11 @@
             <a href="{{ $routes['movements'] }}" class="btn btn-outline-secondary">
                 <i class="ri-history-line me-1"></i> Riwayat Mutasi
             </a>
+            @can('access', [isset($mitra) ? 'mitra-pos-manage.index' : 'mitra-opname.index', 'read'])
+            <a href="{{ $routes['opname'] }}" class="btn btn-outline-secondary">
+                <i class="ri-scales-3-line me-1"></i> Stock Opname
+            </a>
+            @endcan
             @can('access', [isset($mitra) ? 'mitra-pos-manage.index' : 'mitra-material.index', 'read'])
             <a href="{{ $routes['material'] }}" class="btn btn-primary">
                 <i class="ri-archive-line me-1"></i> Kelola Material
@@ -81,13 +86,26 @@
                         </td>
                         @if($canAdjust)
                         <td>
-                            <button type="button" class="btn btn-sm btn-outline-primary btn-adjust-stock"
-                                data-bs-toggle="modal" data-bs-target="#adjustStockModal"
-                                data-name="{{ $material->name }}"
-                                data-stock="{{ rtrim(rtrim(number_format($material->current_stock, 3, ',', '.'), '0'), ',') }} {{ $material->unit }}"
-                                data-action="{{ route('mitra-stock.adjust', $material->sku) }}">
-                                <i class="ri-scales-3-line me-1"></i> Sesuaikan
-                            </button>
+                            <div class="d-flex gap-1">
+                                <button type="button" class="btn btn-sm btn-outline-success btn-adjust-stock"
+                                    data-bs-toggle="modal" data-bs-target="#adjustStockModal"
+                                    data-direction="1"
+                                    data-name="{{ $material->name }}"
+                                    data-stock="{{ rtrim(rtrim(number_format($material->current_stock, 3, ',', '.'), '0'), ',') }} {{ $material->unit }}"
+                                    data-action="{{ route('mitra-stock.adjust', $material->sku) }}"
+                                    title="Tambah Stok">
+                                    <i class="ri-add-line me-1"></i> Tambah
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-adjust-stock"
+                                    data-bs-toggle="modal" data-bs-target="#adjustStockModal"
+                                    data-direction="-1"
+                                    data-name="{{ $material->name }}"
+                                    data-stock="{{ rtrim(rtrim(number_format($material->current_stock, 3, ',', '.'), '0'), ',') }} {{ $material->unit }}"
+                                    data-action="{{ route('mitra-stock.adjust', $material->sku) }}"
+                                    title="Kurangi Stok">
+                                    <i class="ri-subtract-line me-1"></i> Kurangi
+                                </button>
+                            </div>
                         </td>
                         @endif
                     </tr>
@@ -123,15 +141,16 @@
         <div class="modal-dialog">
             <form method="POST" id="adjustStockForm" class="modal-content">
                 @csrf
+                <input type="hidden" name="delta" id="adjustDelta">
                 <div class="modal-header">
-                    <h5 class="modal-title">Sesuaikan Stok — <span id="adjustMaterialName"></span></h5>
+                    <h5 class="modal-title"><span id="adjustDirectionLabel"></span> — <span id="adjustMaterialName"></span></h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <p class="text-muted mb-3">Stok saat ini: <strong id="adjustCurrentStock"></strong></p>
                     <div class="mb-3">
-                        <label class="form-label">Delta (+ menambah / − mengurangi)</label>
-                        <input type="number" step="0.001" name="delta" class="form-control" placeholder="Contoh: 10 atau -2" required>
+                        <label class="form-label">Jumlah</label>
+                        <input type="number" step="0.001" min="0.001" id="adjustQty" class="form-control" placeholder="Contoh: 10" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Catatan</label>
@@ -154,10 +173,21 @@
 <script>
     document.querySelectorAll('.btn-adjust-stock').forEach(function (btn) {
         btn.addEventListener('click', function () {
-            document.getElementById('adjustStockForm').action = btn.dataset.action;
+            var form = document.getElementById('adjustStockForm');
+            var direction = parseInt(btn.dataset.direction, 10);
+            form.action = btn.dataset.action;
+            form.dataset.direction = direction;
             document.getElementById('adjustMaterialName').textContent = btn.dataset.name;
             document.getElementById('adjustCurrentStock').textContent = btn.dataset.stock;
+            document.getElementById('adjustDirectionLabel').textContent = direction > 0 ? 'Tambah Stok' : 'Kurangi Stok';
+            document.getElementById('adjustQty').value = '';
         });
+    });
+
+    document.getElementById('adjustStockForm').addEventListener('submit', function () {
+        var direction = parseInt(this.dataset.direction, 10) || 1;
+        var qty = parseFloat(document.getElementById('adjustQty').value) || 0;
+        document.getElementById('adjustDelta').value = (direction * qty).toFixed(3);
     });
 </script>
 @endpush

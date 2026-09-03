@@ -106,12 +106,21 @@
                                 <a href="{{ route('mitra-material.show', [$mitra, $material]) }}" class="btn btn-sm btn-icon btn-text-secondary" title="Detail"><i class="ri-eye-line"></i></a>
                                 @can('access', ['mitra-material.index', 'update'])
                                 <a href="{{ route('mitra-material.edit', [$mitra, $material]) }}" class="btn btn-sm btn-icon btn-text-secondary" title="Edit"><i class="ri-edit-box-line"></i></a>
-                                <button type="button" class="btn btn-sm btn-icon btn-text-info btn-adjust-stock" title="Adjust Stok"
+                                <button type="button" class="btn btn-sm btn-icon btn-text-success btn-adjust-stock" title="Tambah Stok"
+                                    data-direction="1"
                                     data-sku="{{ $material->sku }}"
                                     data-name="{{ $material->name }}"
                                     data-stock="{{ rtrim(rtrim(number_format($material->current_stock, 3, ',', '.'), '0'), ',') }}"
                                     data-unit="{{ $material->unit }}">
-                                    <i class="ri-scales-3-line"></i>
+                                    <i class="ri-add-line"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-icon btn-text-danger btn-adjust-stock" title="Kurangi Stok"
+                                    data-direction="-1"
+                                    data-sku="{{ $material->sku }}"
+                                    data-name="{{ $material->name }}"
+                                    data-stock="{{ rtrim(rtrim(number_format($material->current_stock, 3, ',', '.'), '0'), ',') }}"
+                                    data-unit="{{ $material->unit }}">
+                                    <i class="ri-subtract-line"></i>
                                 </button>
                                 @endcan
                                 @can('access', ['mitra-material.index', 'delete'])
@@ -145,8 +154,9 @@
     <div class="modal-dialog modal-dialog-centered">
         <form id="formAdjustStock" class="modal-content" method="POST" action="">
             @csrf
+            <input type="hidden" name="delta" id="adjust_delta_hidden">
             <div class="modal-header">
-                <h5 class="modal-title">Adjust Stok Material</h5>
+                <h5 class="modal-title"><span id="adjust_direction_label">Adjust Stok Material</span></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -159,9 +169,8 @@
                     <input type="text" class="form-control" id="adjust_current_stock" disabled>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Perubahan (Delta) <span class="text-danger">*</span></label>
-                    <input type="number" step="0.001" name="delta" id="adjust_delta" class="form-control" placeholder="Contoh: 10 (menambah) atau -5 (mengurangi)" required>
-                    <small class="text-muted">Gunakan angka negatif untuk mengurangi stok. Tidak boleh 0.</small>
+                    <label class="form-label">Jumlah <span class="text-danger">*</span></label>
+                    <input type="number" step="0.001" min="0.001" id="adjust_qty" class="form-control" placeholder="Contoh: 10" required>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Catatan</label>
@@ -189,14 +198,23 @@
                 const name = jq(this).data('name');
                 const stock = jq(this).data('stock');
                 const unit = jq(this).data('unit');
+                const direction = parseInt(jq(this).data('direction'), 10);
 
+                jq('#formAdjustStock').data('direction', direction);
+                jq('#adjust_direction_label').text(direction > 0 ? 'Tambah Stok' : 'Kurangi Stok');
                 jq('#adjust_material_name').val(name);
                 jq('#adjust_current_stock').val(stock + ' ' + unit);
-                jq('#adjust_delta').val('');
+                jq('#adjust_qty').val('');
                 jq('#adjust_notes').val('');
                 jq('#formAdjustStock').attr('action', adjustUrlTemplate.replace('__MATERIAL_SKU__', encodeURIComponent(sku)));
 
                 new bootstrap.Modal(document.getElementById('modalAdjustStock')).show();
+            });
+
+            jq('#formAdjustStock').on('submit', function() {
+                const direction = parseInt(jq(this).data('direction'), 10) || 1;
+                const qty = parseFloat(jq('#adjust_qty').val()) || 0;
+                jq('#adjust_delta_hidden').val((direction * qty).toFixed(3));
             });
 
             jq('.form-delete-confirm').on('submit', function(e) {

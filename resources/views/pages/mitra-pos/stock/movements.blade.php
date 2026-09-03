@@ -69,16 +69,19 @@
                 <tbody>
                     @forelse ($movements as $movement)
                         @php
-                            $typeBadge = match ($movement->type) {
-                                'in' => 'bg-label-success',
-                                'out' => 'bg-label-danger',
-                                'adjustment' => 'bg-label-warning',
+                            $typeBadge = match (true) {
+                                $movement->type === 'in' => 'bg-label-success',
+                                $movement->type === 'out' => 'bg-label-danger',
+                                $movement->type === 'adjustment' && $movement->qty > 0 => 'bg-label-success',
+                                $movement->type === 'adjustment' && $movement->qty < 0 => 'bg-label-danger',
                                 default => 'bg-label-secondary',
                             };
-                            $typeLabel = match ($movement->type) {
-                                'in' => 'Masuk',
-                                'out' => 'Keluar',
-                                'adjustment' => 'Penyesuaian',
+                            $typeLabel = match (true) {
+                                $movement->type === 'in' => 'Masuk',
+                                $movement->type === 'out' => 'Keluar',
+                                $movement->type === 'adjustment' && $movement->qty > 0 => 'Penyesuaian (+)',
+                                $movement->type === 'adjustment' && $movement->qty < 0 => 'Penyesuaian (-)',
+                                $movement->type === 'adjustment' => 'Penyesuaian',
                                 default => ucfirst($movement->type),
                             };
                             $reference = match ($movement->reference_type) {

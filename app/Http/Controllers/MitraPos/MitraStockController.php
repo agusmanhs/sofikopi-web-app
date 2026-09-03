@@ -154,6 +154,9 @@ class MitraStockController extends Controller
             'movements' => $mitra
                 ? route('mitra-pos-manage.stock.movements', $mitra)
                 : route('mitra-stock.movements'),
+            'opname' => $mitra
+                ? route('mitra-pos-manage.opname.index', $mitra)
+                : route('mitra-opname.index'),
             'material' => route('mitra-material.index', $mitra ?? auth()->user()->mitra),
             'product' => route('mitra-product.index', $mitra ?? auth()->user()->mitra),
         ];

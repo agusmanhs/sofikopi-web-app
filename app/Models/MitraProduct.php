@@ -62,11 +62,17 @@ class MitraProduct extends Model
 
     /**
      * Harga Pokok Produksi: sum of each ingredient's qty x material unit price.
+     *
+     * `material` bisa null kalau material-nya sudah di-soft-delete (mis. dari
+     * Kelola Material) sementara baris resep (mitra_product_ingredients) yang
+     * merujuknya tetap ada — FK restrictOnDelete cuma mencegah hard delete,
+     * bukan soft delete. Fallback ke 0 senilai konvensi yang sudah dipakai di
+     * product/show.blade.php ("Material Tidak Ditemukan" / harga_satuan ?? 0).
      */
     public function getHppAttribute()
     {
         return $this->ingredients->sum(function ($ingredient) {
-            return $ingredient->qty * $ingredient->material->harga_satuan;
+            return $ingredient->qty * ($ingredient->material->harga_satuan ?? 0);
         });
     }
 

@@ -27,7 +27,7 @@ class HppComputationTest extends TestCase
 
         return Mitra::create([
             'mitra_category_id' => $category->id,
-            'code' => 'TEST-MITRA-' . uniqid(),
+            'code' => 'TEST-MITRA-'.uniqid(),
             'name' => 'Test Mitra',
             'is_active' => true,
         ]);
@@ -161,5 +161,52 @@ class HppComputationTest extends TestCase
         $this->assertEqualsWithDelta($expectedHpp, (float) $product->hpp, 0.01);
         $this->assertSame($expectedCogs, (int) $product->cogs);
         $this->assertSame(22000 - $expectedCogs, (int) $product->margin);
+    }
+
+    /**
+     * Regression: material yang jadi bahan resep bisa di-soft-delete lewat
+     * Kelola Material (MitraMaterialService::deleteForMitra -> $material->delete(),
+     * dan restrictOnDelete di FK cuma menahan HARD delete, bukan soft delete).
+     * Baris mitra_product_ingredients yang merujuknya tetap ada, tapi relasi
+     * `material()` (belongsTo biasa) jadi null karena SoftDeletes ngefilter
+     * baris trashed secara default. Sebelum fix, ini bikin
+     * getHppAttribute() lempar "Attempt to read property on null".
+     */
+    public function test_hpp_does_not_crash_when_an_ingredient_material_is_soft_deleted(): void
+    {
+        $mitra = $this->makeMitra();
+
+        $activeMaterial = MitraMaterial::create([
+            'mitra_id' => $mitra->id, 'sku' => 'ABM001', 'name' => 'PRISTINE WATER 400ML',
+            'unit' => 'BTL', 'netto' => 1, 'price_per_pack' => 4500,
+            'current_stock' => 0, 'min_stock' => 0, 'is_active' => true,
+        ]);
+        $deletedMaterial = MitraMaterial::create([
+            'mitra_id' => $mitra->id, 'sku' => 'MLK007', 'name' => 'OMELA SKM 490GR',
+            'unit' => 'GR', 'netto' => 490, 'price_per_pack' => 16000,
+            'current_stock' => 0, 'min_stock' => 0, 'is_active' => true,
+        ]);
+
+        $product = MitraProduct::create([
+            'mitra_id' => $mitra->id,
+            'sku' => 'SLK099',
+            'name' => 'PRODUK DENGAN MATERIAL TERHAPUS',
+            'q_factor' => 0.2,
+            'sale_price' => 6000,
+            'status' => 'active',
+        ]);
+
+        MitraProductIngredient::create(['mitra_product_id' => $product->id, 'mitra_material_id' => $activeMaterial->id, 'qty' => 1]);
+        MitraProductIngredient::create(['mitra_product_id' => $product->id, 'mitra_material_id' => $deletedMaterial->id, 'qty' => 40]);
+
+        $deletedMaterial->delete(); // soft delete
+
+        $product = MitraProduct::with('ingredients.material')->findOrFail($product->id);
+
+        // Kontribusi ingredient dengan material terhapus dianggap 0 (bukan crash),
+        // konsisten dengan fallback "?? 0" yang sudah dipakai product/show.blade.php.
+        $this->assertEqualsWithDelta(4500.0, (float) $product->hpp, 0.01);
+        $this->assertSame(5400, (int) $product->cogs);
+        $this->assertSame(600, (int) $product->margin);
     }
 }

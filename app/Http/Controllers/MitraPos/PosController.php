@@ -79,7 +79,10 @@ class PosController extends Controller
                     continue;
                 }
 
-                $possible = floor((float) $ingredient->material->current_stock / (float) $ingredient->qty);
+                // material null = sudah di-soft-delete tapi baris resep masih
+                // merujuknya (lihat catatan di MitraProduct::getHppAttribute())
+                // → anggap stok 0, produk tidak bisa dibuat dari bahan ini.
+                $possible = floor((float) ($ingredient->material->current_stock ?? 0) / (float) $ingredient->qty);
                 $makeable = $makeable === null ? $possible : min($makeable, $possible);
             }
 

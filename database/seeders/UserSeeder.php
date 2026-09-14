@@ -14,9 +14,13 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        $superAdminRole = Role::where('slug', 'super-admin')->first();
-        $adminRole = Role::where('slug', 'admin')->first();
-        $userRole = Role::where('slug', 'user')->first();
+        // firstOrCreate (not just where(...)->first()) so this seeder is
+        // self-contained: it works even when RoleAndMenuSeeder hasn't run
+        // (e.g. DatabaseSeeder currently only calls MitraPosMenuSeeder,
+        // which only creates 'super-admin', 'mitra-owner', 'mitra-kasir').
+        $superAdminRole = Role::firstOrCreate(['slug' => 'super-admin'], ['name' => 'Super Admin']);
+        $adminRole = Role::firstOrCreate(['slug' => 'admin'], ['name' => 'Admin System']);
+        $userRole = Role::firstOrCreate(['slug' => 'user'], ['name' => 'User / Pegawai']);
 
         // 1. Super Admin
         User::updateOrCreate(

@@ -19,8 +19,11 @@ class MitraMaterialController extends Controller
     public function index(Mitra $mitra)
     {
         $materials = $this->service->paginateForMitra($mitra->id);
+        // Unpaginated, full list for the "+ Stok" purchase modal's material
+        // picker — the table above only shows the current page.
+        $allMaterials = $this->service->forMitra($mitra->id);
 
-        return view('pages.mitra-pos.material.index', compact('mitra', 'materials'));
+        return view('pages.mitra-pos.material.index', compact('mitra', 'materials', 'allMaterials'));
     }
 
     public function create(Mitra $mitra)

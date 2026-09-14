@@ -59,7 +59,7 @@ jobs:
             # RBAC seeder untuk modul Mitra POS: idempotent (updateOrCreate/
             # updateOrInsert), aman dijalankan di setiap deploy. Tidak menimpa
             # perubahan permission yang diubah manual lewat halaman Permission.
-            php artisan db:seed --class=MitraPosMenuSeeder --force
+            # php artisan db:seed --class=MitraPosMenuSeeder --force
             # Backfill Chart of Account modul Akuntansi untuk mitra yang sudah
             # terdaftar di POS SEBELUM modul ini ada — idempotent (no-op kalau
             # mitra sudah punya akun), tanpa ini penjualan pertama mitra lama
@@ -67,7 +67,7 @@ jobs:
             php artisan db:seed --class=AkuntansiCoaBackfillSeeder --force
             # Idempotent: no-ops if the symlink already exists. Needed for
             # public/storage to serve uploaded files (e.g. mitra receipt logo).
-            php artisan storage:link || true
+            # php artisan storage:link || true
             php artisan config:cache
             php artisan route:cache
             php artisan view:cache

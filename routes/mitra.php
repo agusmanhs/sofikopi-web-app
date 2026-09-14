@@ -289,7 +289,11 @@ Route::middleware(['auth', 'check.pegawai.status', 'mitra.scope'])
             ->name('mitra-pos-manage.akuntansi-laba-rugi.index')
             ->middleware('check.permission:mitra-pos-manage.index');
 
-        // Custom action route before the material resource.
+        // Custom action routes before the material resource.
+        Route::post('material/purchase', [MitraStockController::class, 'purchase'])
+            ->name('mitra-material.purchase')
+            ->middleware('check.permission:mitra-material.index');
+
         Route::post('material/{material}/adjust', [MitraStockController::class, 'adjust'])
             ->name('mitra-material.adjust')
             ->middleware('check.permission:mitra-material.index');

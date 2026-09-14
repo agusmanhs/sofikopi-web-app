@@ -43,7 +43,7 @@ class AkuntansiCoaTest extends TestCase
         $this->assertEqualsCanonicalizing([
             'kas_kasir', 'piutang_elektronik', 'penjualan', 'persediaan_bahan_baku',
             'harga_pokok_penjualan', 'beban_overhead_produksi', 'hutang_bop',
-            'beban_admin_bank', 'hutang_lain_lain',
+            'beban_admin_bank', 'hutang_lain_lain', 'kas_tunai', 'beban_selisih_pembelian',
         ], $roles);
     }
 

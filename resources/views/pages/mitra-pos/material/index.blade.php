@@ -35,6 +35,11 @@
                 <i class="ri-add-line me-1"></i> Tambah Material
             </a>
             @endcan
+            @can('access', ['mitra-material.index', 'update'])
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalPurchaseStock">
+                <i class="ri-shopping-cart-2-line me-1"></i> + Stok
+            </button>
+            @endcan
         </div>
     </div>
 
@@ -106,6 +111,12 @@
                                 <a href="{{ route('mitra-material.show', [$mitra, $material]) }}" class="btn btn-sm btn-icon btn-text-secondary" title="Detail"><i class="ri-eye-line"></i></a>
                                 @can('access', ['mitra-material.index', 'update'])
                                 <a href="{{ route('mitra-material.edit', [$mitra, $material]) }}" class="btn btn-sm btn-icon btn-text-secondary" title="Edit"><i class="ri-edit-box-line"></i></a>
+                                {{--
+                                    Tombol "Tambah Stok" (manual, tanpa harga) dinonaktifkan sementara —
+                                    membingungkan mitra karena mirip dengan "+ Stok" (pembelian) di atas
+                                    tapi tidak tercatat di jurnal/neraca. Gunakan "+ Stok" untuk
+                                    penambahan stok riil (pembelian). "Kurangi Stok" tetap aktif untuk
+                                    koreksi stok (susut, rusak, dll).
                                 <button type="button" class="btn btn-sm btn-icon btn-text-success btn-adjust-stock" title="Tambah Stok"
                                     data-direction="1"
                                     data-sku="{{ $material->sku }}"
@@ -114,6 +125,7 @@
                                     data-unit="{{ $material->unit }}">
                                     <i class="ri-add-line"></i>
                                 </button>
+                                --}}
                                 <button type="button" class="btn btn-sm btn-icon btn-text-danger btn-adjust-stock" title="Kurangi Stok"
                                     data-direction="-1"
                                     data-sku="{{ $material->sku }}"
@@ -184,6 +196,52 @@
         </form>
     </div>
 </div>
+
+<!-- Purchase Stock Modal ("+ Stok") -->
+<div class="modal fade" id="modalPurchaseStock" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form id="formPurchaseStock" class="modal-content" method="POST" action="{{ route('mitra-material.purchase', $mitra) }}">
+            @csrf
+            <div class="modal-header">
+                <h5 class="modal-title">Pembelian Stok Material</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Material <span class="text-danger">*</span></label>
+                    <select name="material_id" id="purchase_material_id" class="form-select" required>
+                        <option value="">-- Pilih Material --</option>
+                        @foreach($allMaterials as $m)
+                        <option value="{{ $m->id }}">
+                            {{ $m->name }} ({{ $m->sku }}) — harga standar Rp {{ rtrim(rtrim(number_format($m->harga_satuan, 2, ',', '.'), '0'), ',') }}/{{ $m->unit }}
+                        </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Jumlah Beli <span class="text-danger">*</span></label>
+                    <input type="number" step="0.001" min="0.001" name="qty" id="purchase_qty" class="form-control" placeholder="Contoh: 10" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Harga Beli / Satuan <span class="text-danger">*</span></label>
+                    <input type="number" step="0.01" min="0" name="unit_price" id="purchase_unit_price" class="form-control" placeholder="Contoh: 5000" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Total Pembelian</label>
+                    <input type="text" class="form-control" id="purchase_total" disabled value="Rp 0">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Catatan</label>
+                    <textarea name="notes" id="purchase_notes" class="form-control" rows="2" placeholder="Contoh: beli air mineral tambahan (opsional)"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-success">Simpan Pembelian</button>
+            </div>
+        </form>
+    </div>
+</div>
 @endsection
 
 @section('page-script')
@@ -215,6 +273,19 @@
                 const direction = parseInt(jq(this).data('direction'), 10) || 1;
                 const qty = parseFloat(jq('#adjust_qty').val()) || 0;
                 jq('#adjust_delta_hidden').val((direction * qty).toFixed(3));
+            });
+
+            // "+ Stok" purchase modal: live total (qty * harga beli).
+            function recalcPurchaseTotal() {
+                const qty = parseFloat(jq('#purchase_qty').val()) || 0;
+                const price = parseFloat(jq('#purchase_unit_price').val()) || 0;
+                jq('#purchase_total').val('Rp ' + (qty * price).toLocaleString('id-ID', { maximumFractionDigits: 2 }));
+            }
+            jq('#purchase_qty, #purchase_unit_price').on('input', recalcPurchaseTotal);
+
+            jq('#modalPurchaseStock').on('hidden.bs.modal', function() {
+                jq('#formPurchaseStock')[0].reset();
+                jq('#purchase_total').val('Rp 0');
             });
 
             jq('.form-delete-confirm').on('submit', function(e) {

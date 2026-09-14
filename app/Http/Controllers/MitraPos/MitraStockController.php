@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\MitraPos;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\MitraPos\MitraStockPurchaseRequest;
 use App\Http\Requests\MitraPos\StockAdjustmentRequest;
 use App\Models\Mitra;
 use App\Services\MitraPos\MitraContext;
@@ -114,6 +115,38 @@ class MitraStockController extends Controller
 
         return redirect()->route('mitra-material.index', $mitra)
             ->with('success', 'Stok berhasil disesuaikan');
+    }
+
+    /**
+     * "+ Stok" on Kelola Material — a real purchase (restocking), distinct
+     * from adjust() above: takes a purchase price and posts it to Akuntansi
+     * (see MitraStockService::purchaseStock()). Single-context like the rest
+     * of the Material routes — {mitra} always resolves via route-model
+     * binding, portal callers fill it in from auth()->user()->mitra when
+     * generating the URL (see MitraStockController::routesFor()).
+     */
+    public function purchase(MitraStockPurchaseRequest $request, Mitra $mitra)
+    {
+        $data = $request->validated();
+
+        $movement = $this->stockService->purchaseStock(
+            mitraId: $mitra->id,
+            materialId: (int) $data['material_id'],
+            qty: (float) $data['qty'],
+            unitPrice: (float) $data['unit_price'],
+            notes: $data['notes'] ?? null,
+            userId: auth()->id(),
+        );
+
+        $this->logActivity(
+            'created',
+            'mitra-pos',
+            "Pembelian stok material ({$mitra->name}), qty {$data['qty']} @ {$data['unit_price']}",
+            $movement
+        );
+
+        return redirect()->route('mitra-material.index', $mitra)
+            ->with('success', 'Pembelian stok berhasil dicatat');
     }
 
     private function renderIndex(int $mitraId, ?Mitra $mitra)

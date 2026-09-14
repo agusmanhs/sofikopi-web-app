@@ -5,6 +5,7 @@ namespace App\Services\MitraPos;
 use App\Models\AkuntansiAccount;
 use App\Models\AkuntansiJournalEntry;
 use App\Models\Mitra;
+use App\Models\MitraStockMovement;
 use App\Models\PosTransaction;
 use App\Repositories\MitraPos\AkuntansiJournalEntryRepository;
 use App\Services\BaseService;
@@ -83,6 +84,57 @@ class AkuntansiJournalService extends BaseService
     }
 
     /**
+     * Auto-posts a material stock purchase ("+ Stok" on Kelola Material —
+     * see MitraStockService::purchaseStock()). Called from INSIDE that
+     * method's own DB::transaction, same non-transaction-opening contract as
+     * postForSale() above.
+     *
+     * Standard-cost-with-variance: inventory is booked at the material's
+     * catalog price ($standardUnitCost * qty), not the actual purchase
+     * price, so the standard cost used elsewhere (e.g. postForSale()'s HPP
+     * line) stays consistent. The gap between what was actually paid and
+     * that standard value goes to BEBAN SELISIH PEMBELIAN — debit when the
+     * purchase cost more than standard, credit (contra-expense) when it cost
+     * less. The variance line is skipped when negligible, and the remaining
+     * two lines are always debit == credit by construction, so this can
+     * never fail createEntry()'s balance check.
+     */
+    public function postForPurchase(MitraStockMovement $movement, float $unitPrice, float $standardUnitCost): AkuntansiJournalEntry
+    {
+        $mitraId = $movement->mitra_id;
+        $qty = (float) $movement->qty;
+
+        $standardValue = round($standardUnitCost * $qty, 2);
+        $actualValue = round($unitPrice * $qty, 2);
+        $variance = round($actualValue - $standardValue, 2);
+
+        $lines = [];
+
+        $lines[] = ['account' => $this->resolveAccount($mitraId, 'persediaan_bahan_baku'), 'debit' => $standardValue, 'credit' => 0];
+
+        if (abs($variance) >= 0.01) {
+            $varianceAccount = $this->resolveAccount($mitraId, 'beban_selisih_pembelian');
+            if ($variance > 0) {
+                $lines[] = ['account' => $varianceAccount, 'debit' => $variance, 'credit' => 0];
+            } else {
+                $lines[] = ['account' => $varianceAccount, 'debit' => 0, 'credit' => abs($variance)];
+            }
+        }
+
+        $lines[] = ['account' => $this->resolveAccount($mitraId, 'kas_tunai'), 'debit' => 0, 'credit' => $actualValue];
+
+        return $this->createEntry(
+            mitraId: $mitraId,
+            entryDate: Carbon::now(),
+            description: "Pembelian stok: {$movement->material->name}",
+            sourceType: 'stock_purchase',
+            reference: $movement,
+            userId: $movement->user_id,
+            lines: $lines,
+        );
+    }
+
+    /**
      * Reverses a sale's journal entry when its transaction is voided — a
      * brand-new entry with every line's debit/credit swapped, never
      * edits/deletes the original (same immutable-ledger philosophy as
@@ -144,7 +196,7 @@ class AkuntansiJournalService extends BaseService
      * workbook's "SALDO LABA BERJALAN" row (no period-close mechanism
      * exists yet, so this is always the running, unclosed P&L).
      *
-     * @return array{as_of_date: Carbon, aset: array, aset_total: float, kewajiban: array, kewajiban_total: float, modal: array, modal_total: float, laba_berjalan: float, total_pasiva: float}
+     * @return array{as_of_date: Carbon, aset: array, aset_total: float, kewajiban: array, kewajiban_total: float, modal: array, modal_total: float, laba_berjalan: float, total_pasiva: float, total_kas: float}
      */
     public function neraca(int $mitraId, Carbon $asOfDate): array
     {
@@ -159,13 +211,13 @@ class AkuntansiJournalService extends BaseService
 
         $rows = ['aset' => [], 'kewajiban' => [], 'modal' => []];
         $totals = ['aset' => 0.0, 'kewajiban' => 0.0, 'modal' => 0.0];
+        // Kas Tunai (pembelian) dan Kas Kasir (penjualan) tetap dua akun
+        // terpisah di jurnal — hanya digabung di sini sebagai subtotal
+        // tampilan supaya mitra tidak bingung melihat dua baris "kas".
+        $totalKas = 0.0;
 
         foreach ($accounts as $account) {
-            $sum = $sums->get($account->id);
-            $debit = (float) ($sum->total_debit ?? 0);
-            $credit = (float) ($sum->total_credit ?? 0);
-            $delta = in_array($account->account_type, self::DEBIT_NORMAL_TYPES, true) ? ($debit - $credit) : ($credit - $debit);
-            $saldoAkhir = (float) $account->opening_balance + $delta;
+            $saldoAkhir = (float) $account->opening_balance + $this->accountDelta($account, $sums);
 
             $group = $rows[$account->account_type] ?? null;
             if ($group === null) {
@@ -174,9 +226,16 @@ class AkuntansiJournalService extends BaseService
 
             $rows[$account->account_type][] = ['account' => $account, 'saldo_akhir' => $saldoAkhir];
             $totals[$account->account_type] += $saldoAkhir;
+
+            if (in_array($account->system_role, ['kas_tunai', 'kas_kasir'], true)) {
+                $totalKas += $saldoAkhir;
+            }
         }
 
-        $labaBerjalan = $this->cumulativeLabaRugi($mitraId, $asOfDate);
+        // $sums diteruskan (bukan diquery ulang lewat asOfDate) — sums untuk
+        // tanggal yang sama sudah dihitung di atas, cumulativeLabaRugi() dulu
+        // memanggil sumsByAccountUpTo() lagi dengan argumen identik.
+        $labaBerjalan = $this->cumulativeLabaRugi($mitraId, $sums);
         $totals['modal'] += $labaBerjalan;
 
         return [
@@ -189,6 +248,7 @@ class AkuntansiJournalService extends BaseService
             'modal_total' => $totals['modal'],
             'laba_berjalan' => $labaBerjalan,
             'total_pasiva' => $totals['kewajiban'] + $totals['modal'],
+            'total_kas' => $totalKas,
         ];
     }
 
@@ -214,10 +274,7 @@ class AkuntansiJournalService extends BaseService
         $totals = ['pendapatan' => 0.0, 'hpp' => 0.0, 'biaya_adm_umum' => 0.0];
 
         foreach ($accounts as $account) {
-            $sum = $sums->get($account->id);
-            $debit = (float) ($sum->total_debit ?? 0);
-            $credit = (float) ($sum->total_credit ?? 0);
-            $amount = in_array($account->account_type, self::DEBIT_NORMAL_TYPES, true) ? ($debit - $credit) : ($credit - $debit);
+            $amount = $this->accountDelta($account, $sums);
 
             $group = $rows[$account->account_type] ?? null;
             if ($group === null) {
@@ -241,10 +298,11 @@ class AkuntansiJournalService extends BaseService
         ];
     }
 
-    private function cumulativeLabaRugi(int $mitraId, Carbon $asOfDate): float
+    /**
+     * @param  Collection<int, object{total_debit: float, total_credit: float}>  $sums  from sumsByAccountUpTo(), passed in by the caller (neraca()) instead of re-queried here for the same mitra/date.
+     */
+    private function cumulativeLabaRugi(int $mitraId, Collection $sums): float
     {
-        $sums = $this->sumsByAccountUpTo($mitraId, $asOfDate);
-
         $accounts = AkuntansiAccount::forMitra($mitraId)
             ->where('is_postable', true)
             ->where('position', 'laba_rugi')
@@ -252,10 +310,7 @@ class AkuntansiJournalService extends BaseService
 
         $net = 0.0;
         foreach ($accounts as $account) {
-            $sum = $sums->get($account->id);
-            $debit = (float) ($sum->total_debit ?? 0);
-            $credit = (float) ($sum->total_credit ?? 0);
-            $amount = in_array($account->account_type, self::DEBIT_NORMAL_TYPES, true) ? ($debit - $credit) : ($credit - $debit);
+            $amount = $this->accountDelta($account, $sums);
             // Pendapatan adds to laba, HPP/Biaya subtract — both already
             // signed correctly by the debit/credit-normal convention above,
             // except pendapatan's $amount is itself the credit-normal
@@ -265,6 +320,22 @@ class AkuntansiJournalService extends BaseService
         }
 
         return $net;
+    }
+
+    /**
+     * Shared debit/credit-normal delta calculation used by neraca(),
+     * labaRugi() and cumulativeLabaRugi() — extracted so all three read the
+     * same $sums collection instead of each re-deriving it.
+     *
+     * @param  Collection<int, object{total_debit: float, total_credit: float}>  $sums
+     */
+    private function accountDelta(AkuntansiAccount $account, Collection $sums): float
+    {
+        $sum = $sums->get($account->id);
+        $debit = (float) ($sum->total_debit ?? 0);
+        $credit = (float) ($sum->total_credit ?? 0);
+
+        return in_array($account->account_type, self::DEBIT_NORMAL_TYPES, true) ? ($debit - $credit) : ($credit - $debit);
     }
 
     /**

@@ -100,6 +100,25 @@ class AkuntansiNeracaTest extends TestCase
         $this->assertEqualsWithDelta(1000000.0, $kasRow['saldo_akhir'], 0.01);
     }
 
+    public function test_total_kas_combines_kas_tunai_and_kas_kasir_but_keeps_accounts_separate(): void
+    {
+        $kasKasir = AkuntansiAccount::forMitra($this->mitra->id)->where('system_role', 'kas_kasir')->firstOrFail();
+        $kasTunai = AkuntansiAccount::forMitra($this->mitra->id)->where('system_role', 'kas_tunai')->firstOrFail();
+        $kasKasir->update(['opening_balance' => 500000]);
+        $kasTunai->update(['opening_balance' => 300000]);
+
+        $neraca = $this->journalService->neraca($this->mitra->id, Carbon::now());
+
+        $this->assertEqualsWithDelta(800000.0, $neraca['total_kas'], 0.01);
+
+        // Masing-masing akun tetap baris terpisah di daftar Aset — total_kas
+        // murni subtotal tampilan, bukan penggabungan akun jurnal.
+        $rowCountForCashAccounts = collect($neraca['aset'])
+            ->filter(fn ($r) => in_array($r['account']->system_role, ['kas_tunai', 'kas_kasir'], true))
+            ->count();
+        $this->assertSame(2, $rowCountForCashAccounts);
+    }
+
     public function test_owner_can_view_neraca_and_laba_rugi_kasir_cannot(): void
     {
         $this->actingAs($this->owner)->get(route('akuntansi-neraca.index'))->assertOk();

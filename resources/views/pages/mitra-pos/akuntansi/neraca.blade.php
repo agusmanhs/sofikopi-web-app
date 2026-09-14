@@ -25,7 +25,12 @@
     <div class="row">
         <div class="col-12 col-lg-6 mb-4">
             <div class="card h-100">
-                <div class="card-header"><h5 class="mb-0">Aset</h5></div>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Aset</h5>
+                    <span class="badge bg-label-info" title="Kas Tunai + Kas Kasir digabung, akun jurnalnya tetap terpisah">
+                        Total Kas: Rp {{ number_format($neraca['total_kas'], 0, ',', '.') }}
+                    </span>
+                </div>
                 <div class="table-responsive">
                     <table class="table table-sm mb-0">
                         <tbody>

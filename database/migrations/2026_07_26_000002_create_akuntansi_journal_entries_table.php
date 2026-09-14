@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('entry_no')->unique();
             $table->date('entry_date');
             $table->string('description');
-            $table->enum('source_type', ['manual', 'pos_sale', 'pos_void']);
+            $table->enum('source_type', ['manual', 'pos_sale', 'pos_void', 'stock_purchase']);
             $table->nullableMorphs('reference');
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();

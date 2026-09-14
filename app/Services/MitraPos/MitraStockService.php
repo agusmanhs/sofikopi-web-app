@@ -15,8 +15,10 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class MitraStockService extends BaseService
 {
-    public function __construct(MitraStockMovementRepository $repository)
-    {
+    public function __construct(
+        MitraStockMovementRepository $repository,
+        protected AkuntansiJournalService $journalService
+    ) {
         parent::__construct($repository);
     }
 
@@ -139,6 +141,45 @@ class MitraStockService extends BaseService
                 notes: $notes,
                 userId: $userId,
             );
+        });
+    }
+
+    /**
+     * "+ Stok" on Kelola Material — a real purchase (restocking a material
+     * that's running low), distinct from adjustStock()'s manual correction:
+     * this one takes an actual purchase price and posts it to Akuntansi via
+     * postForPurchase() (standard-cost-with-variance against the material's
+     * catalog harga_satuan — see that method's docblock). Owns its own
+     * transaction boundary, same as adjustStock().
+     *
+     * unit_cost on the ledger row is the actual purchase price (not
+     * harga_satuan), so the movement history reflects what was really paid.
+     * harga_satuan is read before applyMovement() runs, but it's a computed
+     * accessor (price_per_pack/netto) untouched by stock-qty mutations, so
+     * the ordering doesn't matter.
+     */
+    public function purchaseStock(int $mitraId, int $materialId, float $qty, float $unitPrice, ?string $notes, int $userId): MitraStockMovement
+    {
+        return DB::transaction(function () use ($mitraId, $materialId, $qty, $unitPrice, $notes, $userId) {
+            $material = MitraMaterial::forMitra($mitraId)->where('id', $materialId)->first();
+
+            if (! $material) {
+                throw new NotFoundHttpException('Material tidak ditemukan.');
+            }
+
+            $movement = $this->applyMovement(
+                mitraId: $mitraId,
+                materialId: $materialId,
+                type: 'in',
+                qty: $qty,
+                unitCost: $unitPrice,
+                notes: $notes ?? "Pembelian stok: {$material->name}",
+                userId: $userId,
+            );
+
+            $this->journalService->postForPurchase($movement, $unitPrice, (float) $material->harga_satuan);
+
+            return $movement;
         });
     }
 

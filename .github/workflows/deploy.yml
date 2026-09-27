@@ -65,6 +65,18 @@ jobs:
             # mitra sudah punya akun), tanpa ini penjualan pertama mitra lama
             # akan gagal checkout (jurnal wajib, akun belum ter-seed).
             php artisan db:seed --class=AkuntansiCoaBackfillSeeder --force
+            # Setting batas jam absensi & pengajuan izin. Idempotent: baris baru
+            # dibuat, metadata (label/keterangan) disinkronkan, tapi `value`
+            # TIDAK ditimpa — nilai yang sudah diubah admin dari halaman
+            # Pengaturan Absensi bertahan di setiap deploy.
+            php artisan db:seed --class=SettingSeeder --force
+            # Menu + permission "Pengaturan Absensi". Idempotent (updateOrCreate/
+            # updateOrInsert) dan hanya memberi akses ke super-admin, jadi tidak
+            # mengubah permission role lain yang sudah diatur manual.
+            php artisan db:seed --class=PengaturanMenuSeeder --force
+            # Cache setting dibuang supaya nilai hasil seed langsung terbaca
+            # (CACHE_STORE=database menyimpan map setting selama 1 jam).
+            php artisan cache:clear || true
             # Idempotent: no-ops if the symlink already exists. Needed for
             # public/storage to serve uploaded files (e.g. mitra receipt logo).
             # php artisan storage:link || true

@@ -64,7 +64,10 @@ jobs:
             # terdaftar di POS SEBELUM modul ini ada — idempotent (no-op kalau
             # mitra sudah punya akun), tanpa ini penjualan pertama mitra lama
             # akan gagal checkout (jurnal wajib, akun belum ter-seed).
-            php artisan db:seed --class=AkuntansiCoaBackfillSeeder --force
+            # Dinonaktifkan sementara: deploy ini fokus ke modul Pengaturan
+            # Absensi. Aktifkan kembali bila ada mitra POS baru yang belum
+            # punya Chart of Account.
+            # php artisan db:seed --class=AkuntansiCoaBackfillSeeder --force
             # Setting batas jam absensi & pengajuan izin. Idempotent: baris baru
             # dibuat, metadata (label/keterangan) disinkronkan, tapi `value`
             # TIDAK ditimpa — nilai yang sudah diubah admin dari halaman

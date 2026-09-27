@@ -7,6 +7,7 @@ use App\Models\Absensi;
 use App\Models\HariLibur;
 use App\Models\Izin;
 use App\Models\Pegawai;
+use App\Models\Setting;
 use App\Models\Shift;
 use App\Repositories\AbsensiRepository;
 use Carbon\Carbon;
@@ -20,16 +21,20 @@ class AbsensiService extends BaseService
 
     protected JadwalKerjaService $jadwalKerjaService;
 
+    protected SettingService $settingService;
+
     public function __construct(
         AbsensiRepository $repository,
         FileUploadService $fileUploadService,
         TelegramService $telegramService,
-        JadwalKerjaService $jadwalKerjaService
+        JadwalKerjaService $jadwalKerjaService,
+        SettingService $settingService
     ) {
         parent::__construct($repository);
         $this->fileUploadService = $fileUploadService;
         $this->telegramService = $telegramService;
         $this->jadwalKerjaService = $jadwalKerjaService;
+        $this->settingService = $settingService;
     }
 
     /**
@@ -173,14 +178,16 @@ class AbsensiService extends BaseService
         // Handle Cross-Day Shift (Misal: 20:00 - 04:00)
         $isCrossDay = $shift->is_cross_day;
 
-        // 1. Tidak boleh absen terlalu awal (2 Jam sebelum shift mulai)
-        $batasAwal = $jamMasuk->copy()->subHours(2);
+        // 1. Tidak boleh absen terlalu awal (N jam sebelum shift mulai, dari Pengaturan Absensi)
+        $jamDibuka = $this->settingService->getJam(Setting::KEY_BATAS_ABSEN_DIBUKA_JAM);
+        $batasAwal = $jamMasuk->copy()->subHours($jamDibuka);
         if ($now->lt($batasAwal)) {
             throw new \Exception('Absen masuk belum dibuka untuk shift ini (Dibuka: '.$batasAwal->format('H:i').').');
         }
 
-        // 2. Batas absen masuk: 3 jam setelah jam masuk shift
-        $batasAkhirMasuk = $jamMasuk->copy()->addHours(3);
+        // 2. Batas absen masuk: N jam setelah jam masuk shift (dari Pengaturan Absensi)
+        $jamBatasMasuk = $this->settingService->getJam(Setting::KEY_BATAS_ABSEN_MASUK_JAM);
+        $batasAkhirMasuk = $jamMasuk->copy()->addHours($jamBatasMasuk);
         if (! $isCrossDay) {
             // Non cross-day: cek langsung
             if ($now->gt($batasAkhirMasuk)) {
@@ -293,8 +300,10 @@ class AbsensiService extends BaseService
                 $jamPulang->addDay();
             }
 
-            // VALIDASI BATAS MAKSIMAL: 2 jam setelah jam pulang shift
-            $batasMaksimalPulang = $jamPulang->copy()->addHours(2);
+            // VALIDASI BATAS MAKSIMAL: N jam setelah jam pulang shift (dari Pengaturan Absensi)
+            $batasMaksimalPulang = $jamPulang->copy()->addHours(
+                $this->settingService->getJam(Setting::KEY_BATAS_ABSEN_PULANG_JAM)
+            );
 
             if ($now->gt($batasMaksimalPulang)) {
                 throw new \Exception('Waktu absen pulang sudah melewati batas maksimal. Batas pulang: '.$batasMaksimalPulang->format('H:i'));
@@ -539,29 +548,33 @@ class AbsensiService extends BaseService
 
         $absensis = $this->repository->getByPegawaiBulan($pegawaiId, $bulan, $tahun);
 
+        // Toleransi pulang (jam) dibaca sekali, dipakai semua closure rekap di bawah
+        // agar penentuan Alpha/Hadir konsisten dengan validasi di absenPulang().
+        $jamToleransiPulang = $this->settingService->getJam(Setting::KEY_BATAS_ABSEN_PULANG_JAM);
+
         // Hitung total hari kerja efektif (Termasuk Hari Ini)
         $detailHariKerja = $this->getDetailHariKerjaForEmployee($pegawai, $bulan, $tahun);
         $totalHariKerja = $detailHariKerja['total'];
 
         // Hari Aktif (Hadir/Telat/Izin yang Sah)
-        $daysActive = $absensis->filter(function ($item) {
+        $daysActive = $absensis->filter(function ($item) use ($jamToleransiPulang) {
             $allIzinTypes = ['Izin', 'Sakit', 'Cuti', 'Izin Pribadi', 'Cuti Tahunan', 'Cuti Melahirkan', 'Cuti Menikah', 'Cuti Duka', 'Dinas Luar Kota'];
             if (in_array($item->status, $allIzinTypes)) {
                 return true;
             }
 
-            // Hadir/Telat harus ada jam_pulang (Tuntas) ATAU masih dalam toleransi jam kerja (belum 2 jam dari batas pulang)
+            // Hadir/Telat harus ada jam_pulang (Tuntas) ATAU masih dalam toleransi jam kerja
             if (! is_null($item->jam_pulang)) {
                 return true;
             }
 
             if (! is_null($item->jam_masuk) && $item->shift) {
-                // Tentukan batas kepulangan (2 jam setelah shift selesai)
+                // Tentukan batas kepulangan (N jam setelah shift selesai)
                 $batasPulang = Carbon::parse($item->tanggal->format('Y-m-d').' '.$item->shift->jam_pulang->format('H:i:s'));
                 if ($item->shift->is_cross_day) {
                     $batasPulang->addDay();
                 }
-                $batasPulang->addHours(2);
+                $batasPulang->addHours($jamToleransiPulang);
 
                 // Jika SEKARANG belum melewati batas kepulangan, anggap sebagai Hadir sementara (Active)
                 if (now()->lte($batasPulang)) {
@@ -579,7 +592,7 @@ class AbsensiService extends BaseService
         $pendingIzinDates = [];
 
         // Hitung Alpha (Hari Kerja yang tidak ada di rekaman absensi MASUK dan PULANG yang lengkap)
-        $datesWithPresence = $absensis->filter(function ($item) {
+        $datesWithPresence = $absensis->filter(function ($item) use ($jamToleransiPulang) {
             $allIzinTypes = ['Izin', 'Sakit', 'Cuti', 'Izin Pribadi', 'Cuti Tahunan', 'Cuti Melahirkan', 'Cuti Menikah', 'Cuti Duka', 'Dinas Luar Kota'];
             // 1. Jika statusnya izin/cuti resmi yang sah, dianggap hadir (bukan alpha)
             if (in_array($item->status, $allIzinTypes)) {
@@ -597,7 +610,7 @@ class AbsensiService extends BaseService
                 if ($item->shift->is_cross_day) {
                     $batasPulang->addDay();
                 }
-                $batasPulang->addHours(2); // Toleransi 2 jam
+                $batasPulang->addHours($jamToleransiPulang);
 
                 // Jika sekarang belum melewati batas pulang, JANGAN hitung Alpha dulu (Dianggap Hadir/Pending)
                 if (now()->lte($batasPulang)) {
@@ -632,7 +645,7 @@ class AbsensiService extends BaseService
         }
         $alphaCount = count($alphaDates);
 
-        $tepatWaktu = $absensis->filter(function ($item) {
+        $tepatWaktu = $absensis->filter(function ($item) use ($jamToleransiPulang) {
             if (! in_array($item->status, ['Tepat Waktu', 'Hadir'])) {
                 return false;
             }
@@ -646,7 +659,7 @@ class AbsensiService extends BaseService
                 if ($item->shift->is_cross_day) {
                     $batasPulang->addDay();
                 }
-                $batasPulang->addHours(2);
+                $batasPulang->addHours($jamToleransiPulang);
                 if (now()->lte($batasPulang)) {
                     return true;
                 } // Masih aktif
@@ -655,7 +668,7 @@ class AbsensiService extends BaseService
             return false;
         })->unique(fn ($i) => $i->tanggal->format('Y-m-d'))->count();
 
-        $terlambat = $absensis->filter(function ($item) {
+        $terlambat = $absensis->filter(function ($item) use ($jamToleransiPulang) {
             if ($item->status !== 'Terlambat') {
                 return false;
             }
@@ -669,7 +682,7 @@ class AbsensiService extends BaseService
                 if ($item->shift->is_cross_day) {
                     $batasPulang->addDay();
                 }
-                $batasPulang->addHours(2);
+                $batasPulang->addHours($jamToleransiPulang);
                 if (now()->lte($batasPulang)) {
                     return true;
                 }
@@ -681,7 +694,7 @@ class AbsensiService extends BaseService
         $dinasWork = $absensis->filter(fn ($item) => in_array($item->status, ['Dinas Luar Kota', 'Tugas']))->unique(fn ($i) => $i->tanggal->format('Y-m-d'))->count();
 
         // Sesuai Request: Record yang ada Jam Masuk (meskipun statusnya Izin/Info) harus masuk hitungan Hadir
-        $othersWithJam = $absensis->filter(function ($item) {
+        $othersWithJam = $absensis->filter(function ($item) use ($jamToleransiPulang) {
             $sudahDihitung = in_array($item->status, ['Tepat Waktu', 'Hadir', 'Terlambat', 'Dinas Luar Kota', 'Tugas']);
             if ($sudahDihitung || is_null($item->jam_masuk)) {
                 return false;
@@ -696,7 +709,7 @@ class AbsensiService extends BaseService
                 if ($item->shift->is_cross_day) {
                     $batasPulang->addDay();
                 }
-                $batasPulang->addHours(2);
+                $batasPulang->addHours($jamToleransiPulang);
                 if (now()->lte($batasPulang)) {
                     return true;
                 }

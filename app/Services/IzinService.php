@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\Absensi;
 use App\Models\Izin;
 use App\Models\JenisIzin;
+use App\Models\Pegawai;
+use App\Models\Setting;
 use App\Repositories\IzinRepository;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -12,18 +14,35 @@ use Illuminate\Support\Facades\DB;
 
 class IzinService extends BaseService
 {
+    /**
+     * Jenis izin (kolom `kode` di tabel jenis_izins) yang dibatasi waktu
+     * pengajuannya bila tanggal mulai = hari ini. Tujuannya mencegah pegawai
+     * yang sudah kesiangan lalu mengajukan sakit/izin di siang hari.
+     * Jenis lain (duka, dinas, melahirkan, menikah) tidak dibatasi karena
+     * sifatnya mendadak atau sudah terencana jauh hari.
+     */
+    protected const KODE_IZIN_DIBATASI = ['sakit', 'izin'];
+
     protected FileUploadService $fileUploadService;
 
     protected TelegramService $telegramService;
 
+    protected SettingService $settingService;
+
+    protected JadwalKerjaService $jadwalKerjaService;
+
     public function __construct(
         IzinRepository $repository,
         FileUploadService $fileUploadService,
-        TelegramService $telegramService
+        TelegramService $telegramService,
+        SettingService $settingService,
+        JadwalKerjaService $jadwalKerjaService
     ) {
         parent::__construct($repository);
         $this->fileUploadService = $fileUploadService;
         $this->telegramService = $telegramService;
+        $this->settingService = $settingService;
+        $this->jadwalKerjaService = $jadwalKerjaService;
     }
 
     /**
@@ -81,6 +100,9 @@ class IzinService extends BaseService
                 }
             }
 
+            // Batas waktu pengajuan Sakit / Izin Pribadi untuk HARI INI
+            $this->assertMasihDalamBatasPengajuan($pegawaiId, $jenisIzin, $tglMulai);
+
             if ($jenisIzin->max_hari) {
                 $jumlahHari = $tglMulai->diffInDays($tglSelesai) + 1;
                 if ($jumlahHari > $jenisIzin->max_hari) {
@@ -115,6 +137,75 @@ class IzinService extends BaseService
         $this->telegramService->notifyIzinCreated($izin);
 
         return $izin;
+    }
+
+    /**
+     * Tolak pengajuan Sakit / Izin Pribadi yang diajukan terlambat untuk HARI INI.
+     *
+     * Batas = jam masuk shift pegawai hari ini + N jam (setting global
+     * `batas_izin_jam`). Pengajuan untuk tanggal besok atau setelahnya tidak
+     * dibatasi, jadi pegawai tetap bisa mengajukan kapan saja untuk hari depan.
+     *
+     * @throws \Exception
+     */
+    protected function assertMasihDalamBatasPengajuan(int $pegawaiId, JenisIzin $jenisIzin, Carbon $tglMulai): void
+    {
+        // Hanya berlaku untuk pengajuan yang mulai hari ini.
+        if (! $tglMulai->isSameDay(today())) {
+            return;
+        }
+
+        $kode = strtolower((string) $jenisIzin->kode);
+        if (! in_array($kode, self::KODE_IZIN_DIBATASI, true)) {
+            return;
+        }
+
+        $jamMasukShift = $this->resolveJamMasukShiftHariIni($pegawaiId);
+
+        // Tidak ada shift yang bisa dijadikan acuan (mis. pegawai belum punya
+        // shift / hari ini bukan jadwal kerjanya) -> jangan blokir pengajuan.
+        if (! $jamMasukShift) {
+            return;
+        }
+
+        $batasJam = $this->settingService->getJam(Setting::KEY_BATAS_IZIN_JAM);
+        $batasAkhir = $jamMasukShift->copy()->addHours($batasJam);
+
+        if (now()->gt($batasAkhir)) {
+            throw new \Exception(
+                "Pengajuan {$jenisIzin->nama} untuk hari ini sudah ditutup (Batas: "
+                .$batasAkhir->format('H:i').'). Silakan hubungi atasan Anda.'
+            );
+        }
+    }
+
+    /**
+     * Jam masuk shift pegawai untuk HARI INI sebagai Carbon bertanggal hari ini.
+     * Prioritas: jadwal per-pegawai (override/pola mingguan), lalu shift default
+     * pegawai. Null bila tidak ada acuan shift.
+     */
+    protected function resolveJamMasukShiftHariIni(int $pegawaiId): ?Carbon
+    {
+        $pegawai = Pegawai::with('shift')->find($pegawaiId);
+
+        if (! $pegawai) {
+            return null;
+        }
+
+        $jadwal = $this->jadwalKerjaService->resolveShiftFor($pegawai, today());
+
+        // Terjadwal libur hari ini (shift null) -> tidak ada batas jam yang relevan.
+        if ($jadwal['scheduled']) {
+            $shift = $jadwal['shift'];
+        } else {
+            $shift = $pegawai->shift;
+        }
+
+        if (! $shift || ! $shift->jam_masuk) {
+            return null;
+        }
+
+        return Carbon::parse(today()->format('Y-m-d').' '.$shift->jam_masuk->format('H:i:s'));
     }
 
     /**

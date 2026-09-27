@@ -19,6 +19,7 @@ use App\Http\Controllers\MenuController;
 use App\Http\Controllers\MitraCategoryController;
 use App\Http\Controllers\MitraController;
 use App\Http\Controllers\PegawaiController;
+use App\Http\Controllers\PengaturanAbsensiController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\ProductsController;
@@ -84,6 +85,12 @@ Route::middleware(['auth', 'check.pegawai.status'])->group(function () {
         Route::post('/pattern/{pegawai}', [JadwalKerjaController::class, 'savePattern'])->name('pattern');
         Route::post('/override', [JadwalKerjaController::class, 'storeOverride'])->name('override.store');
         Route::delete('/override/{id}', [JadwalKerjaController::class, 'destroyOverride'])->name('override.destroy');
+    });
+
+    // Pengaturan Absensi (batas jam absen & pengajuan izin, berlaku global)
+    Route::prefix('pengaturan-absensi')->name('pengaturan-absensi.')->middleware('check.permission:pengaturan-absensi.index')->group(function () {
+        Route::get('/', [PengaturanAbsensiController::class, 'index'])->name('index');
+        Route::put('/', [PengaturanAbsensiController::class, 'update'])->name('update');
     });
 
     // Kantor

@@ -30,6 +30,7 @@ use App\Interfaces\Repositories\ProduksiRepositoryInterface;
 use App\Interfaces\Repositories\RoleRepositoryInterface;
 use App\Interfaces\Repositories\SalesOrderLogRepositoryInterface;
 use App\Interfaces\Repositories\SalesOrderRepositoryInterface;
+use App\Interfaces\Repositories\SettingRepositoryInterface;
 use App\Interfaces\Repositories\ShiftRepositoryInterface;
 use App\Interfaces\Repositories\UserRepositoryInterface;
 use App\Listeners\BackupNotificationListener;
@@ -61,6 +62,7 @@ use App\Repositories\ProduksiRepository;
 use App\Repositories\RoleRepository;
 use App\Repositories\SalesOrderLogRepository;
 use App\Repositories\SalesOrderRepository;
+use App\Repositories\SettingRepository;
 use App\Repositories\ShiftRepository;
 use App\Repositories\UserRepository;
 use App\Services\MitraPos\MitraContext;
@@ -134,6 +136,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(
             InformasiRepositoryInterface::class,
             InformasiRepository::class
+        );
+        $this->app->bind(
+            SettingRepositoryInterface::class,
+            SettingRepository::class
         );
 
         // Product & Mitra Module Repositories

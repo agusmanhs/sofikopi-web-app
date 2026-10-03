@@ -30,7 +30,7 @@ class SettingRepository extends BaseRepository implements SettingRepositoryInter
         $setting = $this->findByKey($key);
 
         if (! $setting) {
-            return null;
+            throw new \Exception("Setting with key '{$key}' not found. Cannot update non-existent setting.");
         }
 
         $setting->update(['value' => $value]);

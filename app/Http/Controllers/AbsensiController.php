@@ -10,9 +10,11 @@ use App\Models\HariLibur;
 use App\Models\Izin;
 use App\Models\JenisIzin;
 use App\Models\Pegawai;
+use App\Models\Setting;
 use App\Models\Shift;
 use App\Services\AbsensiService;
 use App\Services\PegawaiService;
+use App\Services\SettingService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
@@ -21,7 +23,8 @@ class AbsensiController extends Controller
 {
     public function __construct(
         protected AbsensiService $service,
-        protected PegawaiService $pegawaiService
+        protected PegawaiService $pegawaiService,
+        protected SettingService $settingService
     ) {}
 
     /**
@@ -60,7 +63,7 @@ class AbsensiController extends Controller
                 if ($shift->is_cross_day) {
                     $jamPulangShift->addDay();
                 }
-                $deadline = $jamPulangShift->copy()->addHours(2);
+                $deadline = $jamPulangShift->copy()->addHours($this->settingService->getJam(Setting::KEY_BATAS_ABSEN_PULANG_JAM));
 
                 if (now()->gt($deadline)) {
                     // Sesi basi diabaikan agar user bisa masuk sesi baru hari ini
@@ -94,8 +97,8 @@ class AbsensiController extends Controller
         $absenDitutup = false;
         if ($shift) {
             $jamMasuk = Carbon::parse($shift->jam_masuk->format('H:i:s'));
-            $batasAkhirMasuk = $jamMasuk->copy()->addHours(3)->format('H:i');
-            if (now()->gt($jamMasuk->copy()->addHours(3))) {
+            $batasAkhirMasuk = $jamMasuk->copy()->addHours($this->settingService->getJam(Setting::KEY_BATAS_ABSEN_MASUK_JAM))->format('H:i');
+            if (now()->gt($jamMasuk->copy()->addHours($this->settingService->getJam(Setting::KEY_BATAS_ABSEN_MASUK_JAM)))) {
                 $absenDitutup = true;
             }
         }

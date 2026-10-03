@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Repositories\SettingRepository;
 use App\Services\AbsensiService;
 use App\Services\SettingService;
+use App\Services\TelegramService;
 use Carbon\Carbon;
 use Database\Seeders\SettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -30,6 +31,13 @@ class AbsensiControllerSettingTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Mock TelegramService to prevent sending notifications during tests
+        $this->mock(TelegramService::class, function ($mock) {
+            $mock->shouldReceive('notifyAbsenMasuk')->andReturnNull();
+            $mock->shouldReceive('notifyAbsenPulang')->andReturnNull();
+            $mock->shouldReceive('notify')->andReturnNull();
+        });
 
         // Seed default settings
         $this->seed(SettingSeeder::class);

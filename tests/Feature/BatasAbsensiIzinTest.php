@@ -12,8 +12,10 @@ use App\Models\User;
 use App\Services\AbsensiService;
 use App\Services\IzinService;
 use App\Services\SettingService;
+use App\Services\TelegramService;
 use Database\Seeders\SettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Mockery;
 use Tests\TestCase;
 
 class BatasAbsensiIzinTest extends TestCase
@@ -23,6 +25,13 @@ class BatasAbsensiIzinTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $telegram = Mockery::mock(TelegramService::class);
+        $telegram->shouldReceive('notifyIzinCreated')->andReturnNull();
+        $telegram->shouldReceive('notifyIzinStatus')->andReturnNull();
+        $telegram->shouldReceive('notify')->andReturnNull();
+        $telegram->shouldReceive('notifyAbsenMasuk')->andReturnNull();
+        $this->app->instance(TelegramService::class, $telegram);
 
         $this->seed(SettingSeeder::class);
         app(SettingService::class)->flush();
@@ -185,19 +194,37 @@ class BatasAbsensiIzinTest extends TestCase
         $this->assertNotNull($izinRecord->id);
     }
 
-    public function test_jenis_izin_lain_tidak_terkena_batas_jam()
+    public function test_semua_jenis_izin_terkena_batas_jam()
     {
-        // Dinas diajukan jauh setelah jam masuk -> tetap boleh, karena hanya
-        // kode 'sakit' & 'izin' yang dibatasi jam.
         [$pegawai] = $this->makePegawai(-5);
         $dinas = $this->makeJenisIzin('dinas', 'Dinas Luar Kota');
 
-        $izinRecord = app(IzinService::class)->ajukanIzin(
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('sudah ditutup');
+
+        app(IzinService::class)->ajukanIzin(
             $pegawai->id,
             $this->izinData($dinas, today()->toDateString())
         );
+    }
 
-        $this->assertNotNull($izinRecord->id);
+    public function test_pengajuan_izin_pribadi_dan_sakit_no_skd_ditolak_setelah_lewat_batas()
+    {
+        [$pegawai] = $this->makePegawai(-5);
+
+        foreach ([['izin pribadi', 'Izin Pribadi'], ['sakit no skd', 'Sakit No SKD']] as [$kode, $nama]) {
+            $jenis = $this->makeJenisIzin($kode, $nama);
+
+            try {
+                app(IzinService::class)->ajukanIzin(
+                    $pegawai->id,
+                    $this->izinData($jenis, today()->toDateString())
+                );
+                $this->fail("Jenis '{$kode}' seharusnya ditolak setelah lewat batas.");
+            } catch (\Exception $e) {
+                $this->assertStringContainsString('sudah ditutup', $e->getMessage());
+            }
+        }
     }
 
     public function test_batas_pengajuan_izin_mengikuti_perubahan_setting()

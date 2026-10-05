@@ -14,15 +14,6 @@ use Illuminate\Support\Facades\DB;
 
 class IzinService extends BaseService
 {
-    /**
-     * Jenis izin (kolom `kode` di tabel jenis_izins) yang dibatasi waktu
-     * pengajuannya bila tanggal mulai = hari ini. Tujuannya mencegah pegawai
-     * yang sudah kesiangan lalu mengajukan sakit/izin di siang hari.
-     * Jenis lain (duka, dinas, melahirkan, menikah) tidak dibatasi karena
-     * sifatnya mendadak atau sudah terencana jauh hari.
-     */
-    protected const KODE_IZIN_DIBATASI = ['sakit', 'izin'];
-
     protected FileUploadService $fileUploadService;
 
     protected TelegramService $telegramService;
@@ -140,7 +131,7 @@ class IzinService extends BaseService
     }
 
     /**
-     * Tolak pengajuan Sakit / Izin Pribadi yang diajukan terlambat untuk HARI INI.
+     * Tolak pengajuan izin (semua jenis) yang diajukan terlambat untuk HARI INI.
      *
      * Batas = jam masuk shift pegawai hari ini + N jam (setting global
      * `batas_izin_jam`). Pengajuan untuk tanggal besok atau setelahnya tidak
@@ -152,11 +143,6 @@ class IzinService extends BaseService
     {
         // Hanya berlaku untuk pengajuan yang mulai hari ini.
         if (! $tglMulai->isSameDay(today())) {
-            return;
-        }
-
-        $kode = strtolower((string) $jenisIzin->kode);
-        if (! in_array($kode, self::KODE_IZIN_DIBATASI, true)) {
             return;
         }
 

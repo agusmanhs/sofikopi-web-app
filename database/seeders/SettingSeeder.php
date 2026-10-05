@@ -16,7 +16,7 @@ class SettingSeeder extends Seeder
                 'group' => Setting::GROUP_ABSENSI,
                 'label' => 'Absen Masuk Dibuka (jam sebelum shift)',
                 'type' => 'integer',
-                'keterangan' => 'Berapa jam sebelum jam masuk shift pegawai sudah boleh absen. Contoh: 2 = shift 08:00 bisa absen mulai 06:00.',
+                'keterangan' => 'Pegawai sudah boleh absen masuk berapa jam sebelum shift mulai. Contoh: diisi 2, shift mulai jam 08:00, maka pegawai sudah bisa absen mulai jam 06:00.',
             ],
             [
                 'key' => Setting::KEY_BATAS_ABSEN_MASUK_JAM,
@@ -24,7 +24,7 @@ class SettingSeeder extends Seeder
                 'group' => Setting::GROUP_ABSENSI,
                 'label' => 'Batas Absen Masuk (jam setelah shift)',
                 'type' => 'integer',
-                'keterangan' => 'Batas akhir absen masuk dihitung dari jam masuk shift. Contoh: 2 = shift 08:00 tidak bisa absen lagi setelah 10:00.',
+                'keterangan' => 'Pegawai masih boleh absen masuk sampai berapa jam setelah shift mulai. Contoh: diisi 2, shift mulai jam 08:00, maka lewat jam 10:00 pegawai sudah tidak bisa absen masuk lagi.',
             ],
             [
                 'key' => Setting::KEY_BATAS_ABSEN_PULANG_JAM,
@@ -32,7 +32,7 @@ class SettingSeeder extends Seeder
                 'group' => Setting::GROUP_ABSENSI,
                 'label' => 'Batas Absen Pulang (jam setelah shift selesai)',
                 'type' => 'integer',
-                'keterangan' => 'Batas akhir absen pulang dihitung dari jam pulang shift. Lewat batas ini sesi dianggap hangus (Alpha).',
+                'keterangan' => 'Pegawai masih boleh absen pulang sampai berapa jam setelah shift selesai. Contoh: diisi 2, shift selesai jam 16:00, maka lewat jam 18:00 absen pulang tidak bisa lagi dan hari itu dianggap Alpha.',
             ],
             [
                 'key' => Setting::KEY_BATAS_IZIN_JAM,
@@ -40,7 +40,7 @@ class SettingSeeder extends Seeder
                 'group' => Setting::GROUP_ABSENSI,
                 'label' => 'Batas Pengajuan Izin/Sakit Hari Ini (jam setelah shift)',
                 'type' => 'integer',
-                'keterangan' => 'Hanya untuk izin yang mulai HARI INI, jenis Sakit & Izin Pribadi. Contoh: 1 = shift 08:00 tidak bisa mengajukan setelah 09:00. Pengajuan untuk tanggal berikutnya tidak dibatasi.',
+                'keterangan' => 'Batas waktu mengajukan izin untuk hari ini, dihitung dari jam shift mulai. Berlaku untuk semua jenis izin. Contoh: diisi 1, shift mulai jam 08:00, maka lewat jam 09:00 izin untuk hari ini tidak bisa diajukan lagi. Izin untuk besok dan seterusnya tidak dibatasi.',
             ],
         ];
 

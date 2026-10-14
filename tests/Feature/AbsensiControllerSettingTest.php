@@ -32,6 +32,8 @@ class AbsensiControllerSettingTest extends TestCase
     {
         parent::setUp();
 
+        Carbon::setTestNow(Carbon::parse('2026-10-14 12:00:00'));
+
         // Mock TelegramService to prevent sending notifications during tests
         $this->mock(TelegramService::class, function ($mock) {
             $mock->shouldReceive('notifyAbsenMasuk')->andReturnNull();
@@ -42,6 +44,13 @@ class AbsensiControllerSettingTest extends TestCase
         // Seed default settings
         $this->seed(SettingSeeder::class);
         app(SettingService::class)->flush();
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 
     /**
@@ -146,11 +155,12 @@ class AbsensiControllerSettingTest extends TestCase
     public function test_batas_absen_pulang_respects_setting_change_in_view()
     {
         // Create absensi from yesterday (pending checkout)
-        [$pegawai, $shift] = $this->makePegawai(-26); // Shift was 26 hours ago
+        [$pegawai, $shift] = $this->makePegawai(-4);
+
+        $shift->update(['jam_masuk' => '08:00:00', 'jam_pulang' => '16:00:00']);
 
         $yesterday = now()->subDay();
         $jamMasuk = $yesterday->clone()->setTime(8, 0, 0);
-        $jamPulang = $yesterday->clone()->setTime(16, 0, 0);
 
         $absensi = Absensi::create([
             'pegawai_id' => $pegawai->id,
@@ -168,25 +178,20 @@ class AbsensiControllerSettingTest extends TestCase
         $response = $this->actingAs($pegawai->user)
             ->get(route('absensi.index', ['shift_id' => $shift->id]));
 
-        // Session should be marked as stale because now() > (yesterday 16:00 + 2 hours)
-        // So it shouldn't display the old absensi
-        $this->assertTrue(
-            now()->gt($jamPulang->copy()->addHours(2)),
-            'Assumption: current time is past the default 2-hour checkout deadline'
+        $response->assertStatus(200);
+        $this->assertNull(
+            $response->viewData('absensiHariIni'),
+            'Stale session (yesterday 16:00 + 2h deadline is before frozen now) must be ignored with default limit'
         );
 
-        // Now increase the deadline to 30 hours - should keep the session fresh
         $this->setSetting(Setting::KEY_BATAS_ABSEN_PULANG_JAM, 30);
 
-        // Re-check the page - with the new 30-hour limit, the session should still be visible
         $response = $this->actingAs($pegawai->user)
             ->get(route('absensi.index', ['shift_id' => $shift->id]));
 
         $response->assertStatus(200);
-        $this->assertTrue(
-            now()->lt($jamPulang->copy()->addHours(30)),
-            'Session should be fresh with 30-hour limit'
-        );
+        $this->assertNotNull($response->viewData('absensiHariIni'));
+        $this->assertSame($absensi->id, $response->viewData('absensiHariIni')->id);
     }
 
     /**

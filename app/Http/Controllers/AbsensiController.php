@@ -53,6 +53,7 @@ class AbsensiController extends Controller
             // Cari sesi absen yang aktif (belum pulang)
             $absensiHariIni = Absensi::where('pegawai_id', $pegawai->id)
                 ->where('shift_id', $shiftId)
+                ->whereNotNull('jam_masuk')
                 ->whereNull('jam_pulang')
                 ->orderBy('tanggal', 'desc')
                 ->first();
@@ -93,23 +94,22 @@ class AbsensiController extends Controller
             now()->year
         );
 
-        $batasAkhirMasuk = null;
-        $absenDitutup = false;
-        if ($shift) {
-            $jamMasuk = Carbon::parse($shift->jam_masuk->format('H:i:s'));
-            $batasAkhirMasuk = $jamMasuk->copy()->addHours($this->settingService->getJam(Setting::KEY_BATAS_ABSEN_MASUK_JAM))->format('H:i');
-            if (now()->gt($jamMasuk->copy()->addHours($this->settingService->getJam(Setting::KEY_BATAS_ABSEN_MASUK_JAM)))) {
-                $absenDitutup = true;
-            }
-        }
-
-        // Cek apakah pegawai sedang izin/cuti yang sudah di-approve hari ini
         $sedangIzin = Izin::with('jenisIzin')
             ->where('pegawai_id', $pegawai->id)
             ->approvedOn(today())
             ->first();
 
-        return view('pages.absensi.index', compact('pegawai', 'absensiHariIni', 'historyAbsensi', 'shift', 'batasAkhirMasuk', 'absenDitutup', 'sedangIzin'));
+        $batasMasukJam = $this->settingService->getJam(Setting::KEY_BATAS_ABSEN_MASUK_JAM);
+        $batasAkhirMasuk = null;
+        $absenDitutup = false;
+        if ($shift) {
+            $jamMasuk = Carbon::parse($shift->jam_masuk->format('H:i:s'));
+            $batasAkhir = $jamMasuk->copy()->addHours($batasMasukJam);
+            $batasAkhirMasuk = $batasAkhir->format('H:i');
+            $absenDitutup = ! $sedangIzin && now()->gt($batasAkhir);
+        }
+
+        return view('pages.absensi.index', compact('pegawai', 'absensiHariIni', 'historyAbsensi', 'shift', 'batasAkhirMasuk', 'batasMasukJam', 'absenDitutup', 'sedangIzin'));
     }
 
     /**

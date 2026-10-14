@@ -225,7 +225,7 @@
                         <h6 class="alert-heading fw-bold mb-1">Absen Masuk Sudah Ditutup</h6>
                         <p class="mb-0 small">
                            Batas absen masuk untuk shift <strong>{{ $shift->nama ?? '-' }}</strong> adalah pukul
-                           <strong>{{ $batasAkhirMasuk ?? '-' }}</strong> (3 jam setelah jadwal masuk).
+                           <strong>{{ $batasAkhirMasuk ?? '-' }}</strong> ({{ $batasMasukJam ?? '-' }} jam setelah jadwal masuk).
                            Silakan hubungi atasan Anda untuk tindak lanjut.
                         </p>
                      </div>
@@ -345,7 +345,7 @@
                         <div>
                            Anda sedang <strong>{{ $sedangIzin->jenisIzin->nama ?? 'cuti/izin' }}</strong>
                            ({{ $sedangIzin->tgl_mulai->format('d/m/Y') }} &ndash; {{ $sedangIzin->tgl_selesai->format('d/m/Y') }}).
-                           Tidak perlu melakukan absensi.
+                           Anda sedang cuti/izin hari ini, jadi absensi tidak diperlukan.
                         </div>
                      </div>
                   @endif

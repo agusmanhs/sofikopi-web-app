@@ -206,6 +206,8 @@ class IzinService extends BaseService
                 throw new \Exception('Izin ini sudah diproses sebelumnya.');
             }
 
+            $this->assertTidakAdaAbsensiMasuk($izin);
+
             // Update status izin
             $izin->update([
                 'status_approval' => Izin::STATUS_APPROVED,
@@ -224,6 +226,33 @@ class IzinService extends BaseService
 
             return $izin;
         });
+    }
+
+    /**
+     * @throws \Exception
+     */
+    protected function assertTidakAdaAbsensiMasuk(Izin $izin): void
+    {
+        $tanggal = Absensi::where('pegawai_id', $izin->pegawai_id)
+            ->whereDate('tanggal', '>=', Carbon::parse($izin->tgl_mulai)->toDateString())
+            ->whereDate('tanggal', '<=', Carbon::parse($izin->tgl_selesai)->toDateString())
+            ->where(function ($query) {
+                $query->whereNotNull('jam_masuk')->orWhereNotNull('jam_pulang');
+            })
+            ->orderBy('tanggal')
+            ->pluck('tanggal')
+            ->map(fn ($date) => Carbon::parse($date)->format('d M Y'))
+            ->unique()
+            ->implode(', ');
+
+        if ($tanggal === '') {
+            return;
+        }
+
+        throw new \Exception(
+            "Izin tidak bisa disetujui: pegawai sudah absen masuk pada {$tanggal}. "
+            .'Ubah tanggal mulai izin agar tidak mencakup tanggal tersebut.'
+        );
     }
 
     /**

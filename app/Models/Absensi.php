@@ -30,6 +30,8 @@ class Absensi extends Model
         'device_pulang',
         'status',
         'keterangan',
+        'dikoreksi_oleh',
+        'alasan_koreksi',
     ];
 
     protected $casts = [
@@ -56,6 +58,11 @@ class Absensi extends Model
     public function shift()
     {
         return $this->belongsTo(Shift::class);
+    }
+
+    public function dikoreksiOleh()
+    {
+        return $this->belongsTo(User::class, 'dikoreksi_oleh');
     }
 
     /**

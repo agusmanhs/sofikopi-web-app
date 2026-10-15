@@ -4,10 +4,16 @@
 
 @section('vendor-style')
    @vite(['resources/assets/vendor/libs/datatables-bs5/datatables.bootstrap5.scss', 'resources/assets/vendor/libs/datatables-responsive-bs5/responsive.bootstrap5.scss', 'resources/assets/vendor/libs/datatables-buttons-bs5/buttons.bootstrap5.scss'])
+   @if (!empty($bisaKoreksi))
+      @vite(['resources/assets/vendor/libs/sweetalert2/sweetalert2.scss'])
+   @endif
 @endsection
 
 @section('vendor-script')
    @vite(['resources/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js'])
+   @if (!empty($bisaKoreksi))
+      @vite(['resources/assets/vendor/libs/sweetalert2/sweetalert2.js'])
+   @endif
 @endsection
 
 @section('content')
@@ -21,16 +27,34 @@
                Riwayat Saya
             @endif
          </h4>
-         <a href="{{ isset($isAdminView) ? route('absensi.rekap') : route('absensi.index') }}"
-            class="btn btn-outline-secondary">
-            <i class="ri-arrow-left-line me-1"></i>Kembali
-         </a>
+         <div class="d-flex flex-wrap gap-2 justify-content-end">
+            @if (!empty($bisaKoreksi))
+               <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalTambahAbsensi">
+                  <i class="ri-add-line me-1"></i>Tambah catatan absen
+               </button>
+            @endif
+            <a href="{{ isset($isAdminView) ? route('absensi.rekap') : route('absensi.index') }}"
+               class="btn btn-outline-secondary">
+               <i class="ri-arrow-left-line me-1"></i>Kembali
+            </a>
+         </div>
       </div>
       @if (isset($isAdminView))
          <p class="text-muted mb-4">Melihat data absensi untuk: <strong>{{ $pegawai->nip ?? '-' }} -
                {{ $pegawai->nama_lengkap }} ({{ $pegawai->divisi->nama ?? '-' }})</strong></p>
       @else
          <div class="mb-4"></div>
+      @endif
+
+      @if (!empty($bisaKoreksi) && $errors->any() && old('_mode'))
+         <div class="alert alert-danger" role="alert">
+            <strong>Data belum bisa disimpan:</strong>
+            <ul class="mb-0">
+               @foreach ($errors->all() as $message)
+                  <li>{{ $message }}</li>
+               @endforeach
+            </ul>
+         </div>
       @endif
 
       <!-- Filter -->
@@ -258,7 +282,23 @@
                               {{ $displayStatus }}
                            </span>
                         </td>
-                        <td>{{ $absen->keterangan ?? '-' }}</td>
+                        <td>
+                           {{ $absen->keterangan ?? '-' }}
+                           @if (!empty($bisaKoreksi) && $absen->dikoreksi_oleh)
+                              <span class="badge bg-label-primary ms-1" data-bs-toggle="tooltip"
+                                 title="Dikoreksi oleh {{ $absen->dikoreksiOleh->name ?? '-' }}. Alasan: {{ $absen->alasan_koreksi }}">Dikoreksi</span>
+                           @endif
+                           @if (!empty($bisaKoreksi) && $absen->exists && in_array($absen->status, ['Tepat Waktu', 'Terlambat']))
+                              <button type="button" class="btn btn-sm btn-outline-primary mt-1 d-block js-koreksi"
+                                 data-url="{{ route('absensi.koreksi.update', $absen->id) }}"
+                                 data-tanggal="{{ $absen->tanggal->locale('id')->isoFormat('dddd, D MMMM Y') }}"
+                                 data-jam-masuk="{{ $absen->jam_masuk?->format('H:i') }}"
+                                 data-jam-pulang="{{ $absen->jam_pulang?->format('H:i') }}"
+                                 data-status="{{ $absen->status }}" data-keterangan="{{ $absen->keterangan }}">
+                                 <i class="ri-edit-line me-1"></i>Koreksi
+                              </button>
+                           @endif
+                        </td>
                      </tr>
                   @empty
                      <tr>
@@ -373,6 +413,25 @@
                            <p class="mb-0 small">{{ $absen->keterangan }}</p>
                         </div>
                      @endif
+
+                     @if (!empty($bisaKoreksi) && $absen->dikoreksi_oleh)
+                        <div class="mt-2">
+                           <span class="badge bg-label-primary" data-bs-toggle="tooltip"
+                              title="Dikoreksi oleh {{ $absen->dikoreksiOleh->name ?? '-' }}. Alasan: {{ $absen->alasan_koreksi }}">Dikoreksi</span>
+                           <small class="d-block text-muted mt-1">Alasan: {{ $absen->alasan_koreksi }}</small>
+                        </div>
+                     @endif
+
+                     @if (!empty($bisaKoreksi) && $absen->exists && in_array($absen->status, ['Tepat Waktu', 'Terlambat']))
+                        <button type="button" class="btn btn-sm btn-outline-primary mt-3 w-100 js-koreksi"
+                           data-url="{{ route('absensi.koreksi.update', $absen->id) }}"
+                           data-tanggal="{{ $absen->tanggal->locale('id')->isoFormat('dddd, D MMMM Y') }}"
+                           data-jam-masuk="{{ $absen->jam_masuk?->format('H:i') }}"
+                           data-jam-pulang="{{ $absen->jam_pulang?->format('H:i') }}"
+                           data-status="{{ $absen->status }}" data-keterangan="{{ $absen->keterangan }}">
+                           <i class="ri-edit-line me-1"></i>Koreksi
+                        </button>
+                     @endif
                   </div>
                </div>
             @empty
@@ -441,6 +500,124 @@
       </div>
    </div>
 
+   @if (!empty($bisaKoreksi))
+      <div class="modal fade" id="modalKoreksiAbsensi" tabindex="-1" aria-hidden="true">
+         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <form method="POST" action="" id="formKoreksiAbsensi" class="modal-content">
+               @csrf
+               @method('PUT')
+               <input type="hidden" name="_mode" value="update">
+               <input type="hidden" name="_url" id="koreksiUrl" value="{{ old('_url') }}">
+               <div class="modal-header">
+                  <h5 class="modal-title">Koreksi Absen</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+               </div>
+               <div class="modal-body">
+                  <p class="text-muted small mb-3" id="koreksiTanggal"></p>
+                  <div class="row g-3">
+                     <div class="col-6">
+                        <label class="form-label" for="koreksiJamMasuk">Jam masuk</label>
+                        <input type="time" class="form-control" id="koreksiJamMasuk" name="jam_masuk" required>
+                     </div>
+                     <div class="col-6">
+                        <label class="form-label" for="koreksiJamPulang">Jam pulang</label>
+                        <input type="time" class="form-control" id="koreksiJamPulang" name="jam_pulang">
+                     </div>
+                     <div class="col-12">
+                        <label class="form-label" for="koreksiStatus">Status</label>
+                        <select class="form-select" id="koreksiStatus" name="status" required>
+                           <option value="Tepat Waktu">Tepat Waktu</option>
+                           <option value="Terlambat">Terlambat</option>
+                        </select>
+                     </div>
+                     <div class="col-12">
+                        <label class="form-label" for="koreksiKeterangan">Keterangan</label>
+                        <textarea class="form-control" id="koreksiKeterangan" name="keterangan" rows="2" maxlength="1000"></textarea>
+                     </div>
+                     <div class="col-12">
+                        <label class="form-label" for="koreksiAlasan">Alasan koreksi</label>
+                        <textarea class="form-control" id="koreksiAlasan" name="alasan" rows="3" minlength="10" maxlength="1000" required
+                           placeholder="Tulis kenapa data ini diubah"></textarea>
+                        <div class="form-text">Wajib diisi, minimal 10 huruf.</div>
+                     </div>
+                  </div>
+               </div>
+               <div class="modal-footer">
+                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                  <button type="submit" class="btn btn-primary">Simpan Koreksi</button>
+               </div>
+            </form>
+         </div>
+      </div>
+
+      <div class="modal fade" id="modalTambahAbsensi" tabindex="-1" aria-hidden="true">
+         <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <form method="POST" action="{{ route('absensi.koreksi.store') }}" id="formTambahAbsensi"
+               class="modal-content">
+               @csrf
+               <input type="hidden" name="_mode" value="create">
+               <input type="hidden" name="pegawai_id" value="{{ $pegawai->id }}">
+               <div class="modal-header">
+                  <h5 class="modal-title">Tambah Catatan Absen</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+               </div>
+               <div class="modal-body">
+                  <p class="text-muted small mb-3">Untuk {{ $pegawai->nama_lengkap }}. Dipakai kalau absen pegawai
+                     tidak tercatat sama sekali.</p>
+                  <div class="row g-3">
+                     <div class="col-12 col-sm-6">
+                        <label class="form-label" for="tambahTanggal">Tanggal</label>
+                        <input type="date" class="form-control" id="tambahTanggal" name="tanggal"
+                           max="{{ now()->toDateString() }}" value="{{ old('tanggal') }}" required>
+                     </div>
+                     <div class="col-12 col-sm-6">
+                        <label class="form-label" for="tambahShift">Shift</label>
+                        <select class="form-select" id="tambahShift" name="shift_id" required>
+                           @foreach ($shiftsPegawai as $shift)
+                              <option value="{{ $shift->id }}" @selected(old('shift_id') == $shift->id)>
+                                 {{ $shift->nama }} ({{ substr($shift->jam_masuk, 0, 5) }} - {{ substr($shift->jam_pulang, 0, 5) }})
+                              </option>
+                           @endforeach
+                        </select>
+                     </div>
+                     <div class="col-6">
+                        <label class="form-label" for="tambahJamMasuk">Jam masuk</label>
+                        <input type="time" class="form-control" id="tambahJamMasuk" name="jam_masuk"
+                           value="{{ old('jam_masuk') }}" required>
+                     </div>
+                     <div class="col-6">
+                        <label class="form-label" for="tambahJamPulang">Jam pulang</label>
+                        <input type="time" class="form-control" id="tambahJamPulang" name="jam_pulang"
+                           value="{{ old('jam_pulang') }}">
+                     </div>
+                     <div class="col-12">
+                        <label class="form-label" for="tambahStatus">Status</label>
+                        <select class="form-select" id="tambahStatus" name="status" required>
+                           <option value="Tepat Waktu" @selected(old('status') === 'Tepat Waktu')>Tepat Waktu</option>
+                           <option value="Terlambat" @selected(old('status') === 'Terlambat')>Terlambat</option>
+                        </select>
+                     </div>
+                     <div class="col-12">
+                        <label class="form-label" for="tambahKeterangan">Keterangan</label>
+                        <textarea class="form-control" id="tambahKeterangan" name="keterangan" rows="2" maxlength="1000">{{ old('keterangan') }}</textarea>
+                     </div>
+                     <div class="col-12">
+                        <label class="form-label" for="tambahAlasan">Alasan menambah catatan</label>
+                        <textarea class="form-control" id="tambahAlasan" name="alasan" rows="3" minlength="10" maxlength="1000" required
+                           placeholder="Tulis kenapa catatan ini ditambahkan">{{ old('alasan') }}</textarea>
+                        <div class="form-text">Wajib diisi, minimal 10 huruf.</div>
+                     </div>
+                  </div>
+               </div>
+               <div class="modal-footer">
+                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+                  <button type="submit" class="btn btn-primary">Simpan Catatan</button>
+               </div>
+            </form>
+         </div>
+      </div>
+   @endif
+
    <style>
       .modal-backdrop.show {
          backdrop-filter: blur(8px);
@@ -485,6 +662,141 @@
             );
          }
       });
+
+      @if (!empty($bisaKoreksi))
+         (function() {
+            const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({
+               '&': '&amp;',
+               '<': '&lt;',
+               '>': '&gt;',
+               '"': '&quot;',
+               "'": '&#39;'
+            } [c]));
+            const show = (value) => value ? escapeHtml(value) : '-';
+            const oldInput = @json(old());
+            const koreksiModalEl = document.getElementById('modalKoreksiAbsensi');
+            const koreksiForm = document.getElementById('formKoreksiAbsensi');
+            const tambahForm = document.getElementById('formTambahAbsensi');
+            let sebelum = null;
+
+            function fillKoreksi(source) {
+               koreksiForm.action = source.url;
+               document.getElementById('koreksiUrl').value = source.url;
+               document.getElementById('koreksiTanggal').textContent = source.tanggal || '';
+               document.getElementById('koreksiJamMasuk').value = source.jamMasuk || '';
+               document.getElementById('koreksiJamPulang').value = source.jamPulang || '';
+               document.getElementById('koreksiStatus').value = source.status || 'Tepat Waktu';
+               document.getElementById('koreksiKeterangan').value = source.keterangan || '';
+               document.getElementById('koreksiAlasan').value = source.alasan || '';
+            }
+
+            document.addEventListener('click', function(event) {
+               const button = event.target.closest('.js-koreksi');
+               if (!button) return;
+               const d = button.dataset;
+               sebelum = {
+                  jamMasuk: d.jamMasuk,
+                  jamPulang: d.jamPulang,
+                  status: d.status,
+                  keterangan: d.keterangan
+               };
+               fillKoreksi({
+                  url: d.url,
+                  tanggal: d.tanggal,
+                  jamMasuk: d.jamMasuk,
+                  jamPulang: d.jamPulang,
+                  status: d.status,
+                  keterangan: d.keterangan,
+                  alasan: ''
+               });
+               bootstrap.Modal.getOrCreateInstance(koreksiModalEl).show();
+            });
+
+            function barisBanding(label, before, after) {
+               return '<tr><th class="text-start pe-2">' + label + '</th>' +
+                  (before === null ? '' : '<td class="pe-2">' + show(before) + '</td>') +
+                  '<td>' + show(after) + '</td></tr>';
+            }
+
+            function konfirmasi(form, before, title) {
+               const f = form.elements;
+               const after = {
+                  jamMasuk: f.jam_masuk.value,
+                  jamPulang: f.jam_pulang.value,
+                  status: f.status.value,
+                  keterangan: f.keterangan.value
+               };
+               const head = before ?
+                  '<tr><th></th><th class="text-start">Sebelum</th><th class="text-start">Sesudah</th></tr>' :
+                  '<tr><th></th><th class="text-start">Sesudah</th></tr>';
+               const rows = [
+                  ['Jam masuk', 'jamMasuk'],
+                  ['Jam pulang', 'jamPulang'],
+                  ['Status', 'status'],
+                  ['Keterangan', 'keterangan']
+               ].map(([label, key]) => barisBanding(label, before ? before[key] : null, after[key])).join('');
+               return Swal.fire({
+                  title: title,
+                  html: '<div class="text-start"><div class="table-responsive"><table class="table table-sm mb-2">' + head + rows +
+                     '</table></div><strong>Alasan:</strong><br>' + escapeHtml(f.alasan.value) + '</div>',
+                  icon: 'question',
+                  showCancelButton: true,
+                  confirmButtonText: 'Ya, simpan',
+                  cancelButtonText: 'Batal',
+                  customClass: {
+                     confirmButton: 'btn btn-primary me-2',
+                     cancelButton: 'btn btn-outline-secondary'
+                  },
+                  buttonsStyling: false
+               });
+            }
+
+            function pasangKonfirmasi(form, getBefore, title) {
+               form.addEventListener('submit', function(event) {
+                  if (form.dataset.confirmed === '1') return;
+                  event.preventDefault();
+                  if (!form.reportValidity()) return;
+                  konfirmasi(form, getBefore(), title).then(function(result) {
+                     if (!result.isConfirmed) return;
+                     form.dataset.confirmed = '1';
+                     form.submit();
+                  });
+               });
+            }
+
+            pasangKonfirmasi(koreksiForm, () => sebelum, 'Simpan koreksi ini?');
+            pasangKonfirmasi(tambahForm, () => null, 'Tambah catatan absen ini?');
+
+            window.addEventListener('load', function() {
+               if (oldInput._mode === 'create') {
+                  bootstrap.Modal.getOrCreateInstance(document.getElementById('modalTambahAbsensi')).show();
+                  return;
+               }
+               if (oldInput._mode === 'update' && oldInput._url) {
+                  const source = Array.from(document.querySelectorAll('.js-koreksi')).find(function(el) {
+                     return el.dataset.url === oldInput._url;
+                  });
+                  const d = source ? source.dataset : {};
+                  sebelum = {
+                     jamMasuk: d.jamMasuk,
+                     jamPulang: d.jamPulang,
+                     status: d.status,
+                     keterangan: d.keterangan
+                  };
+                  fillKoreksi({
+                     url: oldInput._url,
+                     tanggal: d.tanggal,
+                     jamMasuk: oldInput.jam_masuk,
+                     jamPulang: oldInput.jam_pulang,
+                     status: oldInput.status,
+                     keterangan: oldInput.keterangan,
+                     alasan: oldInput.alasan
+                  });
+                  bootstrap.Modal.getOrCreateInstance(koreksiModalEl).show();
+               }
+            });
+         })();
+      @endif
 
       function previewFoto(url, title) {
          const modal = new bootstrap.Modal(document.getElementById('modalPreviewFoto'));

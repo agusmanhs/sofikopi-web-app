@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\AbsensiController;
+use App\Http\Controllers\AbsensiKoreksiController;
+use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BackupController;
@@ -149,6 +151,11 @@ Route::middleware(['auth', 'check.pegawai.status'])->group(function () {
         Route::get('/rekap/export', [AbsensiController::class, 'exportExcel'])->name('rekap.export')->middleware('check.permission:absensi.rekap');
         Route::get('/history/{pegawai_id}', [AbsensiController::class, 'showPegawaiHistory'])->name('pegawai-history')->middleware('check.permission:absensi.rekap');
     });
+
+        Route::middleware(EnsureSuperAdmin::class)->prefix('koreksi')->name('koreksi.')->group(function () {
+            Route::post('/', [AbsensiKoreksiController::class, 'store'])->name('store');
+            Route::put('/{absensi}', [AbsensiKoreksiController::class, 'update'])->name('update');
+        });
 
     // ============== IZIN ==============
     Route::prefix('izin')->name('izin.')->group(function () {

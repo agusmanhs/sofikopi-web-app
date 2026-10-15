@@ -277,7 +277,14 @@ class AbsensiController extends Controller
 
         $isAdminView = true;
 
-        return view('pages.absensi.history', compact('data', 'pegawai', 'bulan', 'tahun', 'statistik', 'isAdminView'));
+        $user = $request->user();
+        $bisaKoreksi = (bool) ($user && $user->role && $user->role->slug === 'super-admin');
+        $shiftsPegawai = $bisaKoreksi
+            ? Shift::aktif()->where('divisi_id', $pegawai->divisi_id)->orderBy('jam_masuk')->get()
+            : collect();
+        $data->loadMissing('dikoreksiOleh');
+
+        return view('pages.absensi.history', compact('data', 'pegawai', 'bulan', 'tahun', 'statistik', 'isAdminView', 'bisaKoreksi', 'shiftsPegawai'));
     }
 
     /**

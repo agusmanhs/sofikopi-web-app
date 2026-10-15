@@ -69,9 +69,9 @@ Route::middleware(['auth', 'check.pegawai.status'])->group(function () {
     Route::put('permission', [PermissionController::class, 'update'])->name('permission.update')->middleware('check.permission:permission.index');
 
     // Activity Log
-    Route::get('activity-log', [ActivityLogController::class, 'index'])->name('activity-log.index');
-    Route::get('activity-log/data', [ActivityLogController::class, 'getData'])->name('activity-log.data');
-    Route::get('activity-log/statistics', [ActivityLogController::class, 'statistics'])->name('activity-log.statistics');
+    Route::get('activity-log', [ActivityLogController::class, 'index'])->name('activity-log.index')->middleware('check.permission:activity-log.index');
+    Route::get('activity-log/data', [ActivityLogController::class, 'getData'])->name('activity-log.data')->middleware('check.permission:activity-log.index');
+    Route::get('activity-log/statistics', [ActivityLogController::class, 'statistics'])->name('activity-log.statistics')->middleware('check.permission:activity-log.index');
 
     // ============== DATA MASTER ==============
     // Divisi

@@ -15,6 +15,7 @@ use App\Services\SettingService;
 use App\Services\TelegramService;
 use Database\Seeders\SettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Mockery;
 use Tests\TestCase;
 
@@ -26,6 +27,8 @@ class BatasAbsensiIzinTest extends TestCase
     {
         parent::setUp();
 
+        Carbon::setTestNow('2026-10-14 12:00:00');
+
         $telegram = Mockery::mock(TelegramService::class);
         $telegram->shouldReceive('notifyIzinCreated')->andReturnNull();
         $telegram->shouldReceive('notifyIzinStatus')->andReturnNull();
@@ -35,6 +38,13 @@ class BatasAbsensiIzinTest extends TestCase
 
         $this->seed(SettingSeeder::class);
         app(SettingService::class)->flush();
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 
     /**

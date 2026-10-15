@@ -11,12 +11,34 @@ use App\Models\Shift;
 use App\Models\User;
 use App\Services\AbsensiService;
 use App\Services\JadwalKerjaService;
+use App\Services\TelegramService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Mockery;
 use Tests\TestCase;
 
 class JadwalKerjaTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Carbon::setTestNow('2026-10-14 12:00:00');
+
+        $telegram = Mockery::mock(TelegramService::class);
+        $telegram->shouldReceive('notify')->andReturnNull();
+        $telegram->shouldReceive('notifyAbsenMasuk')->andReturnNull();
+        $this->app->instance(TelegramService::class, $telegram);
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
+    }
 
     /**
      * Buat 1 pegawai lengkap dengan divisi, kantor (lokasi absen valid), dan 1 shift aktif

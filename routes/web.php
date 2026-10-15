@@ -149,13 +149,14 @@ Route::middleware(['auth', 'check.pegawai.status'])->group(function () {
         Route::get('/dashboard', [AbsensiController::class, 'dashboard'])->name('dashboard')->middleware('check.permission:absensi.dashboard');
         Route::get('/rekap', [AbsensiController::class, 'rekap'])->name('rekap')->middleware('check.permission:absensi.rekap');
         Route::get('/rekap/export', [AbsensiController::class, 'exportExcel'])->name('rekap.export')->middleware('check.permission:absensi.rekap');
+        Route::get('/rekap/export-pegawai', [AbsensiController::class, 'exportExcelPerPegawai'])->name('rekap.export-pegawai')->middleware('check.permission:absensi.rekap');
         Route::get('/history/{pegawai_id}', [AbsensiController::class, 'showPegawaiHistory'])->name('pegawai-history')->middleware('check.permission:absensi.rekap');
-    });
 
         Route::middleware(EnsureSuperAdmin::class)->prefix('koreksi')->name('koreksi.')->group(function () {
             Route::post('/', [AbsensiKoreksiController::class, 'store'])->name('store');
             Route::put('/{absensi}', [AbsensiKoreksiController::class, 'update'])->name('update');
         });
+    });
 
     // ============== IZIN ==============
     Route::prefix('izin')->name('izin.')->group(function () {

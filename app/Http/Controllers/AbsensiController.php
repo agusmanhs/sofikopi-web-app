@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exports\RekapAbsensiExport;
+use App\Exports\RekapAbsensiPerPegawaiExport;
 use App\Helpers\ResponseHelper;
 use App\Http\Requests\AbsensiRequest;
 use App\Models\Absensi;
@@ -372,6 +373,27 @@ class AbsensiController extends Controller
         return Excel::download(
             new RekapAbsensiExport($data, $bulan, $tahun, $hariEfektifFull, $hariEfektifReguler, $jenisIzins, $totalLibur),
             $filename
+        );
+    }
+
+    /**
+     * Export rekap absensi per pegawai (1 sheet = 1 pegawai) ke Excel
+     */
+    public function exportExcelPerPegawai(Request $request)
+    {
+        $bulan = (int) $request->get('bulan', now()->month);
+        $tahun = (int) $request->get('tahun', now()->year);
+
+        $data = $this->pegawaiService->rekapAll($bulan, $tahun);
+        $data->transform(function ($pegawai) use ($bulan, $tahun) {
+            $pegawai->statistik = $this->service->getStatistikPegawai($pegawai->id, $bulan, $tahun);
+
+            return $pegawai;
+        });
+
+        return Excel::download(
+            new RekapAbsensiPerPegawaiExport($data, $bulan, $tahun),
+            'Rekap_Absensi_Per_Pegawai_'.$bulan.'_'.$tahun.'.xlsx'
         );
     }
 

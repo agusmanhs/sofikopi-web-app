@@ -51,6 +51,9 @@
                   <button type="button" class="btn btn-success" onclick="exportExcel()">
                      <i class="ri-file-excel-line me-1"></i>Export Excel
                   </button>
+                  <button type="button" class="btn btn-outline-success" onclick="exportExcelPerPegawai()">
+                     <i class="ri-file-excel-2-line me-1"></i>Export Per Pegawai
+                  </button>
                </div>
             </form>
          </div>
@@ -272,6 +275,13 @@
          const tahun = document.querySelector('select[name="tahun"]').value;
 
          window.location.href = `{{ route('absensi.rekap.export') }}?bulan=${bulan}&tahun=${tahun}`;
+      }
+
+      function exportExcelPerPegawai() {
+         const bulan = document.querySelector('select[name="bulan"]').value;
+         const tahun = document.querySelector('select[name="tahun"]').value;
+
+         window.location.href = `{{ route('absensi.rekap.export-pegawai') }}?bulan=${bulan}&tahun=${tahun}`;
       }
    </script>
 @endsection

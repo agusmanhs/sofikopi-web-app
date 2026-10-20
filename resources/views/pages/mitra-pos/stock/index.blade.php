@@ -2,11 +2,26 @@
 
 @section('title', 'Stok Material')
 
+@section('vendor-style')
+@vite([
+  'resources/assets/vendor/libs/sweetalert2/sweetalert2.scss'
+])
+@endsection
+
+@section('vendor-script')
+@vite([
+  'resources/assets/vendor/libs/sweetalert2/sweetalert2.js'
+])
+@endsection
+
 @section('content')
 @php
     // Portal-only quick-adjust: owner has can_update on mitra-stock.index
     // (kasir doesn't). Admin context adjusts via the Material page instead.
     $canAdjust = !isset($mitra) && auth()->user()->can('access', ['mitra-stock.index', 'update']);
+    $fmtQty = fn ($qty) => rtrim(rtrim(number_format($qty, 3, ',', '.'), '0'), ',');
+    $activeMaterials = $materials->where('is_active', true);
+    $inactiveCount = $materials->count() - $activeMaterials->count();
 @endphp
 <div class="container-xxl flex-grow-1 container-p-y">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -35,6 +50,33 @@
         </div>
     </div>
 
+    @if ($canAdjust)
+    <div class="alert alert-info d-flex align-items-start" role="alert">
+        <i class="ri-information-line me-2 mt-1"></i>
+        <div>
+            Tombol <strong>Tambah</strong> dan <strong>Kurangi</strong> di halaman ini hanya untuk <strong>koreksi stok</strong> (misalnya bahan rusak atau salah hitung) dan tidak tercatat di jurnal.
+            Untuk <strong>membeli bahan</strong>, gunakan <strong>+ Stok</strong> di Kelola Material (otomatis tercatat di jurnal).
+        </div>
+    </div>
+    @endif
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ $routes['index'] }}" class="row g-3 align-items-end">
+                <div class="col-md-6">
+                    <label class="form-label">Cari bahan</label>
+                    <input type="text" name="q" class="form-control" value="{{ $search ?? '' }}" placeholder="Ketik nama atau kode (SKU) bahan">
+                </div>
+                <div class="col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary"><i class="ri-search-line me-1"></i> Cari</button>
+                    @if (!empty($search))
+                    <a href="{{ $routes['index'] }}" class="btn btn-outline-secondary">Hapus pencarian</a>
+                    @endif
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="card">
         <div class="card-datatable table-responsive">
             <table class="datatables-basic table table-bordered">
@@ -57,7 +99,7 @@
                 </thead>
                 <tbody>
                     @forelse($materials as $index => $material)
-                    <tr>
+                    <tr class="{{ $material->is_active ? '' : 'text-muted' }}">
                         <td>{{ $index + 1 }}</td>
                         <td>{{ $material->sku }}</td>
                         <td>{{ $material->name }}</td>
@@ -74,11 +116,11 @@
                                 }
                             @endphp
                             <span class="badge {{ $stockBadge }}">
-                                {{ rtrim(rtrim(number_format($material->current_stock, 3, ',', '.'), '0'), ',') }}
+                                {{ $fmtQty($material->current_stock) }} {{ $material->unit }}
                             </span>
                         </td>
                         <td>Rp {{ number_format($material->stock_value, 0, ',', '.') }}</td>
-                        <td>{{ rtrim(rtrim(number_format($material->min_stock, 3, ',', '.'), '0'), ',') }}</td>
+                        <td>{{ $fmtQty($material->min_stock) }} {{ $material->unit }}</td>
                         <td>
                             <span class="badge {{ $material->is_active ? 'bg-label-success' : 'bg-label-secondary' }}">
                                 {{ $material->is_active ? 'Aktif' : 'Non-Aktif' }}
@@ -91,18 +133,20 @@
                                     data-bs-toggle="modal" data-bs-target="#adjustStockModal"
                                     data-direction="1"
                                     data-name="{{ $material->name }}"
-                                    data-stock="{{ rtrim(rtrim(number_format($material->current_stock, 3, ',', '.'), '0'), ',') }} {{ $material->unit }}"
+                                    data-unit="{{ $material->unit }}"
+                                    data-stock-raw="{{ (float) $material->current_stock }}"
                                     data-action="{{ route('mitra-stock.adjust', $material->sku) }}"
-                                    title="Tambah Stok">
+                                    title="Koreksi: tambah stok (bukan pembelian)">
                                     <i class="ri-add-line me-1"></i> Tambah
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-danger btn-adjust-stock"
                                     data-bs-toggle="modal" data-bs-target="#adjustStockModal"
                                     data-direction="-1"
                                     data-name="{{ $material->name }}"
-                                    data-stock="{{ rtrim(rtrim(number_format($material->current_stock, 3, ',', '.'), '0'), ',') }} {{ $material->unit }}"
+                                    data-unit="{{ $material->unit }}"
+                                    data-stock-raw="{{ (float) $material->current_stock }}"
                                     data-action="{{ route('mitra-stock.adjust', $material->sku) }}"
-                                    title="Kurangi Stok">
+                                    title="Koreksi: kurangi stok">
                                     <i class="ri-subtract-line me-1"></i> Kurangi
                                 </button>
                             </div>
@@ -111,15 +155,20 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="{{ $canAdjust ? 11 : 10 }}" class="text-center">Belum ada data material.</td>
+                        <td colspan="{{ $canAdjust ? 11 : 10 }}" class="text-center">{{ !empty($search) ? 'Tidak ada bahan yang cocok dengan pencarian "'.$search.'".' : 'Belum ada data material.' }}</td>
                     </tr>
                     @endforelse
                 </tbody>
                 @if ($materials->isNotEmpty())
                 <tfoot>
                     <tr class="fw-bold">
-                        <td colspan="6" class="text-end">Total Nilai Inventory</td>
-                        <td>Rp {{ number_format($materials->sum('stock_value'), 0, ',', '.') }}</td>
+                        <td colspan="7" class="text-end">
+                            Total Nilai Inventory (bahan aktif)
+                            @if ($inactiveCount > 0)
+                            <div class="small fw-normal text-muted">{{ $inactiveCount }} bahan non-aktif tidak dihitung</div>
+                            @endif
+                        </td>
+                        <td>Rp {{ number_format($activeMaterials->sum('stock_value'), 0, ',', '.') }}</td>
                         <td colspan="{{ $canAdjust ? 3 : 2 }}"></td>
                     </tr>
                 </tfoot>
@@ -139,27 +188,41 @@
     @if($canAdjust)
     <div class="modal fade" id="adjustStockModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
-            <form method="POST" id="adjustStockForm" class="modal-content">
+            <form method="POST" id="adjustStockForm" class="modal-content" data-lock-submit data-confirm-button="Ya, simpan koreksi">
                 @csrf
                 <input type="hidden" name="delta" id="adjustDelta">
+                <input type="hidden" name="notes" id="adjustNotes">
                 <div class="modal-header">
                     <h5 class="modal-title"><span id="adjustDirectionLabel"></span> — <span id="adjustMaterialName"></span></h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
                 </div>
                 <div class="modal-body">
+                    <p id="adjustExplain" class="mb-2"></p>
                     <p class="text-muted mb-3">Stok saat ini: <strong id="adjustCurrentStock"></strong></p>
                     <div class="mb-3">
-                        <label class="form-label">Jumlah</label>
-                        <input type="number" step="0.001" min="0.001" id="adjustQty" class="form-control" placeholder="Contoh: 10" required>
+                        <label class="form-label" for="adjustQty">Jumlah <span id="adjustQtyHint" class="text-muted fw-normal"></span></label>
+                        <div class="input-group">
+                            <input type="number" step="0.001" min="0.001" id="adjustQty" class="form-control" placeholder="Contoh: 10" required>
+                            <span class="input-group-text" id="adjustUnit"></span>
+                        </div>
+                        <div id="adjustPreview" class="mt-2 fw-medium"></div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Catatan</label>
-                        <input type="text" name="notes" class="form-control" placeholder="Contoh: beli 10 stok" maxlength="255">
+                        <label class="form-label" for="adjustReason">Alasan <span class="text-danger">*</span></label>
+                        <select id="adjustReason" class="form-select" required></select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="adjustDetail">Keterangan <span id="adjustDetailHint" class="text-muted fw-normal">(boleh dikosongkan)</span></label>
+                        <input type="text" id="adjustDetail" class="form-control" maxlength="150" placeholder="Contoh: 2 bungkus bocor saat diantar">
+                    </div>
+                    <div class="small text-muted">
+                        <i class="ri-shopping-cart-line me-1"></i>
+                        Mau membeli bahan? Gunakan <strong>+ Stok</strong> di Kelola Material (otomatis tercatat di jurnal).
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary">Simpan</button>
+                    <button type="submit" id="adjustSubmit" class="btn btn-primary">Simpan</button>
                 </div>
             </form>
         </div>
@@ -169,26 +232,112 @@
 @endsection
 
 @if($canAdjust ?? false)
-@push('page-script')
+@section('page-script')
+@include('pages.mitra-pos._form-safety')
 <script>
-    document.querySelectorAll('.btn-adjust-stock').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            var form = document.getElementById('adjustStockForm');
-            var direction = parseInt(btn.dataset.direction, 10);
-            form.action = btn.dataset.action;
-            form.dataset.direction = direction;
-            document.getElementById('adjustMaterialName').textContent = btn.dataset.name;
-            document.getElementById('adjustCurrentStock').textContent = btn.dataset.stock;
-            document.getElementById('adjustDirectionLabel').textContent = direction > 0 ? 'Tambah Stok' : 'Kurangi Stok';
-            document.getElementById('adjustQty').value = '';
-        });
-    });
+    (function () {
+        var REASONS = {
+            '1': ['Koreksi hasil hitung (stok sebenarnya lebih banyak)', 'Bahan ditemukan / belum tercatat', 'Lainnya'],
+            '-1': ['Bahan rusak atau kedaluwarsa', 'Tumpah atau terbuang', 'Dipakai di luar penjualan', 'Koreksi hasil hitung (stok sebenarnya lebih sedikit)', 'Lainnya']
+        };
+        var form = document.getElementById('adjustStockForm');
+        var qtyInput = document.getElementById('adjustQty');
+        var reasonSelect = document.getElementById('adjustReason');
+        var detailInput = document.getElementById('adjustDetail');
+        var submitBtn = document.getElementById('adjustSubmit');
+        var preview = document.getElementById('adjustPreview');
+        var state = { direction: 1, stock: 0, unit: '', name: '' };
 
-    document.getElementById('adjustStockForm').addEventListener('submit', function () {
-        var direction = parseInt(this.dataset.direction, 10) || 1;
-        var qty = parseFloat(document.getElementById('adjustQty').value) || 0;
-        document.getElementById('adjustDelta').value = (direction * qty).toFixed(3);
-    });
+        var fmt = function (n) {
+            return Number(n).toLocaleString('id-ID', { maximumFractionDigits: 3 });
+        };
+
+        var buildNotes = function () {
+            var reason = reasonSelect.value;
+            var detail = detailInput.value.trim().split('|').join('/');
+            if (!reason) return '';
+            if (reason === 'Lainnya') return detail ? 'Lainnya: ' + detail : '';
+            return detail ? reason + ' - ' + detail : reason;
+        };
+
+        var refresh = function () {
+            var qty = parseFloat(qtyInput.value);
+            var hasQty = !isNaN(qty) && qty > 0;
+            var delta = hasQty ? state.direction * qty : 0;
+            var result = Math.round((state.stock + delta) * 1000) / 1000;
+            var tooMuch = hasQty && state.direction < 0 && qty > state.stock + 0.0001;
+            var notes = buildNotes();
+            var action = state.direction > 0 ? 'Tambah' : 'Kurangi';
+
+            document.getElementById('adjustDetailHint').textContent =
+                reasonSelect.value === 'Lainnya' ? '(wajib diisi untuk alasan "Lainnya")' : '(boleh dikosongkan)';
+
+            if (!hasQty) {
+                preview.className = 'mt-2 fw-medium text-muted';
+                preview.textContent = 'Stok akhir = ' + fmt(state.stock) + ' ' + state.unit + ' (isi jumlah dulu)';
+            } else if (tooMuch) {
+                preview.className = 'mt-2 fw-medium text-danger';
+                preview.textContent = 'Stok hanya ' + fmt(state.stock) + ' ' + state.unit + ', tidak bisa dikurangi ' + fmt(qty) + ' ' + state.unit + '.';
+            } else {
+                preview.className = 'mt-2 fw-medium ' + (state.direction > 0 ? 'text-success' : 'text-danger');
+                preview.textContent = 'Stok akhir = ' + fmt(result) + ' ' + state.unit;
+            }
+
+            submitBtn.disabled = !hasQty || tooMuch || notes === '';
+
+            document.getElementById('adjustDelta').value = delta.toFixed(3);
+            document.getElementById('adjustNotes').value = notes;
+
+            form.setAttribute('data-confirm-title', action + ' stok ' + state.name + '?');
+            form.setAttribute('data-confirm-text', [
+                'Bahan: ' + state.name,
+                'Tindakan: ' + action.toLowerCase() + ' stok ' + fmt(hasQty ? qty : 0) + ' ' + state.unit,
+                'Stok sekarang ' + fmt(state.stock) + ' ' + state.unit + ', stok akhir ' + fmt(result) + ' ' + state.unit,
+                'Alasan: ' + notes,
+                'Ini koreksi, bukan pembelian, dan tidak masuk jurnal.'
+            ].join('|'));
+            if (state.direction < 0) {
+                form.setAttribute('data-confirm-danger', '');
+            } else {
+                form.removeAttribute('data-confirm-danger');
+            }
+        };
+
+        document.querySelectorAll('.btn-adjust-stock').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                state.direction = parseInt(btn.dataset.direction, 10);
+                state.stock = parseFloat(btn.dataset.stockRaw) || 0;
+                state.unit = btn.dataset.unit;
+                state.name = btn.dataset.name;
+                var adding = state.direction > 0;
+
+                form.action = btn.dataset.action;
+                document.getElementById('adjustMaterialName').textContent = state.name;
+                document.getElementById('adjustDirectionLabel').textContent = adding ? 'Tambah Stok (Koreksi)' : 'Kurangi Stok';
+                document.getElementById('adjustExplain').textContent = adding
+                    ? 'Dipakai kalau stok di sistem lebih sedikit dari kenyataan. Stok akan bertambah sebanyak jumlah di bawah.'
+                    : 'Dipakai kalau bahan rusak, terbuang, atau stok di sistem lebih banyak dari kenyataan. Stok akan berkurang sebanyak jumlah di bawah.';
+                document.getElementById('adjustQtyHint').textContent = adding ? '(yang ditambahkan)' : '(yang dikurangi)';
+                document.getElementById('adjustCurrentStock').textContent = fmt(state.stock) + ' ' + state.unit;
+                document.getElementById('adjustUnit').textContent = state.unit;
+                submitBtn.className = 'btn ' + (adding ? 'btn-primary' : 'btn-danger');
+                submitBtn.textContent = adding ? 'Simpan Penambahan' : 'Simpan Pengurangan';
+
+                reasonSelect.innerHTML = '<option value="">-- Pilih alasan --</option>' + REASONS[String(state.direction)].map(function (r) {
+                    return '<option value="' + MitraForm.escapeHtml(r) + '">' + MitraForm.escapeHtml(r) + '</option>';
+                }).join('');
+                qtyInput.value = '';
+                detailInput.value = '';
+                MitraForm.unlock(form);
+                refresh();
+            });
+        });
+
+        [qtyInput, reasonSelect, detailInput].forEach(function (el) {
+            el.addEventListener('input', refresh);
+            el.addEventListener('change', refresh);
+        });
+    })();
 </script>
-@endpush
+@endsection
 @endif

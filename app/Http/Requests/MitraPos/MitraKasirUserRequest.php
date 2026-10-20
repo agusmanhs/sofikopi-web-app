@@ -29,4 +29,16 @@ class MitraKasirUserRequest extends BaseRequest
                 : 'nullable|string|min:6|max:255',
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'name.required' => 'Nama kasir wajib diisi.',
+            'email.required' => 'Email kasir wajib diisi.',
+            'email.email' => 'Format email belum benar.',
+            'email.unique' => 'Email ini sudah dipakai akun lain.',
+            'password.required' => 'Kata sandi wajib diisi.',
+            'password.min' => 'Kata sandi minimal 6 karakter.',
+        ];
+    }
 }

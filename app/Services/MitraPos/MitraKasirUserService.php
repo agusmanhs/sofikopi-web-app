@@ -29,11 +29,24 @@ class MitraKasirUserService
             ->get();
     }
 
+    /**
+     * @return array<int, int> user_id => jumlah transaksi yang pernah dibuat
+     */
+    public function transactionCounts(int $mitraId): array
+    {
+        return PosTransaction::forMitra($mitraId)
+            ->selectRaw('user_id, COUNT(*) as total')
+            ->groupBy('user_id')
+            ->pluck('total', 'user_id')
+            ->map(fn ($total) => (int) $total)
+            ->all();
+    }
+
     public function createKasir(int $mitraId, array $data): User
     {
         if ($this->listForMitra($mitraId)->count() >= self::MAX_KASIR_PER_MITRA) {
             throw ValidationException::withMessages([
-                'email' => 'Maksimal '.self::MAX_KASIR_PER_MITRA.' user kasir per mitra. Hapus salah satu kasir lama untuk menambah yang baru.',
+                'email' => 'Maksimal '.self::MAX_KASIR_PER_MITRA.' user kasir per mitra. Batas kasir sudah tercapai. Kasir yang sudah punya riwayat transaksi tidak bisa dihapus agar laporan tetap akurat. Untuk mengosongkan satu slot, hubungi admin Sofikopi.',
             ]);
         }
 
@@ -70,7 +83,7 @@ class MitraKasirUserService
 
         if (PosTransaction::forMitra($mitraId)->where('user_id', $kasir->id)->exists()) {
             throw ValidationException::withMessages([
-                'email' => 'Kasir ini sudah memiliki riwayat transaksi dan tidak bisa dihapus. Ganti password-nya saja untuk mencabut akses.',
+                'email' => 'Kasir ini sudah memiliki riwayat transaksi dan tidak bisa dihapus agar riwayat transaksi tetap utuh. Untuk mencabut akses, ganti kata sandinya.',
             ]);
         }
 

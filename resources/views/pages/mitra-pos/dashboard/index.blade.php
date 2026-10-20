@@ -15,6 +15,9 @@
 @endsection
 
 @section('content')
+@php
+    $canOpenReport = auth()->user()->can('access', [isset($mitra) ? 'mitra-pos-manage.index' : 'mitra-report.index', 'read']);
+@endphp
 <div class="container-xxl flex-grow-1 container-p-y">
     <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Mitra POS /</span> Dashboard @if(isset($mitra)) <span class="text-muted fw-light">— {{ $mitra->name }}</span> @endif</h4>
 
@@ -33,6 +36,10 @@
                     <div class="card-info mt-5">
                         <h5 class="mb-1">Rp {{ number_format($stats['revenue_today'], 0, ',', '.') }}</h5>
                         <p class="mb-0">Omzet Hari Ini</p>
+                        <p class="small text-muted mb-1">Total bayar (Grand Total) semua transaksi selesai hari ini, sudah termasuk pajak dan service charge. Transaksi yang dibatalkan tidak dihitung; potongan admin belum dikurangi.</p>
+                        @if ($canOpenReport)
+                        <a href="{{ $reportUrl }}" class="small">Lihat di Laporan Harian</a>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -50,6 +57,10 @@
                     <div class="card-info mt-5">
                         <h5 class="mb-1">Rp {{ number_format($stats['revenue_month'], 0, ',', '.') }}</h5>
                         <p class="mb-0">Omzet Bulan Ini</p>
+                        <p class="small text-muted mb-1">Sama seperti omzet hari ini, dihitung dari tanggal 1 bulan ini sampai hari ini.</p>
+                        @if ($canOpenReport)
+                        <a href="{{ $reportUrl }}" class="small">Lihat di Laporan Harian</a>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -67,6 +78,10 @@
                     <div class="card-info mt-5">
                         <h5 class="mb-1">{{ $stats['tx_count_today'] }} / {{ $stats['tx_count_month'] }}</h5>
                         <p class="mb-0">Transaksi (Hari Ini / Bulan Ini)</p>
+                        <p class="small text-muted mb-1">Jumlah transaksi selesai. Transaksi yang dibatalkan tidak dihitung.</p>
+                        @if ($canOpenReport)
+                        <a href="{{ $reportUrl }}" class="small">Lihat di Laporan Harian</a>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -86,6 +101,10 @@
                             Rp {{ number_format($stats['gross_profit_month'], 0, ',', '.') }}
                         </h5>
                         <p class="mb-0">Gross Profit Bulan Ini</p>
+                        <p class="small text-muted mb-1">Laba kotor = omzet bulan ini dikurangi biaya bahan + cadangan (Faktor Q). Potongan admin dan biaya lain belum dikurangi.</p>
+                        @if ($canOpenReport)
+                        <a href="{{ $reportUrl }}" class="small">Lihat di Laporan Harian</a>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -168,8 +187,8 @@
                                 <tr class="{{ $material->alert_level === 'red' ? 'table-danger' : 'table-warning' }}">
                                     <td>{{ $material->sku }}</td>
                                     <td>{{ $material->name }}</td>
-                                    <td class="text-end">{{ number_format($material->current_stock, 2, ',', '.') }}</td>
-                                    <td class="text-end">{{ number_format($material->min_stock, 2, ',', '.') }}</td>
+                                    <td class="text-end">{{ rtrim(rtrim(number_format($material->current_stock, 3, ',', '.'), '0'), ',') }}</td>
+                                    <td class="text-end">{{ rtrim(rtrim(number_format($material->min_stock, 3, ',', '.'), '0'), ',') }}</td>
                                     <td>{{ $material->unit }}</td>
                                 </tr>
                             @empty

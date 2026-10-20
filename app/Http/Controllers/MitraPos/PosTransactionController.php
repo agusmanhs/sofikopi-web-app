@@ -8,6 +8,7 @@ use App\Models\Mitra;
 use App\Models\MitraPosSetting;
 use App\Services\MitraPos\MitraContext;
 use App\Services\MitraPos\PosTransactionService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
@@ -20,12 +21,15 @@ class PosTransactionController extends Controller
 
     // --- Tenant portal (mitra-pos/transaction/...), mitra context from MitraContext ---
 
-    public function index()
+    public function index(Request $request)
     {
-        $transactions = $this->service->forMitra($this->mitraContext->id());
+        $mitraId = $this->mitraContext->id();
+        $filters = $this->validatedFilters($request);
+        $transactions = $this->service->forMitra($mitraId, 15, $filters);
+        $cashiers = $this->service->cashiersForMitra($mitraId);
         $routes = $this->routesFor(null);
 
-        return view('pages.mitra-pos.transaction.index', compact('transactions', 'routes'));
+        return view('pages.mitra-pos.transaction.index', compact('transactions', 'routes', 'filters', 'cashiers'));
     }
 
     /**
@@ -38,7 +42,10 @@ class PosTransactionController extends Controller
         $routes = $this->routesFor(null);
         $canVoid = (bool) auth()->user()?->hasPermission('pos-transaction.index', 'delete');
 
-        return view('pages.mitra-pos.transaction.show', compact('transaction', 'routes', 'canVoid'));
+        return view('pages.mitra-pos.transaction.show', array_merge(
+            compact('transaction', 'routes', 'canVoid'),
+            $this->detailExtras($transaction)
+        ));
     }
 
     /**
@@ -59,12 +66,14 @@ class PosTransactionController extends Controller
 
     // --- Sofikopi-staff admin (mitra-pos/manage/{mitra}/transaction/...) ---
 
-    public function adminIndex(Mitra $mitra)
+    public function adminIndex(Request $request, Mitra $mitra)
     {
-        $transactions = $this->service->forMitra($mitra->id);
+        $filters = $this->validatedFilters($request);
+        $transactions = $this->service->forMitra($mitra->id, 15, $filters);
+        $cashiers = $this->service->cashiersForMitra($mitra->id);
         $routes = $this->routesFor($mitra);
 
-        return view('pages.mitra-pos.transaction.index', compact('mitra', 'transactions', 'routes'));
+        return view('pages.mitra-pos.transaction.index', compact('mitra', 'transactions', 'routes', 'filters', 'cashiers'));
     }
 
     public function adminShow(Mitra $mitra, string $transaction)
@@ -73,7 +82,10 @@ class PosTransactionController extends Controller
         $routes = $this->routesFor($mitra);
         $canVoid = (bool) auth()->user()?->hasPermission('mitra-pos-manage.index', 'delete');
 
-        return view('pages.mitra-pos.transaction.show', compact('mitra', 'transaction', 'routes', 'canVoid'));
+        return view('pages.mitra-pos.transaction.show', array_merge(
+            compact('mitra', 'transaction', 'routes', 'canVoid'),
+            $this->detailExtras($transaction)
+        ));
     }
 
     public function adminVoid(VoidTransactionRequest $request, Mitra $mitra, string $transaction)
@@ -86,6 +98,33 @@ class PosTransactionController extends Controller
         $transaction = $this->service->findForMitra($mitra->id, $transaction);
 
         return $this->renderReceipt($mitra->id, $transaction, $mitra);
+    }
+
+    private function validatedFilters(Request $request): array
+    {
+        $validated = $request->validate([
+            'q' => 'nullable|string|max:60',
+            'status' => 'nullable|in:completed,voided',
+            'user_id' => 'nullable|integer',
+            'from' => 'nullable|date',
+            'to' => 'nullable|date|after_or_equal:from',
+        ], [
+            'status.in' => 'Status yang dipilih tidak dikenal.',
+            'user_id.integer' => 'Kasir yang dipilih tidak valid.',
+            'from.date' => 'Tanggal awal tidak valid.',
+            'to.date' => 'Tanggal akhir tidak valid.',
+            'to.after_or_equal' => 'Tanggal akhir tidak boleh lebih awal dari tanggal awal.',
+        ]);
+
+        return array_filter($validated, fn ($value) => $value !== null && $value !== '');
+    }
+
+    private function detailExtras($transaction): array
+    {
+        return [
+            'stockOut' => $this->service->stockOutFor($transaction),
+            'journalEntries' => $this->service->journalEntriesFor($transaction),
+        ];
     }
 
     private function renderReceipt(int $mitraId, $transaction, ?Mitra $mitra = null)
@@ -116,7 +155,7 @@ class PosTransactionController extends Controller
         }
 
         return redirect()->route($redirectRoute, $redirectParams)
-            ->with('success', 'Transaksi berhasil dibatalkan (void).');
+            ->with('success', 'Transaksi berhasil dibatalkan. Stok dikembalikan dan jurnal penjualan sudah dibalik.');
     }
 
     /**
@@ -137,6 +176,9 @@ class PosTransactionController extends Controller
             'void' => fn (string $transactionNo) => $mitra
                 ? route('mitra-pos-manage.transaction.void', [$mitra, $transactionNo])
                 : route('pos-transaction.void', $transactionNo),
+            'journal' => $mitra
+                ? route('mitra-pos-manage.akuntansi-jurnal.index', $mitra)
+                : route('akuntansi-jurnal.index'),
             'receipt' => fn (string $transactionNo) => $mitra
                 ? route('mitra-pos-manage.transaction.receipt', [$mitra, $transactionNo])
                 : route('pos-transaction.receipt', $transactionNo),

@@ -36,7 +36,12 @@ class MitraDashboardController extends Controller
         $stockAlerts = $this->service->stockAlerts($mitraId);
         $target = $this->service->target($mitraId);
 
+        $reportUrl = $mitra
+            ? route('mitra-pos-manage.report.index', $mitra)
+            : route('mitra-report.index');
+
         return view('pages.mitra-pos.dashboard.index', compact(
+            'reportUrl',
             'stats',
             'paymentMix',
             'topProducts',

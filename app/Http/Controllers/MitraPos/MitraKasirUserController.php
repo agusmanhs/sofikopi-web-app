@@ -27,8 +27,9 @@ class MitraKasirUserController extends Controller
     {
         $kasirs = $this->service->listForMitra($this->mitraContext->id());
         $maxKasir = MitraKasirUserService::MAX_KASIR_PER_MITRA;
+        $transactionCounts = $this->service->transactionCounts($this->mitraContext->id());
 
-        return view('pages.mitra-pos.kasir-user.index', compact('kasirs', 'maxKasir'));
+        return view('pages.mitra-pos.kasir-user.index', compact('kasirs', 'maxKasir', 'transactionCounts'));
     }
 
     public function store(MitraKasirUserRequest $request)

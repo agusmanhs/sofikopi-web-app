@@ -79,6 +79,32 @@ class MitraReportController extends Controller
      */
     private function resolvePeriod(Request $request): array
     {
+        $request->validate([
+            'from' => 'nullable|date',
+            'to' => [
+                'nullable',
+                'date',
+                'after_or_equal:from',
+                function ($attribute, $value, $fail) use ($request) {
+                    if (! $request->filled('from') || ! $value) {
+                        return;
+                    }
+                    try {
+                        $days = Carbon::parse($request->input('from'))->diffInDays(Carbon::parse($value));
+                    } catch (\Throwable $e) {
+                        return;
+                    }
+                    if ($days > 365) {
+                        $fail('Rentang tanggal maksimal 366 hari. Persempit tanggalnya, atau tampilkan per tahun secara bergantian.');
+                    }
+                },
+            ],
+        ], [
+            'from.date' => 'Tanggal awal tidak valid.',
+            'to.date' => 'Tanggal akhir tidak valid.',
+            'to.after_or_equal' => 'Tanggal akhir tidak boleh lebih awal dari tanggal awal.',
+        ]);
+
         $from = $request->filled('from')
             ? Carbon::parse($request->input('from'))->startOfDay()
             : Carbon::now()->startOfMonth();

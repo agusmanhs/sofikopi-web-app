@@ -69,7 +69,9 @@ class MitraOpnameController extends Controller
     private function renderIndex(int $mitraId, ?Mitra $mitra)
     {
         $opnames = MitraStockOpname::forMitra($mitraId)
+            ->with(['items', 'user'])
             ->orderByDesc('opname_date')
+            ->orderByDesc('id')
             ->paginate(15);
         $routes = $this->routesFor($mitra);
 
@@ -91,6 +93,7 @@ class MitraOpnameController extends Controller
         $data = $request->validated();
 
         $counts = collect($data['physical_qty'])
+            ->filter(fn ($qty) => $qty !== null && $qty !== '')
             ->map(fn ($qty, $materialId) => ['mitra_material_id' => (int) $materialId, 'physical_qty' => (float) $qty])
             ->values()
             ->all();

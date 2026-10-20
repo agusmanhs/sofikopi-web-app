@@ -11,6 +11,7 @@ use App\Repositories\MitraPos\MitraStockMovementRepository;
 use App\Services\BaseService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class MitraStockService extends BaseService
@@ -97,7 +98,7 @@ class MitraStockService extends BaseService
     public function movementsForMitra(int $mitraId, array $filters = [], int $perPage = 20)
     {
         $query = MitraStockMovement::forMitra($mitraId)
-            ->with(['material', 'user'])
+            ->with(['material', 'user', 'reference'])
             ->orderByDesc('created_at');
 
         if (! empty($filters['material_id'])) {
@@ -105,6 +106,13 @@ class MitraStockService extends BaseService
         }
         if (! empty($filters['type'])) {
             $query->where('type', $filters['type']);
+        }
+        if (! empty($filters['q'])) {
+            $term = '%'.$filters['q'].'%';
+            $query->where(function ($inner) use ($term) {
+                $inner->where('notes', 'like', $term)
+                    ->orWhereHas('material', fn ($material) => $material->where('name', 'like', $term)->orWhere('sku', 'like', $term));
+            });
         }
         if (! empty($filters['from'])) {
             $query->whereDate('created_at', '>=', $filters['from']);
@@ -126,10 +134,18 @@ class MitraStockService extends BaseService
             // Same unit_cost source as performOpname(): the material's own
             // harga_satuan, so the ledger's "nilai selisih" stays meaningful
             // for manual adjustments too.
-            $material = MitraMaterial::forMitra($mitraId)->where('id', $materialId)->first();
+            $material = MitraMaterial::forMitra($mitraId)->where('id', $materialId)->lockForUpdate()->first();
 
             if (! $material) {
                 throw new NotFoundHttpException('Material tidak ditemukan.');
+            }
+
+            $currentStock = (float) $material->current_stock;
+            if ($signedDelta < 0 && abs($signedDelta) > $currentStock + 0.0001) {
+                throw ValidationException::withMessages([
+                    'delta' => 'Stok '.$material->name.' saat ini hanya '.$this->formatQty($currentStock).' '.$material->unit
+                        .', tidak bisa dikurangi '.$this->formatQty(abs($signedDelta)).' '.$material->unit.'. Periksa lagi jumlahnya.',
+                ]);
             }
 
             return $this->applyMovement(
@@ -142,6 +158,11 @@ class MitraStockService extends BaseService
                 userId: $userId,
             );
         });
+    }
+
+    private function formatQty(float $qty): string
+    {
+        return rtrim(rtrim(number_format($qty, 3, ',', '.'), '0'), ',');
     }
 
     /**

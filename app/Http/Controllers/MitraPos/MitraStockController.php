@@ -11,6 +11,7 @@ use App\Services\MitraPos\MitraMaterialService;
 use App\Services\MitraPos\MitraStockService;
 use App\Traits\LogsActivity;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class MitraStockController extends Controller
 {
@@ -29,9 +30,9 @@ class MitraStockController extends Controller
      * active mitra is derived from MitraContext, set earlier by the
      * `mitra.user` middleware.
      */
-    public function index()
+    public function index(Request $request)
     {
-        return $this->renderIndex($this->mitraContext->id(), null);
+        return $this->renderIndex($request, $this->mitraContext->id(), null);
     }
 
     /**
@@ -60,7 +61,7 @@ class MitraStockController extends Controller
             mitraId: $mitraId,
             materialId: $material->id,
             signedDelta: (float) $data['delta'],
-            notes: $data['notes'] ?? 'Penyesuaian stok manual',
+            notes: $data['notes'],
             userId: auth()->id(),
         );
 
@@ -72,14 +73,14 @@ class MitraStockController extends Controller
         );
 
         return redirect()->route('mitra-stock.index')
-            ->with('success', 'Stok berhasil disesuaikan');
+            ->with('success', "Stok {$material->name} berhasil disesuaikan.");
     }
 
     // --- Sofikopi-staff admin (mitra-pos/manage/{mitra}/stock) ---
 
-    public function adminIndex(Mitra $mitra)
+    public function adminIndex(Request $request, Mitra $mitra)
     {
-        return $this->renderIndex($mitra->id, $mitra);
+        return $this->renderIndex($request, $mitra->id, $mitra);
     }
 
     public function adminMovements(Request $request, Mitra $mitra)
@@ -102,7 +103,7 @@ class MitraStockController extends Controller
             mitraId: $mitra->id,
             materialId: $material->id,
             signedDelta: (float) $data['delta'],
-            notes: $data['notes'] ?? 'Penyesuaian stok manual',
+            notes: $data['notes'],
             userId: auth()->id(),
         );
 
@@ -114,7 +115,7 @@ class MitraStockController extends Controller
         );
 
         return redirect()->route('mitra-material.index', $mitra)
-            ->with('success', 'Stok berhasil disesuaikan');
+            ->with('success', "Stok {$material->name} berhasil disesuaikan.");
     }
 
     /**
@@ -149,17 +150,25 @@ class MitraStockController extends Controller
             ->with('success', 'Pembelian stok berhasil dicatat');
     }
 
-    private function renderIndex(int $mitraId, ?Mitra $mitra)
+    private function renderIndex(Request $request, int $mitraId, ?Mitra $mitra)
     {
+        $search = trim((string) $request->query('q', ''));
         $materials = $this->materialService->forMitra($mitraId);
+
+        if ($search !== '') {
+            $materials = $materials->filter(
+                fn ($material) => Str::contains(Str::lower($material->name.' '.$material->sku), Str::lower($search))
+            )->values();
+        }
+
         $routes = $this->routesFor($mitra);
 
-        return view('pages.mitra-pos.stock.index', compact('materials', 'mitra', 'routes'));
+        return view('pages.mitra-pos.stock.index', compact('materials', 'mitra', 'routes', 'search'));
     }
 
     private function renderMovements(Request $request, int $mitraId, ?Mitra $mitra)
     {
-        $filters = $request->only(['material_id', 'type', 'from', 'to']);
+        $filters = $request->only(['q', 'material_id', 'type', 'from', 'to']);
 
         $movements = $this->stockService->movementsForMitra($mitraId, $filters);
         $materials = $this->materialService->forMitra($mitraId);
@@ -191,6 +200,12 @@ class MitraStockController extends Controller
                 ? route('mitra-pos-manage.opname.index', $mitra)
                 : route('mitra-opname.index'),
             'material' => route('mitra-material.index', $mitra ?? auth()->user()->mitra),
+            'transaction_show' => fn (string $transactionNo) => $mitra
+                ? route('mitra-pos-manage.transaction.show', [$mitra, $transactionNo])
+                : route('pos-transaction.show', $transactionNo),
+            'opname_show' => fn (string $opnameNo) => $mitra
+                ? route('mitra-pos-manage.opname.show', [$mitra, $opnameNo])
+                : route('mitra-opname.show', $opnameNo),
             'product' => route('mitra-product.index', $mitra ?? auth()->user()->mitra),
         ];
     }

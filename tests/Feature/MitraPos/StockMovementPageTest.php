@@ -53,8 +53,16 @@ class StockMovementPageTest extends TestCase
 
         $response->assertOk()
             ->assertSee($lallo->name)
-            ->assertSee('Keluar')
-            ->assertSee('Transaksi POS');
+            ->assertSee('Penjualan POS POS/');
+
+        $row = '';
+        foreach (explode('<tr', $response->getContent()) as $candidate) {
+            if (str_contains($candidate, 'Penjualan POS POS/')) {
+                $row = $candidate;
+                break;
+            }
+        }
+        $this->assertStringContainsString('bg-label-danger">Keluar', $row);
     }
 
     public function test_kasir_can_also_view_movement_history(): void

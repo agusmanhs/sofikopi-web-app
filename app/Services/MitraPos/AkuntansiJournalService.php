@@ -171,17 +171,82 @@ class AkuntansiJournalService extends BaseService
         );
     }
 
-    public function listForMitra(int $mitraId, int $perPage = 20)
+    /**
+     * @param  array{from?: ?string, to?: ?string, q?: ?string, account_id?: int|string|null, transaction?: ?string}  $filters
+     */
+    public function listForMitra(int $mitraId, int $perPage = 20, array $filters = [])
     {
-        return AkuntansiJournalEntry::forMitra($mitraId)
+        $query = AkuntansiJournalEntry::forMitra($mitraId)
             ->with([
                 'lines.account',
                 'user',
                 'reference' => fn (MorphTo $morph) => $morph->morphWith([PosTransaction::class => ['items']]),
-            ])
+            ]);
+
+        $this->applyFilters($query, $mitraId, $filters);
+
+        return $query
             ->orderByDesc('entry_date')
             ->orderByDesc('id')
-            ->paginate($perPage);
+            ->paginate($perPage)
+            ->withQueryString();
+    }
+
+    /**
+     * Ringkasan satu akun untuk daftar jurnal yang sedang difilter: hanya baris
+     * milik akun itu, supaya angka di Neraca/Laba Rugi bisa dicocokkan.
+     *
+     * @return array{account: AkuntansiAccount, opening_balance: float, total_debit: float, total_credit: float}|null
+     */
+    public function accountSummary(int $mitraId, int $accountId, array $filters): ?array
+    {
+        $account = AkuntansiAccount::forMitra($mitraId)->find($accountId);
+        if (! $account) {
+            return null;
+        }
+
+        $entryQuery = AkuntansiJournalEntry::forMitra($mitraId);
+        $this->applyFilters($entryQuery, $mitraId, $filters);
+
+        $totals = DB::table('akuntansi_journal_lines')
+            ->where('akuntansi_account_id', $account->id)
+            ->whereIn('journal_entry_id', $entryQuery->select('akuntansi_journal_entries.id'))
+            ->selectRaw('COALESCE(SUM(debit), 0) as total_debit, COALESCE(SUM(credit), 0) as total_credit')
+            ->first();
+
+        return [
+            'account' => $account,
+            'opening_balance' => (float) $account->opening_balance,
+            'total_debit' => (float) $totals->total_debit,
+            'total_credit' => (float) $totals->total_credit,
+        ];
+    }
+
+    private function applyFilters($query, int $mitraId, array $filters): void
+    {
+        if (! empty($filters['from'])) {
+            $query->where('entry_date', '>=', $filters['from']);
+        }
+
+        if (! empty($filters['to'])) {
+            $query->where('entry_date', '<=', $filters['to']);
+        }
+
+        if (! empty($filters['q'])) {
+            $term = '%'.addcslashes($filters['q'], '%_\\').'%';
+            $query->where(fn ($q) => $q->where('description', 'like', $term)->orWhere('entry_no', 'like', $term));
+        }
+
+        if (! empty($filters['account_id'])) {
+            $query->whereHas('lines', fn ($q) => $q->where('akuntansi_account_id', (int) $filters['account_id']));
+        }
+
+        if (! empty($filters['transaction'])) {
+            $transactionId = PosTransaction::forMitra($mitraId)->where('transaction_no', $filters['transaction'])->value('id');
+            $transactionId
+                ? $query->where('reference_type', (new PosTransaction)->getMorphClass())->where('reference_id', $transactionId)
+                : $query->whereRaw('1 = 0');
+        }
     }
 
     /**
@@ -243,6 +308,20 @@ class AkuntansiJournalService extends BaseService
         $labaBerjalan = $this->cumulativeLabaRugi($mitraId, $sums);
         $totals['modal'] += $labaBerjalan;
 
+        $inactiveWithBalance = AkuntansiAccount::forMitra($mitraId)
+            ->where('is_postable', true)
+            ->where('is_active', false)
+            ->orderBy('code')
+            ->get()
+            ->map(fn (AkuntansiAccount $account) => [
+                'account' => $account,
+                'saldo' => (float) $account->opening_balance + $this->accountDelta($account, $sums),
+                'has_lines' => $sums->has($account->id),
+            ])
+            ->filter(fn (array $row) => $row['has_lines'] || abs((float) $row['account']->opening_balance) >= 0.005)
+            ->values()
+            ->all();
+
         return [
             'as_of_date' => $asOfDate,
             'aset' => $rows['aset'],
@@ -254,6 +333,7 @@ class AkuntansiJournalService extends BaseService
             'laba_berjalan' => $labaBerjalan,
             'total_pasiva' => $totals['kewajiban'] + $totals['modal'],
             'total_kas' => $totalKas,
+            'inactive_with_balance' => $inactiveWithBalance,
         ];
     }
 
@@ -389,8 +469,8 @@ class AkuntansiJournalService extends BaseService
             }
 
             $resolvedLines = collect($lines)->map(function (array $line) use ($mitraId) {
-                $debit = (float) ($line['debit'] ?? 0);
-                $credit = (float) ($line['credit'] ?? 0);
+                $debit = round((float) ($line['debit'] ?? 0), 2);
+                $credit = round((float) ($line['credit'] ?? 0), 2);
 
                 if ($debit > 0 && $credit > 0) {
                     throw new RuntimeException('Satu baris jurnal tidak boleh mengisi debit dan kredit sekaligus.');
@@ -409,8 +489,21 @@ class AkuntansiJournalService extends BaseService
                     throw new RuntimeException("Akun tidak ditemukan atau bukan akun postable (id: {$line['account_id']}).");
                 }
 
+                if (! $account->is_active) {
+                    throw new RuntimeException("Akun {$account->code} {$account->name} sedang tidak aktif, jadi tidak bisa dipakai di jurnal. Aktifkan dulu di Daftar Akun.");
+                }
+
                 return ['account' => $account, 'debit' => $debit, 'credit' => $credit];
             })->all();
+
+            $debitCents = (int) round(array_sum(array_map(fn ($l) => $l['debit'] * 100, $resolvedLines)));
+            $creditCents = (int) round(array_sum(array_map(fn ($l) => $l['credit'] * 100, $resolvedLines)));
+
+            if ($debitCents !== $creditCents) {
+                $selisih = number_format(abs($debitCents - $creditCents) / 100, 2, ',', '.');
+
+                throw new RuntimeException("Jurnal tidak seimbang: total Debit dan total Kredit harus sama (selisih Rp {$selisih}).");
+            }
 
             return $this->createEntry(
                 mitraId: $mitraId,

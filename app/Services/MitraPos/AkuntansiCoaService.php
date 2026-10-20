@@ -3,15 +3,43 @@
 namespace App\Services\MitraPos;
 
 use App\Models\AkuntansiAccount;
+use App\Models\AkuntansiJournalLine;
 use App\Repositories\MitraPos\AkuntansiAccountRepository;
 use App\Services\BaseService;
 use Database\Seeders\AkuntansiCoaTemplateSeeder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class AkuntansiCoaService extends BaseService
 {
+    public const JENIS_LABELS = [
+        'aset' => 'Aset',
+        'kewajiban' => 'Kewajiban',
+        'modal' => 'Modal',
+        'pendapatan' => 'Pendapatan',
+        'hpp' => 'Harga Pokok',
+        'biaya_adm_umum' => 'Biaya',
+    ];
+
+    private const DEBIT_NORMAL = ['aset', 'hpp', 'biaya_adm_umum'];
+
+    public static function jenisLabel(?string $accountType): string
+    {
+        return self::JENIS_LABELS[$accountType] ?? '-';
+    }
+
+    public static function normalSideLabel(?string $accountType): string
+    {
+        if ($accountType === null) {
+            return '';
+        }
+
+        return in_array($accountType, self::DEBIT_NORMAL, true) ? 'bertambah di Debit' : 'bertambah di Kredit';
+    }
+
     public function __construct(AkuntansiAccountRepository $repository)
     {
         parent::__construct($repository);
@@ -49,24 +77,74 @@ class AkuntansiCoaService extends BaseService
     }
 
     /**
-     * Only postable (leaf) accounts can be toggled — header/group rows are
-     * structural display rows, never posted to, so "active" has no meaning
-     * for them.
+     * Menyimpan seluruh baris COA sekaligus (semua atau tidak sama sekali).
+     * Hanya baris yang ikut dikirim form yang diproses. Akun tidak boleh
+     * dinonaktifkan bila sudah dipakai jurnal, punya saldo awal, atau dipakai
+     * posting otomatis — kalau tidak, Neraca jadi tidak seimbang diam-diam.
+     *
+     * @param  array<int, array{is_active: bool, opening_balance: float}>  $rows  keyed by account id
      */
-    public function toggleActive(int $mitraId, int $accountId, bool $isActive): AkuntansiAccount
+    public function updateMany(int $mitraId, array $rows): void
     {
-        $account = $this->findPostableForMitra($mitraId, $accountId);
-        $account->update(['is_active' => $isActive]);
+        DB::transaction(function () use ($mitraId, $rows) {
+            $accounts = AkuntansiAccount::forMitra($mitraId)
+                ->where('is_postable', true)
+                ->whereIn('id', array_keys($rows))
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
 
-        return $account;
+            $usedIds = AkuntansiJournalLine::whereIn('akuntansi_account_id', $accounts->keys())
+                ->distinct()
+                ->pluck('akuntansi_account_id')
+                ->flip();
+
+            $errors = [];
+
+            foreach ($rows as $accountId => $row) {
+                $account = $accounts->get($accountId);
+                if (! $account) {
+                    throw new NotFoundHttpException('Akun tidak ditemukan.');
+                }
+
+                if (! $account->is_active || $row['is_active']) {
+                    continue;
+                }
+
+                $reason = $this->deactivationBlocker($account, $row['opening_balance'], $usedIds->has($account->id));
+                if ($reason) {
+                    $errors['is_active.'.$account->id] = "Akun {$account->code} {$account->name} tidak bisa dinonaktifkan: {$reason}";
+                }
+            }
+
+            if ($errors) {
+                throw ValidationException::withMessages($errors);
+            }
+
+            foreach ($rows as $accountId => $row) {
+                $accounts->get($accountId)->update([
+                    'is_active' => $row['is_active'],
+                    'opening_balance' => $row['opening_balance'],
+                ]);
+            }
+        });
     }
 
-    public function updateOpeningBalance(int $mitraId, int $accountId, float $amount): AkuntansiAccount
+    private function deactivationBlocker(AkuntansiAccount $account, float $newOpeningBalance, bool $hasJournalLines): ?string
     {
-        $account = $this->findPostableForMitra($mitraId, $accountId);
-        $account->update(['opening_balance' => $amount]);
+        if ($account->system_role !== null) {
+            return 'akun ini dipakai otomatis oleh kasir/stok, jadi harus tetap aktif.';
+        }
 
-        return $account;
+        if ($hasJournalLines) {
+            return 'akun ini sudah dipakai di jurnal. Menonaktifkannya membuat Neraca tidak seimbang.';
+        }
+
+        if (abs($newOpeningBalance) >= 0.005) {
+            return 'akun ini masih punya saldo awal. Kosongkan saldo awalnya (isi 0) lebih dulu.';
+        }
+
+        return null;
     }
 
     private function findPostableForMitra(int $mitraId, int $accountId): AkuntansiAccount

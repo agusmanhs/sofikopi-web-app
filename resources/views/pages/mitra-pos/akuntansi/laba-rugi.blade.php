@@ -1,23 +1,44 @@
 @extends('layouts/layoutMaster')
 
-@section('title', 'Laba Rugi')
+@section('title', 'Laba Rugi' . (isset($mitra) ? ' - ' . $mitra->name : ''))
+
+@php
+    $from = $labaRugi['from'];
+    $to = $labaRugi['to'];
+    $fromLabel = $from->copy()->locale('id')->translatedFormat($from->year === $to->year ? 'j M' : 'j M Y');
+    $toLabel = $to->copy()->locale('id')->translatedFormat('j M Y');
+    $accountLink = fn ($account) => $routes['jurnal'].'?'.http_build_query(['account_id' => $account->id, 'from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d')]);
+    $roleHints = [
+        'beban_overhead_produksi' => 'Biaya produksi tidak langsung (listrik, gas, dll.) yang dibebankan ke setiap penjualan.',
+    ];
+@endphp
 
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
-    <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Mitra POS / Akuntansi /</span> Laba Rugi</h4>
+    <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Mitra POS / Akuntansi /</span> Laba Rugi periode {{ $fromLabel }} - {{ $toLabel }}</h4>
 
     @include('pages.mitra-pos.akuntansi._nav')
+
+    @if($errors->any())
+    <div class="alert alert-danger">
+        <ul class="mb-0 ps-3">
+            @foreach($errors->all() as $error)
+            <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+    @endif
 
     <div class="card mb-4">
         <div class="card-body">
             <form method="GET" class="row align-items-end">
                 <div class="col-md-3">
                     <label class="form-label">Dari Tanggal</label>
-                    <input type="date" name="from" class="form-control" value="{{ $labaRugi['from']->format('Y-m-d') }}">
+                    <input type="date" name="from" class="form-control" value="{{ $from->format('Y-m-d') }}">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Sampai Tanggal</label>
-                    <input type="date" name="to" class="form-control" value="{{ $labaRugi['to']->format('Y-m-d') }}">
+                    <input type="date" name="to" class="form-control" value="{{ $to->format('Y-m-d') }}">
                 </div>
                 <div class="col-md-2">
                     <button type="submit" class="btn btn-primary">Tampilkan</button>
@@ -36,7 +57,7 @@
                     @foreach($labaRugi['pendapatan'] as $row)
                     <tr>
                         <td class="ps-4">{{ $row['account']->name }}</td>
-                        <td class="text-end">Rp {{ number_format($row['amount'], 0, ',', '.') }}</td>
+                        <td class="text-end"><a href="{{ $accountLink($row['account']) }}">Rp {{ number_format($row['amount'], 0, ',', '.') }}</a></td>
                     </tr>
                     @endforeach
                     <tr class="fw-bold">
@@ -45,12 +66,20 @@
                     </tr>
 
                     <tr class="table-light">
-                        <td colspan="2" class="fw-bold">Harga Pokok Penjualan</td>
+                        <td colspan="2">
+                            <span class="fw-bold">Harga Pokok Penjualan</span>
+                            <div class="small text-muted">Modal bahan dan biaya produksi dari barang yang terjual.</div>
+                        </td>
                     </tr>
                     @foreach($labaRugi['hpp'] as $row)
                     <tr>
-                        <td class="ps-4">{{ $row['account']->name }}</td>
-                        <td class="text-end">Rp {{ number_format($row['amount'], 0, ',', '.') }}</td>
+                        <td class="ps-4">
+                            {{ $row['account']->name }}
+                            @if(isset($roleHints[$row['account']->system_role]))
+                            <div class="small text-muted">{{ $roleHints[$row['account']->system_role] }}</div>
+                            @endif
+                        </td>
+                        <td class="text-end"><a href="{{ $accountLink($row['account']) }}">Rp {{ number_format($row['amount'], 0, ',', '.') }}</a></td>
                     </tr>
                     @endforeach
                     <tr class="fw-bold">
@@ -59,12 +88,20 @@
                     </tr>
 
                     <tr class="table-light">
-                        <td colspan="2" class="fw-bold">Biaya Administrasi &amp; Umum</td>
+                        <td colspan="2">
+                            <span class="fw-bold">Biaya Administrasi &amp; Umum</span>
+                            <div class="small text-muted">Biaya operasional harian di luar bahan baku, misalnya biaya bank, listrik kantor, dan gaji.</div>
+                        </td>
                     </tr>
                     @foreach($labaRugi['biaya_adm_umum'] as $row)
                     <tr>
-                        <td class="ps-4">{{ $row['account']->name }}</td>
-                        <td class="text-end">Rp {{ number_format($row['amount'], 0, ',', '.') }}</td>
+                        <td class="ps-4">
+                            {{ $row['account']->name }}
+                            @if(isset($roleHints[$row['account']->system_role]))
+                            <div class="small text-muted">{{ $roleHints[$row['account']->system_role] }}</div>
+                            @endif
+                        </td>
+                        <td class="text-end"><a href="{{ $accountLink($row['account']) }}">Rp {{ number_format($row['amount'], 0, ',', '.') }}</a></td>
                     </tr>
                     @endforeach
                     <tr class="fw-bold">

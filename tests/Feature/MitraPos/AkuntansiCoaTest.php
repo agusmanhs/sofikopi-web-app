@@ -79,7 +79,7 @@ class AkuntansiCoaTest extends TestCase
     public function test_unchecked_account_is_deactivated_on_submit(): void
     {
         $account = AkuntansiAccount::forMitra($this->mitra->id)
-            ->where('system_role', 'kas_kasir')
+            ->where('code', '10113')
             ->firstOrFail();
         $this->assertTrue($account->is_active);
 

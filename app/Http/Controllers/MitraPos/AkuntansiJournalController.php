@@ -9,6 +9,7 @@ use App\Services\MitraPos\AkuntansiCoaService;
 use App\Services\MitraPos\AkuntansiJournalService;
 use App\Services\MitraPos\MitraContext;
 use App\Traits\LogsActivity;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use RuntimeException;
 
@@ -24,12 +25,9 @@ class AkuntansiJournalController extends Controller
 
     // --- Tenant portal (mitra-pos/akuntansi/jurnal), mitra context from MitraContext ---
 
-    public function index()
+    public function index(Request $request)
     {
-        $entries = $this->service->listForMitra($this->mitraContext->id());
-        $routes = $this->routesFor(null);
-
-        return view('pages.mitra-pos.akuntansi.jurnal-index', compact('entries', 'routes'));
+        return $this->renderIndex($request, $this->mitraContext->id(), null);
     }
 
     public function create()
@@ -47,12 +45,9 @@ class AkuntansiJournalController extends Controller
 
     // --- Sofikopi-staff admin (mitra-pos/manage/{mitra}/akuntansi/jurnal) ---
 
-    public function adminIndex(Mitra $mitra)
+    public function adminIndex(Request $request, Mitra $mitra)
     {
-        $entries = $this->service->listForMitra($mitra->id);
-        $routes = $this->routesFor($mitra);
-
-        return view('pages.mitra-pos.akuntansi.jurnal-index', compact('mitra', 'entries', 'routes'));
+        return $this->renderIndex($request, $mitra->id, $mitra);
     }
 
     public function adminCreate(Mitra $mitra)
@@ -66,6 +61,31 @@ class AkuntansiJournalController extends Controller
     public function adminStore(AkuntansiJournalStoreRequest $request, Mitra $mitra)
     {
         return $this->handleStore($request, $mitra->id, 'mitra-pos-manage.akuntansi-jurnal.index', [$mitra]);
+    }
+
+    private function renderIndex(Request $request, int $mitraId, ?Mitra $mitra)
+    {
+        $filters = $request->validate([
+            'from' => 'nullable|date_format:Y-m-d',
+            'to' => $request->filled('from') ? 'nullable|date_format:Y-m-d|after_or_equal:from' : 'nullable|date_format:Y-m-d',
+            'q' => 'nullable|string|max:100',
+            'account_id' => 'nullable|integer',
+            'transaction' => 'nullable|string|max:60',
+        ], [
+            'from.date_format' => 'Tanggal "Dari" tidak valid.',
+            'to.date_format' => 'Tanggal "Sampai" tidak valid.',
+            'to.after_or_equal' => 'Tanggal "Sampai" tidak boleh lebih awal dari tanggal "Dari".',
+            'q.max' => 'Kata pencarian maksimal 100 huruf.',
+        ]);
+
+        $entries = $this->service->listForMitra($mitraId, 20, $filters);
+        $filterAccounts = $this->coaService->listForMitra($mitraId)->where('is_postable', true)->values();
+        $routes = $this->routesFor($mitra);
+        $accountSummary = ! empty($filters['account_id'])
+            ? $this->service->accountSummary($mitraId, (int) $filters['account_id'], $filters)
+            : null;
+
+        return view('pages.mitra-pos.akuntansi.jurnal-index', compact('mitra', 'entries', 'routes', 'filters', 'filterAccounts', 'accountSummary'));
     }
 
     private function postableActiveAccounts(int $mitraId)

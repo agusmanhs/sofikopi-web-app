@@ -8,9 +8,12 @@ use App\Services\MitraPos\AkuntansiJournalService;
 use App\Services\MitraPos\MitraContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Validator;
 
 class AkuntansiReportController extends Controller
 {
+    private const MAX_RANGE_DAYS = 366;
+
     public function __construct(
         protected AkuntansiJournalService $service,
         protected MitraContext $mitraContext
@@ -42,27 +45,64 @@ class AkuntansiReportController extends Controller
 
     private function renderNeraca(Request $request, int $mitraId, ?Mitra $mitra)
     {
+        $routes = $this->routesFor($mitra);
+
+        $validator = Validator::make($request->only('as_of_date'), [
+            'as_of_date' => 'nullable|date_format:Y-m-d',
+        ], [
+            'as_of_date.date_format' => 'Tanggal Neraca tidak valid. Pilih tanggal dari kalender.',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect($routes['neraca'])->withErrors($validator);
+        }
+
         $asOfDate = $request->filled('as_of_date')
-            ? Carbon::parse($request->input('as_of_date'))
+            ? Carbon::createFromFormat('Y-m-d', $request->input('as_of_date'))->startOfDay()
             : Carbon::now();
 
         $neraca = $this->service->neraca($mitraId, $asOfDate);
-        $routes = $this->routesFor($mitra);
 
         return view('pages.mitra-pos.akuntansi.neraca', compact('neraca', 'mitra', 'routes'));
     }
 
     private function renderLabaRugi(Request $request, int $mitraId, ?Mitra $mitra)
     {
+        $routes = $this->routesFor($mitra);
+
+        $validator = Validator::make($request->only('from', 'to'), [
+            'from' => 'nullable|date_format:Y-m-d',
+            'to' => $request->filled('from') ? 'nullable|date_format:Y-m-d|after_or_equal:from' : 'nullable|date_format:Y-m-d',
+        ], [
+            'from.date_format' => 'Tanggal "Dari" tidak valid. Pilih tanggal dari kalender.',
+            'to.date_format' => 'Tanggal "Sampai" tidak valid. Pilih tanggal dari kalender.',
+            'to.after_or_equal' => 'Tanggal "Sampai" tidak boleh lebih awal dari tanggal "Dari".',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect($routes['laba_rugi'])->withErrors($validator);
+        }
+
         $from = $request->filled('from')
-            ? Carbon::parse($request->input('from'))
+            ? Carbon::createFromFormat('Y-m-d', $request->input('from'))->startOfDay()
             : Carbon::now()->startOfMonth();
         $to = $request->filled('to')
-            ? Carbon::parse($request->input('to'))
-            : Carbon::now()->endOfMonth();
+            ? Carbon::createFromFormat('Y-m-d', $request->input('to'))->startOfDay()
+            : Carbon::now()->endOfMonth()->startOfDay();
+
+        if ($from->gt($to)) {
+            return redirect($routes['laba_rugi'])->withErrors([
+                'to' => 'Tanggal "Sampai" tidak boleh lebih awal dari tanggal "Dari".',
+            ]);
+        }
+
+        if ($from->diffInDays($to) > self::MAX_RANGE_DAYS) {
+            return redirect($routes['laba_rugi'])->withErrors([
+                'to' => 'Rentang tanggal terlalu panjang. Pilih paling lama 1 tahun (366 hari).',
+            ]);
+        }
 
         $labaRugi = $this->service->labaRugi($mitraId, $from, $to);
-        $routes = $this->routesFor($mitra);
 
         return view('pages.mitra-pos.akuntansi.laba-rugi', compact('labaRugi', 'mitra', 'routes'));
     }

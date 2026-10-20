@@ -49,30 +49,29 @@ class AkuntansiCoaController extends Controller
     }
 
     /**
-     * One form submit for the whole COA table: checkboxes only appear in
-     * the request body for postable rows that were ticked, and every
-     * postable row always has an opening_balance input — so we iterate the
-     * full postable list rather than trusting request keys as the source
-     * of truth (an unticked checkbox must still turn is_active off).
+     * One form submit for the whole COA table. Only the rows the form
+     * actually sent (every postable row has an opening_balance input) are
+     * processed; an unticked checkbox is absent from is_active and must
+     * still turn that row off.
      */
     private function handleUpdate(AkuntansiCoaUpdateRequest $request, int $mitraId, string $redirectRoute, array $redirectParams)
     {
         $data = $request->validated();
 
-        $accounts = $this->service->listForMitra($mitraId)->where('is_postable', true);
-
-        foreach ($accounts as $account) {
-            $isActive = isset($data['is_active'][$account->id]);
-            $openingBalance = (float) ($data['opening_balance'][$account->id] ?? 0);
-
-            $this->service->toggleActive($mitraId, $account->id, $isActive);
-            $this->service->updateOpeningBalance($mitraId, $account->id, $openingBalance);
+        $rows = [];
+        foreach ($data['opening_balance'] ?? [] as $accountId => $balance) {
+            $rows[(int) $accountId] = [
+                'is_active' => isset($data['is_active'][$accountId]),
+                'opening_balance' => (float) ($balance ?? 0),
+            ];
         }
 
-        $this->logActivity('updated', 'mitra-pos', 'Memperbarui Chart of Account (aktif/saldo awal)');
+        $this->service->updateMany($mitraId, $rows);
+
+        $this->logActivity('updated', 'mitra-pos', 'Memperbarui Daftar Akun (aktif/saldo awal)');
 
         return redirect()->route($redirectRoute, $redirectParams)
-            ->with('success', 'Chart of Account berhasil disimpan.');
+            ->with('success', 'Daftar Akun berhasil disimpan.');
     }
 
     /**

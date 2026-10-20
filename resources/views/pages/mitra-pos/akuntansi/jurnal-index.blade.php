@@ -1,6 +1,6 @@
 @extends('layouts/layoutMaster')
 
-@section('title', 'Jurnal Akuntansi')
+@section('title', 'Jurnal Akuntansi' . (isset($mitra) ? ' - ' . $mitra->name : ''))
 
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
@@ -17,6 +17,87 @@
 
     @if (session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
+    @endif
+
+    @if ($errors->any())
+        <div class="alert alert-danger">
+            <ul class="mb-0 ps-3">
+                @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    @php
+        $hasFilter = collect($filters ?? [])->filter(fn ($value) => $value !== null && $value !== '')->isNotEmpty();
+        $selectedAccount = ! empty($filters['account_id']) ? $filterAccounts->firstWhere('id', (int) $filters['account_id']) : null;
+    @endphp
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ $routes['index'] }}" class="row g-3 align-items-end">
+                @if (! empty($filters['transaction']))
+                <input type="hidden" name="transaction" value="{{ $filters['transaction'] }}">
+                @endif
+                <div class="col-md-2">
+                    <label class="form-label" for="filter-from">Dari Tanggal</label>
+                    <input type="date" id="filter-from" name="from" class="form-control" value="{{ $filters['from'] ?? '' }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="filter-to">Sampai Tanggal</label>
+                    <input type="date" id="filter-to" name="to" class="form-control" value="{{ $filters['to'] ?? '' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="filter-q">Cari keterangan / no. jurnal</label>
+                    <input type="text" id="filter-q" name="q" class="form-control" maxlength="100" value="{{ $filters['q'] ?? '' }}" placeholder="Contoh: listrik">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="filter-account">Akun (opsional)</label>
+                    <select id="filter-account" name="account_id" class="form-select">
+                        <option value="">Semua akun</option>
+                        @foreach ($filterAccounts as $account)
+                        <option value="{{ $account->id }}" @selected((int) ($filters['account_id'] ?? 0) === $account->id)>{{ $account->code }} - {{ $account->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Tampilkan</button>
+                    @if ($hasFilter)
+                    <a href="{{ $routes['index'] }}" class="btn btn-outline-secondary">Reset</a>
+                    @endif
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <p class="text-muted mb-2">
+        @if ($hasFilter)
+            Ditemukan <strong>{{ number_format($entries->total(), 0, ',', '.') }}</strong> jurnal sesuai filter
+            @if (! empty($filters['transaction']))
+                untuk transaksi <strong>{{ $filters['transaction'] }}</strong>
+            @endif
+            @if ($selectedAccount)
+                pada akun <strong>{{ $selectedAccount->code }} {{ $selectedAccount->name }}</strong>
+            @endif
+            .
+        @else
+            Total <strong>{{ number_format($entries->total(), 0, ',', '.') }}</strong> jurnal.
+        @endif
+    </p>
+
+    @if (! empty($accountSummary))
+    <div class="card mb-4">
+        <div class="card-body py-3">
+            <div class="fw-semibold mb-2">{{ $accountSummary['account']->code }} {{ $accountSummary['account']->name }}</div>
+            <div class="row g-2 small">
+                <div class="col-md-4"><span class="text-muted">Saldo awal</span><br>Rp {{ number_format($accountSummary['opening_balance'], 0, ',', '.') }}</div>
+                <div class="col-md-4"><span class="text-muted">Total Debit (jurnal di bawah)</span><br>Rp {{ number_format($accountSummary['total_debit'], 0, ',', '.') }}</div>
+                <div class="col-md-4"><span class="text-muted">Total Kredit (jurnal di bawah)</span><br>Rp {{ number_format($accountSummary['total_credit'], 0, ',', '.') }}</div>
+            </div>
+            <div class="small text-muted mt-2">Hanya baris milik akun ini yang dihitung. Saldo awal tidak tercatat di jurnal.</div>
+        </div>
+    </div>
     @endif
 
     <div class="card">
@@ -51,7 +132,15 @@
                                     @break
                                 @case('pos_void')
                                     <span class="badge bg-label-danger">Void POS</span>
+                                    @if ($trx)
+                                    <div class="small mt-1"><a href="{{ $routes['index'] }}?{{ http_build_query(['transaction' => $trx->transaction_no]) }}" onclick="event.stopPropagation()">Lihat jurnal penjualan asli</a></div>
+                                    @endif
                                     @break
+                                @case('stock_purchase')
+                                    <span class="badge bg-label-info">Pembelian Stok</span>
+                                    @break
+                                @default
+                                    <span class="badge bg-label-secondary">Lainnya</span>
                             @endswitch
                         </td>
                         <td class="text-end">Rp {{ number_format($entry->nilai_transaksi, 0, ',', '.') }}</td>
@@ -132,14 +221,14 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-4">Belum ada jurnal.</td>
+                        <td colspan="5" class="text-center text-muted py-4">{{ $hasFilter ? 'Tidak ada jurnal yang cocok dengan filter ini.' : 'Belum ada jurnal.' }}</td>
                     </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
         <div class="card-footer">
-            {{ $entries->links() }}
+            {{ $entries->withQueryString()->links() }}
         </div>
     </div>
 </div>

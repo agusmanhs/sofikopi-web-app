@@ -33,14 +33,35 @@ class MitraDashboardController extends Controller
         $stats = $this->service->stats($mitraId);
         $paymentMix = $this->service->paymentMix($mitraId);
         $topProducts = $this->service->topProducts($mitraId);
-        $stockAlerts = $this->service->stockAlerts($mitraId);
+        $allStockAlerts = $this->service->stockAlerts($mitraId);
+        $stockAlertCounts = [
+            'habis' => $allStockAlerts->where('alert_level', 'red')->count(),
+            'menipis' => $allStockAlerts->where('alert_level', 'yellow')->count(),
+            'total' => $allStockAlerts->count(),
+        ];
+        // Dashboard hanya menampilkan yang paling mendesak; sisanya lewat "Lihat semua".
+        $stockAlerts = $allStockAlerts->take(5);
         $target = $this->service->target($mitraId);
 
         $reportUrl = $mitra
             ? route('mitra-pos-manage.report.index', $mitra)
             : route('mitra-report.index');
 
+        // Admin Sofikopi punya Kelola Material (+ Stok = pembelian bertuang jurnal);
+        // pemilik mitra hanya punya halaman Stok.
+        $stockAllUrl = $mitra
+            ? route('mitra-pos-manage.stock.index', ['mitra' => $mitra, 'stok' => 'perlu'])
+            : route('mitra-stock.index', ['stok' => 'perlu']);
+        $stockRowUrl = $mitra
+            ? fn ($material) => route('mitra-material.index', ['mitra' => $mitra, 'beli' => $material->sku])
+            : fn ($material) => route('mitra-stock.index', ['q' => $material->sku]);
+        $stockRowLabel = $mitra ? '+ Stok' : 'Atur stok';
+
         return view('pages.mitra-pos.dashboard.index', compact(
+            'stockAlertCounts',
+            'stockAllUrl',
+            'stockRowUrl',
+            'stockRowLabel',
             'reportUrl',
             'stats',
             'paymentMix',

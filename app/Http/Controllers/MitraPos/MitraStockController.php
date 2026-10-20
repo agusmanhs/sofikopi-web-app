@@ -152,11 +152,12 @@ class MitraStockController extends Controller
     private function renderIndex(Request $request, int $mitraId, ?Mitra $mitra)
     {
         $search = trim((string) $request->query('q', ''));
-        $materials = $this->materialService->paginateForMitra($mitraId, 15, $search);
+        $stockStatus = in_array($request->query('stok'), ['perlu', 'habis'], true) ? $request->query('stok') : null;
+        $materials = $this->materialService->paginateForMitra($mitraId, 15, $search, null, $stockStatus);
         $summary = $this->materialService->inventorySummaryForMitra($mitraId);
         $routes = $this->routesFor($mitra);
 
-        return view('pages.mitra-pos.stock.index', compact('materials', 'mitra', 'routes', 'search', 'summary'));
+        return view('pages.mitra-pos.stock.index', compact('materials', 'mitra', 'routes', 'search', 'summary', 'stockStatus'));
     }
 
     private function renderMovements(Request $request, int $mitraId, ?Mitra $mitra)

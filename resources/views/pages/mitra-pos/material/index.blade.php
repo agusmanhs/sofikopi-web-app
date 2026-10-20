@@ -73,12 +73,12 @@
     <div class="card">
         <div class="card-body border-bottom">
             <form method="GET" action="{{ route('mitra-material.index', $mitra) }}" class="row g-2 align-items-end" data-live-filter>
-                <div class="col-md-6">
+                <div class="col-md-5">
                     <label class="form-label mb-1">Cari material</label>
                     <input type="search" name="q" value="{{ request('q') }}" class="form-control" placeholder="Ketik nama atau SKU material" autocomplete="off">
                 </div>
                 @if($categories->isNotEmpty())
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label mb-1">Kategori</label>
                     <select name="category" class="form-select js-select2" data-placeholder="Semua kategori" data-allow-clear>
                         <option value="">Semua kategori</option>
@@ -88,6 +88,14 @@
                     </select>
                 </div>
                 @endif
+                <div class="col-md-4">
+                    <label class="form-label mb-1">Status stok</label>
+                    <select name="stok" class="form-select">
+                        <option value="">Semua bahan</option>
+                        <option value="perlu" {{ ($stockStatus ?? null) === 'perlu' ? 'selected' : '' }}>Perlu dibeli (habis atau menipis)</option>
+                        <option value="habis" {{ ($stockStatus ?? null) === 'habis' ? 'selected' : '' }}>Habis saja</option>
+                    </select>
+                </div>
             </form>
         </div>
         <div id="live-results">
@@ -439,4 +447,22 @@
         });
     });
 </script>
+@if ($openPurchaseId)
+<script>
+    // Datang dari tombol "+ Stok" di peringatan dashboard: buka modal pembelian
+    // dengan bahan itu sudah terpilih.
+    document.addEventListener('DOMContentLoaded', function () {
+        var select = document.getElementById('purchase_material_id');
+        var modalEl = document.getElementById('modalPurchaseStock');
+        if (!select || !modalEl) return;
+        if (window.jQuery) {
+            window.jQuery(select).val('{{ $openPurchaseId }}').trigger('change');
+        } else {
+            select.value = '{{ $openPurchaseId }}';
+            select.dispatchEvent(new Event('change'));
+        }
+        new bootstrap.Modal(modalEl).show();
+    });
+</script>
+@endif
 @endsection

@@ -21,18 +21,27 @@ class MitraMaterialController extends Controller
     {
         $search = $request->query('q');
         $category = $request->query('category');
+        $stockStatus = in_array($request->query('stok'), ['perlu', 'habis'], true) ? $request->query('stok') : null;
         $materials = $this->service->paginateForMitra(
             $mitra->id,
             10,
             is_string($search) ? $search : null,
-            is_string($category) ? $category : null
+            is_string($category) ? $category : null,
+            $stockStatus
         );
         $categories = $this->service->categoriesForMitra($mitra->id);
         // Unpaginated, full list for the "+ Stok" purchase modal's material
         // picker — the table above only shows the current page.
         $allMaterials = $this->service->forMitra($mitra->id);
 
-        return view('pages.mitra-pos.material.index', compact('mitra', 'materials', 'allMaterials', 'categories'));
+        // Dari tombol "+ Stok" di peringatan dashboard: ?beli=<sku> membuka modal
+        // pembelian dengan bahan itu sudah terpilih.
+        $beliSku = $request->query('beli');
+        $openPurchaseId = is_string($beliSku)
+            ? $allMaterials->first(fn ($m) => $m->sku === $beliSku && $m->is_active)?->id
+            : null;
+
+        return view('pages.mitra-pos.material.index', compact('mitra', 'materials', 'allMaterials', 'categories', 'stockStatus', 'openPurchaseId'));
     }
 
     public function create(Mitra $mitra)

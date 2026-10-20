@@ -66,6 +66,14 @@
                     <label class="form-label">Cari bahan</label>
                     <input type="search" name="q" class="form-control" value="{{ $search ?? '' }}" placeholder="Ketik nama atau kode (SKU) bahan">
                 </div>
+                <div class="col-md-4">
+                    <label class="form-label ">Status stok</label>
+                    <select name="stok" class="form-select">
+                        <option value="">Semua bahan</option>
+                        <option value="perlu" {{ ($stockStatus ?? null) === 'perlu' ? 'selected' : '' }}>Perlu dibeli (habis atau menipis)</option>
+                        <option value="habis" {{ ($stockStatus ?? null) === 'habis' ? 'selected' : '' }}>Habis saja</option>
+                    </select>
+                </div>
             </form>
         </div>
     </div>

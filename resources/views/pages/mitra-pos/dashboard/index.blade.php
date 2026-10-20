@@ -165,40 +165,70 @@
     </div>
 
     <!-- Stock alerts -->
+    @php
+        $fmtQty = fn ($value) => rtrim(rtrim(number_format((float) $value, 3, ',', '.'), '0'), ',');
+    @endphp
     <div class="row g-4">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
+                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <h5 class="mb-0">Peringatan Stok Bahan Baku</h5>
+                    @if ($stockAlertCounts['total'] > 0)
+                    <div class="d-flex gap-2">
+                        @if ($stockAlertCounts['habis'] > 0)
+                        <span class="badge bg-label-danger">{{ $stockAlertCounts['habis'] }} habis</span>
+                        @endif
+                        @if ($stockAlertCounts['menipis'] > 0)
+                        <span class="badge bg-label-warning">{{ $stockAlertCounts['menipis'] }} menipis</span>
+                        @endif
+                    </div>
+                    @endif
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-bordered mb-0">
-                        <thead>
-                            <tr>
-                                <th>SKU</th>
-                                <th>Nama Bahan</th>
-                                <th class="text-end">Stok Saat Ini</th>
-                                <th class="text-end">Stok Minimum</th>
-                                <th>Satuan</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($stockAlerts as $material)
-                                <tr class="{{ $material->alert_level === 'red' ? 'table-danger' : 'table-warning' }}">
-                                    <td>{{ $material->sku }}</td>
-                                    <td>{{ $material->name }}</td>
-                                    <td class="text-end">{{ rtrim(rtrim(number_format($material->current_stock, 3, ',', '.'), '0'), ',') }}</td>
-                                    <td class="text-end">{{ rtrim(rtrim(number_format($material->min_stock, 3, ',', '.'), '0'), ',') }}</td>
-                                    <td>{{ $material->unit }}</td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="5" class="text-center text-muted">Semua stok bahan baku dalam kondisi aman.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+
+                @if ($stockAlertCounts['total'] === 0)
+                <div class="card-body">
+                    <div class="d-flex align-items-center text-success">
+                        <i class="ri-checkbox-circle-line fs-3 me-2"></i>
+                        <span>Semua stok bahan baku dalam kondisi aman.</span>
+                    </div>
                 </div>
+                @else
+                <ul class="list-group list-group-flush">
+                    @foreach ($stockAlerts as $material)
+                        @php($habis = $material->alert_level === 'red')
+                        <li class="list-group-item">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                <div class="flex-grow-1" style="min-width: 220px;">
+                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                        <span class="fw-semibold">{{ $material->name }}</span>
+                                        <span class="badge {{ $habis ? 'bg-label-danger' : 'bg-label-warning' }}">{{ $habis ? 'Habis' : 'Menipis' }}</span>
+                                    </div>
+                                    <div class="progress mb-1" style="height: 6px;" role="progressbar"
+                                        aria-label="Stok {{ $material->name }} {{ $material->fill_percent }}% dari batas minimum"
+                                        aria-valuenow="{{ $material->fill_percent }}" aria-valuemin="0" aria-valuemax="100">
+                                        <div class="progress-bar {{ $habis ? 'bg-danger' : 'bg-warning' }}" style="width: {{ $material->fill_percent }}%"></div>
+                                    </div>
+                                    <small class="text-muted">
+                                        Stok {{ $fmtQty($material->current_stock) }} dari minimal {{ $fmtQty($material->min_stock) }} {{ $material->unit }}
+                                        &middot; kurang {{ $fmtQty($material->shortage) }} {{ $material->unit }}
+                                    </small>
+                                </div>
+                                <a href="{{ $stockRowUrl($material) }}" class="btn btn-sm btn-outline-primary">{{ $stockRowLabel }}</a>
+                            </div>
+                        </li>
+                    @endforeach
+                </ul>
+                <div class="card-footer text-end">
+                    <a href="{{ $stockAllUrl }}">
+                        @if ($stockAlertCounts['total'] > $stockAlerts->count())
+                            Lihat semua {{ $stockAlertCounts['total'] }} bahan
+                        @else
+                            Buka halaman Stok
+                        @endif
+                        <i class="ri-arrow-right-line"></i>
+                    </a>
+                </div>
+                @endif
             </div>
         </div>
     </div>

@@ -89,20 +89,37 @@ class MitraDashboardService
             ->toArray();
     }
 
+    /**
+     * Bahan aktif yang habis atau di bawah stok minimum, paling mendesak dulu:
+     * yang habis di atas, lalu yang paling jauh di bawah minimumnya (rasio
+     * stok/minimum, bukan angka mentah — gram dan pcs tidak sebanding).
+     * Nonaktif tidak ikut: bahan yang sudah tidak dipakai bukan peringatan.
+     *
+     * Tiap item diberi alert_level ('red' habis / 'yellow' menipis), shortage
+     * (kurang berapa dari minimum) dan fill_percent (0-100, untuk bar).
+     */
     public function stockAlerts(int $mitraId): Collection
     {
         return MitraMaterial::forMitra($mitraId)
+            ->where('is_active', true)
             ->where(function ($query) {
                 $query->whereColumn('current_stock', '<', 'min_stock')
                     ->orWhere('current_stock', '<=', 0);
             })
-            ->orderBy('current_stock')
             ->get()
             ->map(function (MitraMaterial $material) {
-                $material->alert_level = $material->current_stock <= 0 ? 'red' : 'yellow';
+                $current = (float) $material->current_stock;
+                $min = (float) $material->min_stock;
+
+                $material->alert_level = $current <= 0 ? 'red' : 'yellow';
+                $material->shortage = max(0.0, $min - $current);
+                $material->fill_percent = $min > 0 ? (int) max(0, min(100, round($current / $min * 100))) : 0;
+                $material->urgency = $current <= 0 ? -1.0 : ($min > 0 ? $current / $min : 0.0);
 
                 return $material;
-            });
+            })
+            ->sort(fn (MitraMaterial $a, MitraMaterial $b) => [$a->urgency, mb_strtolower($a->name)] <=> [$b->urgency, mb_strtolower($b->name)])
+            ->values();
     }
 
     public function target(int $mitraId): ?MitraPosSetting

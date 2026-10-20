@@ -20,7 +20,11 @@ class MitraMaterialService extends BaseService
         return MitraMaterial::forMitra($mitraId)->orderBy('name')->get();
     }
 
-    public function paginateForMitra(int $mitraId, int $perPage = 10, ?string $search = null, ?string $category = null)
+    /**
+     * $stockStatus: 'perlu' = bahan aktif yang habis atau di bawah minimum
+     * (perlu dibeli), 'habis' = bahan aktif yang stoknya 0. Nilai lain diabaikan.
+     */
+    public function paginateForMitra(int $mitraId, int $perPage = 10, ?string $search = null, ?string $category = null, ?string $stockStatus = null)
     {
         $query = MitraMaterial::forMitra($mitraId)->orderBy('name');
 
@@ -31,6 +35,14 @@ class MitraMaterialService extends BaseService
 
         if ($category !== null && $category !== '') {
             $query->where('category', $category);
+        }
+
+        if ($stockStatus === 'perlu') {
+            $query->where('is_active', true)->where(function ($q) {
+                $q->whereColumn('current_stock', '<', 'min_stock')->orWhere('current_stock', '<=', 0);
+            });
+        } elseif ($stockStatus === 'habis') {
+            $query->where('is_active', true)->where('current_stock', '<=', 0);
         }
 
         return $query->paginate($perPage)->withQueryString();

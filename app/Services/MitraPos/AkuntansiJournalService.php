@@ -10,6 +10,7 @@ use App\Models\PosTransaction;
 use App\Repositories\MitraPos\AkuntansiJournalEntryRepository;
 use App\Services\BaseService;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -173,7 +174,11 @@ class AkuntansiJournalService extends BaseService
     public function listForMitra(int $mitraId, int $perPage = 20)
     {
         return AkuntansiJournalEntry::forMitra($mitraId)
-            ->with('lines.account', 'user')
+            ->with([
+                'lines.account',
+                'user',
+                'reference' => fn (MorphTo $morph) => $morph->morphWith([PosTransaction::class => ['items']]),
+            ])
             ->orderByDesc('entry_date')
             ->orderByDesc('id')
             ->paginate($perPage);

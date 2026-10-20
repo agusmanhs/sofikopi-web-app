@@ -56,4 +56,19 @@ class AkuntansiJournalEntry extends Model
     {
         return $this->morphTo();
     }
+
+    /**
+     * Angka yang dilihat pemilik usaha di daftar jurnal. Jurnal penjualan/void
+     * POS berisi banyak baris (kas, HPP, overhead), jadi total debitnya bukan
+     * nilai transaksi — pakai grand_total transaksi aslinya. Jurnal lain
+     * (manual, pembelian stok) tetap memakai total debit.
+     */
+    public function getNilaiTransaksiAttribute(): float
+    {
+        if (in_array($this->source_type, ['pos_sale', 'pos_void'], true) && $this->reference instanceof PosTransaction) {
+            return (float) $this->reference->grand_total;
+        }
+
+        return (float) $this->lines->sum('debit');
+    }
 }

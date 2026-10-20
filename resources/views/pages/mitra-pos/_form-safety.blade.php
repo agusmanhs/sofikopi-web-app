@@ -6,6 +6,7 @@
 
     Perilakunya aktif lewat atribut, jadi form yang tidak memakainya tidak berubah:
       - input.rupiah-input        : topeng ribuan "15.000.000" (tanpa sen)
+          data-decimals="2"       : izinkan koma desimal "18.500,5" (harga per gram, dsb.)
       - form[data-lock-submit]    : tombol simpan dikunci setelah diklik (cegah klik ganda)
       - form[data-confirm-title]  : tampilkan dialog konfirmasi sebelum form dikirim
           data-confirm-text="baris 1|baris 2"  (pisahkan baris dengan "|")
@@ -35,6 +36,21 @@
             return digits ? Number(digits) : null;
         };
 
+        // Seperti toRupiahNumber tetapi mempertahankan desimal ("18,5" -> 18.5).
+        const toDecimalNumber = function(raw) {
+            const text = String(raw == null ? '' : raw).trim();
+            if (text === '') return null;
+            if (/^\d+\.\d{1,2}$/.test(text)) return parseFloat(text);
+            const number = parseFloat(text.replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, ''));
+            return isNaN(number) ? null : number;
+        };
+
+        const formatDecimal = function(number, decimals) {
+            return number === null || number === undefined || isNaN(number)
+                ? ''
+                : Number(number).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: decimals });
+        };
+
         const formatRupiah = function(number) {
             return number === null || number === undefined || isNaN(number)
                 ? ''
@@ -55,7 +71,7 @@
                 return Promise.resolve(window.confirm([options.title].concat(lines).join('\n')));
             }
             return Swal.fire({
-                title: options.title,
+                title: escapeHtml(options.title),
                 html: buildHtml(lines),
                 icon: options.danger ? 'warning' : 'question',
                 showCancelButton: true,
@@ -126,6 +142,10 @@
                     if (!ok) return;
                     form.dataset.confirmed = '1';
                     form.requestSubmit(event.submitter || undefined);
+                    // requestSubmit memicu event submit secara sinkron. Kalau validasi
+                    // browser menolak, penanda dihapus supaya klik berikutnya
+                    // tetap menampilkan konfirmasi.
+                    delete form.dataset.confirmed;
                 });
                 return;
             }
@@ -147,6 +167,20 @@
                 input.dataset.rupiahReady = '1';
                 input.setAttribute('inputmode', 'numeric');
                 input.setAttribute('autocomplete', 'off');
+                const decimals = parseInt(input.dataset.decimals || '0', 10);
+                if (decimals > 0) {
+                    input.setAttribute('inputmode', 'decimal');
+                    input.value = formatDecimal(toDecimalNumber(input.value), decimals);
+                    input.addEventListener('input', function() {
+                        const cleaned = input.value.replace(/[^\d,]/g, '');
+                        const comma = cleaned.indexOf(',');
+                        const whole = comma === -1 ? cleaned : cleaned.slice(0, comma);
+                        const fraction = comma === -1 ? null : cleaned.slice(comma + 1).replace(/,/g, '').slice(0, decimals);
+                        const wholeText = whole ? Number(whole).toLocaleString('id-ID') : (fraction !== null ? '0' : '');
+                        input.value = fraction === null ? wholeText : wholeText + ',' + fraction;
+                    });
+                    return;
+                }
                 input.value = formatRupiah(toRupiahNumber(input.value));
                 input.addEventListener('input', function() {
                     const digits = input.value.replace(/[^\d]/g, '');
@@ -158,6 +192,8 @@
         window.MitraForm = {
             escapeHtml: escapeHtml,
             toRupiahNumber: toRupiahNumber,
+            toDecimalNumber: toDecimalNumber,
+            formatDecimal: formatDecimal,
             formatRupiah: formatRupiah,
             confirm: confirmAction,
             lock: lockForm,

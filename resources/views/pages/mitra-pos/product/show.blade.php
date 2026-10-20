@@ -44,7 +44,7 @@
                         </div>
                         <div class="col-sm-6 text-sm-end">
                             <span class="text-muted d-block mb-1">Q-Factor:</span>
-                            <span class="fw-semibold text-heading">{{ rtrim(rtrim(number_format($product->q_factor, 4, ',', '.'), '0'), ',') }}</span>
+                            <span class="fw-semibold text-heading">{{ rtrim(rtrim(number_format((float) $product->q_factor * 100, 2, ',', '.'), '0'), ',') }}%</span>
                         </div>
                         <div class="col-sm-6">
                             <span class="text-muted d-block mb-1">Harga Jual:</span>
@@ -82,6 +82,11 @@
                         </div>
                     </div>
 
+                    @php
+                        $fmtNum = fn ($value, $decimals = 3) => rtrim(rtrim(number_format((float) $value, $decimals, ',', '.'), '0'), ',');
+                        $qPercent = (float) $product->q_factor * 100;
+                        $marginPercent = $product->sale_price > 0 ? $product->margin / $product->sale_price * 100 : null;
+                    @endphp
                     <div class="mt-4 border-top pt-3">
                         <h6 class="fw-bold mb-3">Ringkasan HPP / COGS</h6>
                         <div class="row g-3">
@@ -106,10 +111,19 @@
                                     <div class="card-body text-center">
                                         <span class="text-muted d-block mb-1">Margin</span>
                                         <span class="fw-bold fs-5 {{ $product->margin < 0 ? 'text-danger' : 'text-success' }}">Rp {{ number_format($product->margin, 0, ',', '.') }}</span>
+                                        @if($marginPercent !== null)
+                                        <small class="d-block {{ $product->margin < 0 ? 'text-danger' : 'text-success' }}">({{ $fmtNum($marginPercent, 1) }}% dari harga jual)</small>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        <ul class="list-unstyled mt-3 mb-0">
+                            <li class="mb-1"><b>HPP</b> = total semua bahan di resep = Rp {{ number_format($product->hpp, 0, ',', '.') }}</li>
+                            <li class="mb-1"><b>COGS</b> = HPP x (1 + Q-Factor {{ $fmtNum($qPercent, 2) }}%) = Rp {{ number_format($product->hpp, 0, ',', '.') }} x {{ $fmtNum(1 + $qPercent / 100, 4) }} = Rp {{ number_format($product->cogs, 0, ',', '.') }}</li>
+                            <li class="mb-1"><b>Margin</b> = harga jual - COGS = Rp {{ number_format($product->sale_price, 0, ',', '.') }} - Rp {{ number_format($product->cogs, 0, ',', '.') }} = Rp {{ number_format($product->margin, 0, ',', '.') }}</li>
+                        </ul>
+                        <small class="text-muted d-block mt-2">Q-Factor adalah tambahan biaya untuk bahan terbuang/overhead. Perubahan resep dan harga hanya berlaku untuk transaksi berikutnya.</small>
                     </div>
                 </div>
             </div>

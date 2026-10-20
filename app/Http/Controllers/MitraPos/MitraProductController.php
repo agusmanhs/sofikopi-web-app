@@ -8,6 +8,7 @@ use App\Models\Mitra;
 use App\Services\MitraPos\MitraMaterialService;
 use App\Services\MitraPos\MitraProductService;
 use App\Traits\LogsActivity;
+use Illuminate\Http\Request;
 
 class MitraProductController extends Controller
 {
@@ -18,9 +19,10 @@ class MitraProductController extends Controller
         protected MitraMaterialService $materialService
     ) {}
 
-    public function index(Mitra $mitra)
+    public function index(Request $request, Mitra $mitra)
     {
-        $products = $this->service->paginateForMitra($mitra->id);
+        $search = $request->query('q');
+        $products = $this->service->paginateForMitra($mitra->id, 10, is_string($search) ? $search : null);
 
         return view('pages.mitra-pos.product.index', compact('mitra', 'products'));
     }

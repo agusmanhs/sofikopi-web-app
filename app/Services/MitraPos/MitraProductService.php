@@ -21,9 +21,16 @@ class MitraProductService extends BaseService
         return MitraProduct::forMitra($mitraId)->with('ingredients.material')->orderBy('name')->get();
     }
 
-    public function paginateForMitra(int $mitraId, int $perPage = 10)
+    public function paginateForMitra(int $mitraId, int $perPage = 10, ?string $search = null)
     {
-        return MitraProduct::forMitra($mitraId)->with('ingredients.material')->orderBy('name')->paginate($perPage);
+        $query = MitraProduct::forMitra($mitraId)->with('ingredients.material')->orderBy('name');
+
+        if ($search !== null && trim($search) !== '') {
+            $term = '%'.trim($search).'%';
+            $query->where(fn ($q) => $q->where('name', 'like', $term)->orWhere('sku', 'like', $term));
+        }
+
+        return $query->paginate($perPage)->withQueryString();
     }
 
     /**
@@ -73,6 +80,9 @@ class MitraProductService extends BaseService
 
             $ingredients = $data['ingredients'] ?? [];
             unset($data['ingredients']);
+
+            // SKU is the route key and is locked after creation.
+            unset($data['sku']);
 
             $product->update($data);
 

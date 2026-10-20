@@ -3,10 +3,13 @@
 namespace App\Http\Requests\MitraPos;
 
 use App\Http\Requests\BaseRequest;
+use App\Http\Requests\MitraPos\Concerns\NormalizesRupiah;
 use Illuminate\Validation\Rule;
 
 class MitraMaterialRequest extends BaseRequest
 {
+    use NormalizesRupiah;
+
     /**
      * Money inputs arrive Indonesian-formatted from the rupiah-input JS
      * ("180.000" / "180.000,50"). Normalize to machine format before the
@@ -19,7 +22,7 @@ class MitraMaterialRequest extends BaseRequest
 
         if (is_string($price)) {
             $this->merge([
-                'price_per_pack' => str_replace(',', '.', str_replace('.', '', $price)),
+                'price_per_pack' => $this->normalizeRupiah($price),
             ]);
         }
     }
@@ -50,6 +53,15 @@ class MitraMaterialRequest extends BaseRequest
             'current_stock' => 'nullable|numeric|min:0',
             'min_stock' => 'nullable|numeric|min:0',
             'is_active' => 'boolean',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'netto.min' => 'Netto harus lebih dari 0.',
+            'price_per_pack.required' => 'Harga per pack wajib diisi.',
+            'price_per_pack.numeric' => 'Harga per pack harus berupa angka.',
         ];
     }
 }

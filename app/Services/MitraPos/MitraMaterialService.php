@@ -3,6 +3,7 @@
 namespace App\Services\MitraPos;
 
 use App\Models\MitraMaterial;
+use App\Models\MitraProduct;
 use App\Repositories\MitraPos\MitraMaterialRepository;
 use App\Services\BaseService;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -19,9 +20,42 @@ class MitraMaterialService extends BaseService
         return MitraMaterial::forMitra($mitraId)->orderBy('name')->get();
     }
 
-    public function paginateForMitra(int $mitraId, int $perPage = 10)
+    public function paginateForMitra(int $mitraId, int $perPage = 10, ?string $search = null, ?string $category = null)
     {
-        return MitraMaterial::forMitra($mitraId)->orderBy('name')->paginate($perPage);
+        $query = MitraMaterial::forMitra($mitraId)->orderBy('name');
+
+        if ($search !== null && trim($search) !== '') {
+            $term = '%'.trim($search).'%';
+            $query->where(fn ($q) => $q->where('name', 'like', $term)->orWhere('sku', 'like', $term));
+        }
+
+        if ($category !== null && $category !== '') {
+            $query->where('category', $category);
+        }
+
+        return $query->paginate($perPage)->withQueryString();
+    }
+
+    public function categoriesForMitra(int $mitraId)
+    {
+        return MitraMaterial::forMitra($mitraId)
+            ->whereNotNull('category')
+            ->where('category', '!=', '')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category');
+    }
+
+    /**
+     * Names of products whose recipe uses this material (live products only),
+     * used to block deleting a material that a recipe still depends on.
+     */
+    public function productNamesUsing(int $mitraId, MitraMaterial $material)
+    {
+        return MitraProduct::forMitra($mitraId)
+            ->whereHas('ingredients', fn ($q) => $q->where('mitra_material_id', $material->id))
+            ->orderBy('name')
+            ->pluck('name');
     }
 
     /**
@@ -55,6 +89,9 @@ class MitraMaterialService extends BaseService
         if ((int) $material->mitra_id !== $mitraId) {
             throw new NotFoundHttpException('Material tidak ditemukan.');
         }
+
+        // SKU is the route key and is locked after creation.
+        unset($data['sku']);
 
         $material->update($data);
 

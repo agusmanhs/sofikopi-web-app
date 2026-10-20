@@ -50,6 +50,17 @@
     </div>
     @endif
 
+    @if($errors->any())
+    <div class="alert alert-danger alert-dismissible" role="alert">
+        <ul class="mb-0 ps-3">
+            @foreach($errors->all() as $error)
+            <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    @endif
+
     @if(session('error'))
     <div class="alert alert-danger alert-dismissible" role="alert">
         {{ session('error') }}
@@ -58,8 +69,33 @@
     @endif
 
     <div class="card">
+        <div class="card-body border-bottom">
+            <form method="GET" action="{{ route('mitra-material.index', $mitra) }}" class="row g-2 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label mb-1">Cari material</label>
+                    <input type="text" name="q" value="{{ request('q') }}" class="form-control" placeholder="Ketik nama atau SKU material">
+                </div>
+                @if($categories->isNotEmpty())
+                <div class="col-md-3">
+                    <label class="form-label mb-1">Kategori</label>
+                    <select name="category" class="form-select">
+                        <option value="">Semua kategori</option>
+                        @foreach($categories as $categoryOption)
+                        <option value="{{ $categoryOption }}" {{ request('category') === $categoryOption ? 'selected' : '' }}>{{ $categoryOption }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
+                <div class="col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary"><i class="ri-search-line me-1"></i> Cari</button>
+                    @if(request()->filled('q') || request()->filled('category'))
+                    <a href="{{ route('mitra-material.index', $mitra) }}" class="btn btn-outline-secondary">Reset</a>
+                    @endif
+                </div>
+            </form>
+        </div>
         <div class="card-datatable table-responsive">
-            <table class="datatables-basic table table-bordered">
+            <table class="table table-bordered">
                 <thead>
                     <tr>
                         <th>No</th>
@@ -70,13 +106,16 @@
                         <th>Netto</th>
                         <th>Harga/Pack</th>
                         <th>Harga Satuan</th>
-                        <th>Nilai Stok</th>
+                        <th>Nilai Stok <i class="ri-information-line text-muted" title="Nilai Stok = stok x harga satuan"></i></th>
                         <th>Stok</th>
                         <th>Status</th>
                         <th>Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
+                    @php
+                        $fmtQty = fn ($value) => rtrim(rtrim(number_format((float) $value, 3, ',', '.'), '0'), ',');
+                    @endphp
                     @forelse($materials as $index => $material)
                     <tr>
                         <td>{{ $materials->firstItem() + $index }}</td>
@@ -84,10 +123,13 @@
                         <td>{{ $material->name }}</td>
                         <td>{{ $material->category ?? '-' }}</td>
                         <td>{{ $material->unit }}</td>
-                        <td>{{ rtrim(rtrim(number_format($material->netto, 3, ',', '.'), '0'), ',') }}</td>
+                        <td>{{ $fmtQty($material->netto) }} {{ $material->unit }}</td>
                         <td>Rp {{ number_format($material->price_per_pack, 0, ',', '.') }}</td>
-                        <td>Rp {{ rtrim(rtrim(number_format($material->harga_satuan, 2, ',', '.'), '0'), ',') }}</td>
-                        <td>Rp {{ number_format($material->stock_value, 0, ',', '.') }}</td>
+                        <td>Rp {{ rtrim(rtrim(number_format($material->harga_satuan, 2, ',', '.'), '0'), ',') }}<small class="text-muted"> / {{ $material->unit }}</small></td>
+                        <td>
+                            Rp {{ number_format($material->stock_value, 0, ',', '.') }}
+                            <small class="text-muted d-block">{{ $fmtQty($material->current_stock) }} {{ $material->unit }} x Rp {{ rtrim(rtrim(number_format($material->harga_satuan, 2, ',', '.'), '0'), ',') }}</small>
+                        </td>
                         <td>
                             @php
                                 $stockBadge = 'bg-label-success';
@@ -98,7 +140,7 @@
                                 }
                             @endphp
                             <span class="badge {{ $stockBadge }}">
-                                {{ rtrim(rtrim(number_format($material->current_stock, 3, ',', '.'), '0'), ',') }} / min {{ rtrim(rtrim(number_format($material->min_stock, 3, ',', '.'), '0'), ',') }}
+                                {{ $fmtQty($material->current_stock) }} {{ $material->unit }} / min {{ $fmtQty($material->min_stock) }} {{ $material->unit }}
                             </span>
                         </td>
                         <td>
@@ -111,32 +153,22 @@
                                 <a href="{{ route('mitra-material.show', [$mitra, $material]) }}" class="btn btn-sm btn-icon btn-text-secondary" title="Detail"><i class="ri-eye-line"></i></a>
                                 @can('access', ['mitra-material.index', 'update'])
                                 <a href="{{ route('mitra-material.edit', [$mitra, $material]) }}" class="btn btn-sm btn-icon btn-text-secondary" title="Edit"><i class="ri-edit-box-line"></i></a>
-                                {{--
-                                    Tombol "Tambah Stok" (manual, tanpa harga) dinonaktifkan sementara —
-                                    membingungkan mitra karena mirip dengan "+ Stok" (pembelian) di atas
-                                    tapi tidak tercatat di jurnal/neraca. Gunakan "+ Stok" untuk
-                                    penambahan stok riil (pembelian). "Kurangi Stok" tetap aktif untuk
-                                    koreksi stok (susut, rusak, dll).
-                                <button type="button" class="btn btn-sm btn-icon btn-text-success btn-adjust-stock" title="Tambah Stok"
-                                    data-direction="1"
-                                    data-sku="{{ $material->sku }}"
-                                    data-name="{{ $material->name }}"
-                                    data-stock="{{ rtrim(rtrim(number_format($material->current_stock, 3, ',', '.'), '0'), ',') }}"
-                                    data-unit="{{ $material->unit }}">
-                                    <i class="ri-add-line"></i>
-                                </button>
-                                --}}
                                 <button type="button" class="btn btn-sm btn-icon btn-text-danger btn-adjust-stock" title="Kurangi Stok"
                                     data-direction="-1"
                                     data-sku="{{ $material->sku }}"
                                     data-name="{{ $material->name }}"
-                                    data-stock="{{ rtrim(rtrim(number_format($material->current_stock, 3, ',', '.'), '0'), ',') }}"
+                                    data-stock="{{ (float) $material->current_stock }}"
                                     data-unit="{{ $material->unit }}">
                                     <i class="ri-subtract-line"></i>
                                 </button>
                                 @endcan
                                 @can('access', ['mitra-material.index', 'delete'])
-                                <form action="{{ route('mitra-material.destroy', [$mitra, $material]) }}" method="POST" class="form-delete-confirm d-inline">
+                                <form action="{{ route('mitra-material.destroy', [$mitra, $material]) }}" method="POST" class="d-inline"
+                                    data-lock-submit
+                                    data-confirm-title="Hapus material {{ $material->name }}?"
+                                    data-confirm-text="Material ini tidak akan muncul lagi di daftar dan tidak bisa dipilih untuk resep.|Kalau masih dipakai di resep produk, penghapusan ditolak dan Anda diberi tahu produk mana yang memakainya.|Untuk menyembunyikan sementara, pilih Edit lalu ubah status menjadi Non-Aktif."
+                                    data-confirm-button="Ya, hapus"
+                                    data-confirm-danger>
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-icon btn-text-danger" title="Hapus"><i class="ri-delete-bin-line"></i></button>
@@ -147,28 +179,36 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="11" class="text-center">Belum ada data material untuk mitra ini.</td>
+                        <td colspan="12" class="text-center">
+                            @if(request()->filled('q') || request()->filled('category'))
+                            Tidak ada material yang cocok dengan pencarian.
+                            @else
+                            Belum ada data material untuk mitra ini.
+                            @endif
+                        </td>
                     </tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
-        @if($materials->hasPages())
-        <div class="card-footer d-flex justify-content-end">
+        <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <small class="text-muted">Nilai Stok = stok x harga satuan. Harga satuan = harga per pack / netto.</small>
+            @if($materials->hasPages())
             {{ $materials->links() }}
+            @endif
         </div>
-        @endif
     </div>
 </div>
 
 <!-- Adjust Stock Modal -->
 <div class="modal fade" id="modalAdjustStock" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <form id="formAdjustStock" class="modal-content" method="POST" action="">
+        <form id="formAdjustStock" class="modal-content" method="POST" action="" novalidate>
             @csrf
             <input type="hidden" name="delta" id="adjust_delta_hidden">
+            <input type="hidden" name="notes" id="adjust_notes_hidden">
             <div class="modal-header">
-                <h5 class="modal-title"><span id="adjust_direction_label">Adjust Stok Material</span></h5>
+                <h5 class="modal-title"><span id="adjust_direction_label">Kurangi Stok Material</span></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
@@ -181,12 +221,25 @@
                     <input type="text" class="form-control" id="adjust_current_stock" disabled>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Jumlah <span class="text-danger">*</span></label>
-                    <input type="number" step="0.001" min="0.001" id="adjust_qty" class="form-control" placeholder="Contoh: 10" required>
+                    <label class="form-label">Jumlah yang dikurangi <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <input type="number" step="0.001" min="0.001" id="adjust_qty" class="form-control" placeholder="Contoh: 10">
+                        <span class="input-group-text" id="adjust_unit_label">-</span>
+                    </div>
+                    <small class="text-muted d-block mt-1" id="adjust_preview">Stok akhir = -</small>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Catatan</label>
-                    <textarea name="notes" id="adjust_notes" class="form-control" rows="2" placeholder="Alasan penyesuaian stok (opsional)"></textarea>
+                    <label class="form-label">Alasan <span class="text-danger">*</span></label>
+                    <select id="adjust_reason" class="form-select mb-2">
+                        <option value="">-- Pilih alasan --</option>
+                        <option value="Rusak">Rusak</option>
+                        <option value="Hilang">Hilang</option>
+                        <option value="Kadaluarsa">Kadaluarsa</option>
+                        <option value="Koreksi hitung">Koreksi hitung</option>
+                        <option value="Lainnya">Lainnya</option>
+                    </select>
+                    <textarea id="adjust_notes" class="form-control" rows="2" maxlength="200" placeholder="Keterangan tambahan (wajib diisi jika alasan Lainnya)"></textarea>
+                    <small class="text-danger d-none mt-1" id="adjust_error"></small>
                 </div>
             </div>
             <div class="modal-footer">
@@ -200,7 +253,7 @@
 <!-- Purchase Stock Modal ("+ Stok") -->
 <div class="modal fade" id="modalPurchaseStock" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <form id="formPurchaseStock" class="modal-content" method="POST" action="{{ route('mitra-material.purchase', $mitra) }}">
+        <form id="formPurchaseStock" class="modal-content" method="POST" action="{{ route('mitra-material.purchase', $mitra) }}" data-lock-submit>
             @csrf
             <div class="modal-header">
                 <h5 class="modal-title">Pembelian Stok Material</h5>
@@ -212,23 +265,29 @@
                     <select name="material_id" id="purchase_material_id" class="form-select" required>
                         <option value="">-- Pilih Material --</option>
                         @foreach($allMaterials as $m)
-                        <option value="{{ $m->id }}">
-                            {{ $m->name }} ({{ $m->sku }}) — harga standar Rp {{ rtrim(rtrim(number_format($m->harga_satuan, 2, ',', '.'), '0'), ',') }}/{{ $m->unit }}
+                        <option value="{{ $m->id }}" data-unit="{{ $m->unit }}" data-price="{{ (float) $m->harga_satuan }}">
+                            {{ $m->name }} ({{ $m->sku }}) - harga standar Rp {{ rtrim(rtrim(number_format($m->harga_satuan, 2, ',', '.'), '0'), ',') }}/{{ $m->unit }}
                         </option>
                         @endforeach
                     </select>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Jumlah Beli <span class="text-danger">*</span></label>
-                    <input type="number" step="0.001" min="0.001" name="qty" id="purchase_qty" class="form-control" placeholder="Contoh: 10" required>
+                    <div class="input-group">
+                        <input type="number" step="0.001" min="0.001" name="qty" id="purchase_qty" class="form-control" placeholder="Contoh: 10" required>
+                        <span class="input-group-text" id="purchase_qty_unit">satuan</span>
+                    </div>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Harga Beli / Satuan <span class="text-danger">*</span></label>
-                    <input type="number" step="0.01" min="0" name="unit_price" id="purchase_unit_price" class="form-control" placeholder="Contoh: 5000" required>
+                    <label class="form-label">Harga Beli per <span id="purchase_price_unit">satuan</span> (Rp) <span class="text-danger">*</span></label>
+                    <input type="text" inputmode="decimal" name="unit_price" id="purchase_unit_price" class="form-control rupiah-input" data-decimals="2" placeholder="Contoh: 18,5" required>
+                    <small class="text-muted d-block mt-1" id="purchase_standard_hint">Isi harga untuk SATU satuan, bukan harga satu pack.</small>
+                    <small class="text-warning d-none" id="purchase_price_warning"></small>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Total Pembelian</label>
+                    <label class="form-label">Total bayar</label>
                     <input type="text" class="form-control" id="purchase_total" disabled value="Rp 0">
+                    <small class="text-muted">Total bayar = jumlah beli x harga beli per satuan.</small>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Catatan</label>
@@ -245,71 +304,138 @@
 @endsection
 
 @section('page-script')
+@include('pages.mitra-pos._form-safety')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const jq = window.$ || window.jQuery;
-        if (jq) {
-            const adjustUrlTemplate = "{{ route('mitra-material.adjust', [$mitra, '__MATERIAL_SKU__']) }}";
+        const byId = function(id) { return document.getElementById(id); };
+        const fmtQty = function(n) {
+            return Number(n).toLocaleString('id-ID', { maximumFractionDigits: 3 });
+        };
 
-            jq('.btn-adjust-stock').on('click', function() {
-                const sku = jq(this).data('sku');
-                const name = jq(this).data('name');
-                const stock = jq(this).data('stock');
-                const unit = jq(this).data('unit');
-                const direction = parseInt(jq(this).data('direction'), 10);
+        const adjustForm = byId('formAdjustStock');
+        const adjustUrlTemplate = "{{ route('mitra-material.adjust', [$mitra, '__MATERIAL_SKU__']) }}";
+        const adjustState = { stock: 0, unit: '', direction: -1 };
 
-                jq('#formAdjustStock').data('direction', direction);
-                jq('#adjust_direction_label').text(direction > 0 ? 'Tambah Stok' : 'Kurangi Stok');
-                jq('#adjust_material_name').val(name);
-                jq('#adjust_current_stock').val(stock + ' ' + unit);
-                jq('#adjust_qty').val('');
-                jq('#adjust_notes').val('');
-                jq('#formAdjustStock').attr('action', adjustUrlTemplate.replace('__MATERIAL_SKU__', encodeURIComponent(sku)));
+        const adjustQty = function() { return parseFloat(byId('adjust_qty').value) || 0; };
 
-                new bootstrap.Modal(document.getElementById('modalAdjustStock')).show();
-            });
-
-            jq('#formAdjustStock').on('submit', function() {
-                const direction = parseInt(jq(this).data('direction'), 10) || 1;
-                const qty = parseFloat(jq('#adjust_qty').val()) || 0;
-                jq('#adjust_delta_hidden').val((direction * qty).toFixed(3));
-            });
-
-            // "+ Stok" purchase modal: live total (qty * harga beli).
-            function recalcPurchaseTotal() {
-                const qty = parseFloat(jq('#purchase_qty').val()) || 0;
-                const price = parseFloat(jq('#purchase_unit_price').val()) || 0;
-                jq('#purchase_total').val('Rp ' + (qty * price).toLocaleString('id-ID', { maximumFractionDigits: 2 }));
+        const adjustProblem = function() {
+            const qty = adjustQty();
+            if (qty <= 0) return 'Isi jumlah yang dikurangi.';
+            if (adjustState.direction < 0 && qty > adjustState.stock) {
+                return 'Jumlah melebihi stok saat ini (' + fmtQty(adjustState.stock) + ' ' + adjustState.unit + ').';
             }
-            jq('#purchase_qty, #purchase_unit_price').on('input', recalcPurchaseTotal);
+            if (!byId('adjust_reason').value) return 'Pilih alasan pengurangan stok.';
+            if (byId('adjust_reason').value === 'Lainnya' && !byId('adjust_notes').value.trim()) {
+                return 'Alasan "Lainnya" wajib diisi keterangannya.';
+            }
+            return '';
+        };
 
-            jq('#modalPurchaseStock').on('hidden.bs.modal', function() {
-                jq('#formPurchaseStock')[0].reset();
-                jq('#purchase_total').val('Rp 0');
-            });
+        const refreshAdjust = function() {
+            const qty = adjustQty();
+            const after = adjustState.stock + adjustState.direction * qty;
+            const preview = byId('adjust_preview');
+            preview.textContent = 'Stok akhir = ' + fmtQty(after) + ' ' + adjustState.unit;
+            const tooMuch = adjustState.direction < 0 && qty > adjustState.stock;
+            preview.classList.toggle('text-danger', tooMuch);
+            preview.classList.toggle('text-muted', !tooMuch);
+        };
 
-            jq('.form-delete-confirm').on('submit', function(e) {
-                e.preventDefault();
-                let form = this;
-                Swal.fire({
-                    title: 'Hapus Material?',
-                    text: "Material yang sudah dihapus tidak dapat dikembalikan!",
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonText: 'Ya, Hapus!',
-                    cancelButtonText: 'Batal',
-                    customClass: {
-                        confirmButton: 'btn btn-danger me-2',
-                        cancelButton: 'btn btn-label-secondary'
-                    },
-                    buttonsStyling: false
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        form.submit();
-                    }
-                });
+        document.querySelectorAll('.btn-adjust-stock').forEach(function(button) {
+            button.addEventListener('click', function() {
+                adjustState.stock = parseFloat(button.dataset.stock) || 0;
+                adjustState.unit = button.dataset.unit;
+                adjustState.direction = parseInt(button.dataset.direction, 10) || -1;
+
+                byId('adjust_direction_label').textContent = adjustState.direction > 0 ? 'Tambah Stok' : 'Kurangi Stok';
+                byId('adjust_material_name').value = button.dataset.name;
+                byId('adjust_current_stock').value = fmtQty(adjustState.stock) + ' ' + adjustState.unit;
+                byId('adjust_unit_label').textContent = adjustState.unit;
+                byId('adjust_qty').value = '';
+                byId('adjust_reason').value = '';
+                byId('adjust_notes').value = '';
+                byId('adjust_error').classList.add('d-none');
+                adjustForm.action = adjustUrlTemplate.replace('__MATERIAL_SKU__', encodeURIComponent(button.dataset.sku));
+                MitraForm.unlock(adjustForm);
+                refreshAdjust();
+
+                new bootstrap.Modal(byId('modalAdjustStock')).show();
             });
-        }
+        });
+
+        byId('adjust_qty').addEventListener('input', refreshAdjust);
+
+        adjustForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            if (adjustForm.dataset.submitting === '1') return;
+
+            const errorBox = byId('adjust_error');
+            const problem = adjustProblem();
+            errorBox.textContent = problem;
+            errorBox.classList.toggle('d-none', problem === '');
+            if (problem) return;
+
+            const qty = adjustQty();
+            const reason = byId('adjust_reason').value;
+            const detail = byId('adjust_notes').value.trim();
+            const after = adjustState.stock + adjustState.direction * qty;
+
+            MitraForm.confirm({
+                title: adjustState.direction > 0 ? 'Tambah stok?' : 'Kurangi stok?',
+                lines: [
+                    byId('adjust_material_name').value,
+                    'Stok ' + fmtQty(adjustState.stock) + ' ' + adjustState.unit + ' menjadi ' + fmtQty(after) + ' ' + adjustState.unit + '.',
+                    'Alasan: ' + reason + (detail ? ' - ' + detail : ''),
+                    'Perubahan ini tercatat di riwayat stok.',
+                ],
+                confirmText: 'Ya, simpan',
+                danger: adjustState.direction < 0,
+            }).then(function(ok) {
+                if (!ok) return;
+                byId('adjust_delta_hidden').value = (adjustState.direction * qty).toFixed(3);
+                byId('adjust_notes_hidden').value = reason + (detail ? ' - ' + detail : '');
+                MitraForm.lock(adjustForm);
+                adjustForm.submit();
+            });
+        });
+
+        const purchaseSelect = byId('purchase_material_id');
+
+        const refreshPurchase = function() {
+            const option = purchaseSelect.options[purchaseSelect.selectedIndex];
+            const unit = option && option.value ? option.dataset.unit : '';
+            const standard = option && option.value ? parseFloat(option.dataset.price) || 0 : 0;
+            const qty = parseFloat(byId('purchase_qty').value) || 0;
+            const price = MitraForm.toDecimalNumber(byId('purchase_unit_price').value) || 0;
+
+            byId('purchase_qty_unit').textContent = unit || 'satuan';
+            byId('purchase_price_unit').textContent = unit || 'satuan';
+            byId('purchase_total').value = 'Rp ' + (qty * price).toLocaleString('id-ID', { maximumFractionDigits: 0 });
+
+            byId('purchase_standard_hint').textContent = unit
+                ? 'Harga standar di katalog: Rp ' + standard.toLocaleString('id-ID', { maximumFractionDigits: 2 }) + ' per ' + unit + '. Isi harga untuk SATU ' + unit + ', bukan harga satu pack.'
+                : 'Isi harga untuk SATU satuan, bukan harga satu pack.';
+
+            const warning = byId('purchase_price_warning');
+            let text = '';
+            if (standard > 0 && price > 0 && price > standard * 5) {
+                text = 'Harga ini jauh lebih tinggi dari harga standar. Apakah yang Anda isi harga satu pack, bukan harga per ' + unit + '?';
+            } else if (standard > 0 && price > 0 && price < standard * 0.2) {
+                text = 'Harga ini jauh lebih rendah dari harga standar. Apakah sudah benar?';
+            }
+            warning.textContent = text;
+            warning.classList.toggle('d-none', text === '');
+        };
+
+        purchaseSelect.addEventListener('change', refreshPurchase);
+        byId('purchase_qty').addEventListener('input', refreshPurchase);
+        byId('purchase_unit_price').addEventListener('input', refreshPurchase);
+
+        byId('modalPurchaseStock').addEventListener('hidden.bs.modal', function() {
+            byId('formPurchaseStock').reset();
+            MitraForm.unlock(byId('formPurchaseStock'));
+            refreshPurchase();
+        });
     });
 </script>
 @endsection

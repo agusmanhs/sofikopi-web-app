@@ -48,7 +48,7 @@
                         </div>
                         <div class="col-sm-6">
                             <span class="text-muted d-block mb-1">Satuan / Netto:</span>
-                            <span class="fw-semibold text-heading">{{ $material->unit }} / {{ rtrim(rtrim(number_format($material->netto, 3, ',', '.'), '0'), ',') }}</span>
+                            <span class="fw-semibold text-heading">{{ $material->unit }} / {{ rtrim(rtrim(number_format($material->netto, 3, ',', '.'), '0'), ',') }} {{ $material->unit }}</span>
                         </div>
                         <div class="col-sm-6 text-sm-end">
                             <span class="text-muted d-block mb-1">Harga per Pack:</span>
@@ -57,6 +57,7 @@
                         <div class="col-sm-6">
                             <span class="text-muted d-block mb-1">Harga Satuan:</span>
                             <span class="fw-bold text-primary">Rp {{ number_format($material->harga_satuan, 2, ',', '.') }} / {{ $material->unit }}</span>
+                            <small class="text-muted d-block">= harga per pack / netto ({{ rtrim(rtrim(number_format($material->netto, 3, ',', '.'), '0'), ',') }} {{ $material->unit }})</small>
                         </div>
                         <div class="col-sm-6 text-sm-end">
                             <span class="text-muted d-block mb-1">Produk Sofikopi Terkait:</span>

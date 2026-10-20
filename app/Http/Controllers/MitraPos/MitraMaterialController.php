@@ -7,6 +7,7 @@ use App\Http\Requests\MitraPos\MitraMaterialRequest;
 use App\Models\Mitra;
 use App\Services\MitraPos\MitraMaterialService;
 use App\Traits\LogsActivity;
+use Illuminate\Http\Request;
 
 class MitraMaterialController extends Controller
 {
@@ -16,14 +17,22 @@ class MitraMaterialController extends Controller
         protected MitraMaterialService $service
     ) {}
 
-    public function index(Mitra $mitra)
+    public function index(Request $request, Mitra $mitra)
     {
-        $materials = $this->service->paginateForMitra($mitra->id);
+        $search = $request->query('q');
+        $category = $request->query('category');
+        $materials = $this->service->paginateForMitra(
+            $mitra->id,
+            10,
+            is_string($search) ? $search : null,
+            is_string($category) ? $category : null
+        );
+        $categories = $this->service->categoriesForMitra($mitra->id);
         // Unpaginated, full list for the "+ Stok" purchase modal's material
         // picker — the table above only shows the current page.
         $allMaterials = $this->service->forMitra($mitra->id);
 
-        return view('pages.mitra-pos.material.index', compact('mitra', 'materials', 'allMaterials'));
+        return view('pages.mitra-pos.material.index', compact('mitra', 'materials', 'allMaterials', 'categories'));
     }
 
     public function create(Mitra $mitra)
@@ -79,6 +88,16 @@ class MitraMaterialController extends Controller
     public function destroy(Mitra $mitra, string $material)
     {
         $model = $this->service->findForMitra($mitra->id, $material);
+
+        $usedBy = $this->service->productNamesUsing($mitra->id, $model);
+        if ($usedBy->isNotEmpty()) {
+            $names = $usedBy->take(5)->implode(', ');
+            $more = $usedBy->count() > 5 ? ' dan '.($usedBy->count() - 5).' produk lain' : '';
+
+            return redirect()->route('mitra-material.index', $mitra)
+                ->with('error', "Material dipakai di resep: {$names}{$more}. Ubah ke Non-Aktif atau hapus dari resepnya dulu.");
+        }
+
         $this->service->deleteForMitra($mitra->id, $material);
 
         $this->logActivity('deleted', 'mitra-pos', "Menghapus material: {$model->name} ({$mitra->name})", $model);

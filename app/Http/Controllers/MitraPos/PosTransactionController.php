@@ -43,7 +43,9 @@ class PosTransactionController extends Controller
         $canVoid = (bool) auth()->user()?->hasPermission('pos-transaction.index', 'delete');
 
         return view('pages.mitra-pos.transaction.show', array_merge(
-            compact('transaction', 'routes', 'canVoid'),
+            // Angka modal/laba hanya untuk yang boleh membatalkan transaksi (pemilik);
+            // kasir tidak boleh melihat margin.
+            compact('transaction', 'routes', 'canVoid') + ['canSeeCost' => $canVoid],
             $this->detailExtras($transaction)
         ));
     }
@@ -83,7 +85,7 @@ class PosTransactionController extends Controller
         $canVoid = (bool) auth()->user()?->hasPermission('mitra-pos-manage.index', 'delete');
 
         return view('pages.mitra-pos.transaction.show', array_merge(
-            compact('mitra', 'transaction', 'routes', 'canVoid'),
+            compact('mitra', 'transaction', 'routes', 'canVoid') + ['canSeeCost' => $canVoid],
             $this->detailExtras($transaction)
         ));
     }

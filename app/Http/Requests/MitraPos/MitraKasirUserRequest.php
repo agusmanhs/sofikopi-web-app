@@ -3,10 +3,31 @@
 namespace App\Http\Requests\MitraPos;
 
 use App\Http\Requests\BaseRequest;
+use App\Services\MitraPos\MitraContext;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class MitraKasirUserRequest extends BaseRequest
 {
+    /**
+     * Cek kepemilikan SEBELUM validasi: kalau tidak, aturan unique email
+     * menjawab 422 untuk user mitra lain dan 404 untuk yang tidak ada, sehingga
+     * pemilik mitra bisa menebak email dan id pengguna di mitra lain.
+     */
+    protected function prepareForValidation(): void
+    {
+        $target = $this->route('user');
+
+        if ($target !== null) {
+            $owned = $target->mitra_id === app(MitraContext::class)->id()
+                && $target->role?->slug === 'mitra-kasir';
+
+            if (! $owned) {
+                throw new NotFoundHttpException('User kasir tidak ditemukan.');
+            }
+        }
+    }
+
     /**
      * role_id/mitra_id are never accepted from the client — the service
      * always forces role to 'mitra-kasir' and mitra_id to the owner's own

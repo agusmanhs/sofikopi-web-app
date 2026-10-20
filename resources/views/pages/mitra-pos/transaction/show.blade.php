@@ -15,6 +15,9 @@
 @endsection
 
 @section('content')
+@php
+    $canSeeCost = $canSeeCost ?? false;
+@endphp
 <div class="container-xxl flex-grow-1 container-p-y">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4 class="fw-bold py-3 mb-0"><span class="text-muted fw-light">Mitra POS / Riwayat Transaksi /</span> {{ $transaction->transaction_no }}</h4>
@@ -94,7 +97,7 @@
                         <div class="col-7">{{ $transaction->void_reason }}</div>
                     </div>
                     @endif
-                    @if ($journalEntries->isNotEmpty())
+                    @if ($canSeeCost && $journalEntries->isNotEmpty())
                     <div class="row mt-2">
                         <div class="col-5 text-muted">Jurnal Akuntansi</div>
                         <div class="col-7">
@@ -116,7 +119,9 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">Item Transaksi</h5>
+                    @if ($canSeeCost)
                     <small class="text-muted">Klik baris produk untuk melihat bahan yang dipakai.</small>
+                    @endif
                 </div>
                 <div class="table-responsive">
                     <table class="table table-bordered mb-0">
@@ -126,7 +131,9 @@
                                 <th class="text-end">Qty</th>
                                 <th class="text-end">Harga Satuan</th>
                                 <th class="text-end">Subtotal</th>
+                                @if ($canSeeCost)
                                 <th class="text-end">Untung (setelah Faktor Q)</th>
+                                @endif
                             </tr>
                         </thead>
                         <tbody>
@@ -136,15 +143,18 @@
                                     $detailId = 'bahan-item-'.$item->id;
                                     $ingredients = $item->product?->ingredients ?? collect();
                                 @endphp
-                                <tr role="button" data-bs-toggle="collapse" data-bs-target="#{{ $detailId }}" aria-expanded="false" aria-controls="{{ $detailId }}">
-                                    <td><i class="ri-arrow-right-s-line me-1"></i>{{ $item->product_name }}</td>
+                                <tr @if ($canSeeCost) role="button" data-bs-toggle="collapse" data-bs-target="#{{ $detailId }}" aria-expanded="false" aria-controls="{{ $detailId }}" @endif>
+                                    <td>@if ($canSeeCost)<i class="ri-arrow-right-s-line me-1"></i>@endif{{ $item->product_name }}</td>
                                     <td class="text-end">{{ rtrim(rtrim(number_format($item->qty, 3, ',', '.'), '0'), ',') }}</td>
                                     <td class="text-end">Rp {{ number_format($item->unit_price, 0, ',', '.') }}</td>
                                     <td class="text-end">Rp {{ number_format($item->line_total, 0, ',', '.') }}</td>
+                                    @if ($canSeeCost)
                                     <td class="text-end {{ $lineMargin < 0 ? 'text-danger' : 'text-success' }}">
                                         Rp {{ number_format($lineMargin, 0, ',', '.') }}
                                     </td>
+                                    @endif
                                 </tr>
+                                @if ($canSeeCost)
                                 <tr class="collapse" id="{{ $detailId }}">
                                     <td colspan="5" class="bg-lighter">
                                         <div class="small text-muted mb-2">
@@ -173,9 +183,10 @@
                                         @endif
                                     </td>
                                 </tr>
+                                @endif
                             @empty
                                 <tr>
-                                    <td colspan="5" class="text-center">Tidak ada item.</td>
+                                    <td colspan="{{ $canSeeCost ? 5 : 4 }}" class="text-center">Tidak ada item.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -185,6 +196,7 @@
         </div>
 
         <div class="col-12 col-lg-5">
+            @if ($canSeeCost)
             <div class="card mb-4">
                 <div class="card-header">
                     <h5 class="mb-0">Bahan yang keluar dari stok</h5>
@@ -213,6 +225,7 @@
                     </table>
                 </div>
             </div>
+            @endif
 
             <div class="card">
                 <div class="card-header">
@@ -250,6 +263,7 @@
                         <span>Rp {{ number_format($transaction->admin_fee, 0, ',', '.') }}</span>
                     </div>
                     @endif
+                    @if ($canSeeCost)
                     <div class="d-flex justify-content-between">
                         <span class="text-muted">Biaya bahan (resep)</span>
                         <span>Rp {{ number_format($transaction->total_hpp, 0, ',', '.') }}</span>
@@ -271,6 +285,7 @@
                         Laba Kotor = Grand Total dikurangi <strong>Biaya bahan + cadangan (Faktor Q)</strong>, bukan biaya bahan saja.
                         Pajak dan service charge ikut dihitung di Grand Total, dan potongan admin tidak dikurangkan.
                     </div>
+                    @endif
                 </div>
             </div>
         </div>

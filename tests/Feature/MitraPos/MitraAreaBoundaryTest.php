@@ -135,4 +135,30 @@ class MitraAreaBoundaryTest extends TestCase
         $this->actingAs($this->kasir)->get(route('pos.index'))->assertForbidden();
         $this->actingAs($this->owner)->get(route('mitra-dashboard.index'))->assertForbidden();
     }
+
+    public function test_editing_a_user_of_another_mitra_gives_the_same_404_whatever_the_email(): void
+    {
+        $otherMitra = $this->owner->mitra->replicate();
+        $otherMitra->code = 'MITRA-LAIN';
+        $otherMitra->save();
+
+        $foreign = User::create([
+            'name' => 'Kasir Mitra Lain',
+            'email' => 'kasir-lain@mitra-b.test',
+            'password' => bcrypt('password'),
+            'role_id' => $this->kasir->role_id,
+            'mitra_id' => $otherMitra->id,
+        ]);
+
+        $takenEmail = 'owner@cafelallo.test';
+        $freeEmail = 'belum-dipakai@example.test';
+
+        foreach ([$takenEmail, $freeEmail] as $email) {
+            $this->actingAs($this->owner)
+                ->put(route('mitra-kasir-user.update', $foreign), ['name' => 'X', 'email' => $email])
+                ->assertNotFound();
+        }
+
+        $this->assertSame('Kasir Mitra Lain', $foreign->fresh()->name);
+    }
 }

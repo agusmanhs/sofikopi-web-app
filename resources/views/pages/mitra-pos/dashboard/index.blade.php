@@ -195,7 +195,9 @@
                 @else
                 <ul class="list-group list-group-flush">
                     @foreach ($stockAlerts as $material)
-                        @php($habis = $material->alert_level === 'red')
+                        @php
+                            $habis = $material->alert_level === 'red';
+                        @endphp
                         <li class="list-group-item">
                             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
                                 <div class="flex-grow-1" style="min-width: 220px;">

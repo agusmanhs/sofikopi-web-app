@@ -71,6 +71,11 @@ class AuthApiController extends Controller
             return ResponseHelper::error('Invalid credentials', 401);
         }
 
+        // Akun mitra hanya untuk portal web mitra-pos; jangan beri token API.
+        if ($user->mitra_id !== null) {
+            return ResponseHelper::error('Akun mitra tidak dapat memakai aplikasi ini. Silakan masuk lewat web.', 403);
+        }
+
         // Check if user is an employee and its status_aktif is false
         if ($user->pegawai && !$user->pegawai->status_aktif) {
             return ResponseHelper::error('Akun Anda telah dinonaktifkan. Silakan hubungi administrator.', 403);

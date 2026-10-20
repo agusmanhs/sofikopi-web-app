@@ -3,6 +3,7 @@
 use App\Helpers\ResponseHelper;
 use App\Http\Middleware\CheckPegawaiStatus;
 use App\Http\Middleware\CheckPermission;
+use App\Http\Middleware\EnsureInternalUser;
 use App\Http\Middleware\EnsureMitraUser;
 use App\Http\Middleware\ResolveMitraScope;
 use App\Listeners\ErrorAlertListener;
@@ -30,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'check.permission' => CheckPermission::class,
             'check.pegawai.status' => CheckPegawaiStatus::class,
+            'not.mitra' => EnsureInternalUser::class,
             'mitra.user' => EnsureMitraUser::class,
             'mitra.scope' => ResolveMitraScope::class,
         ]);

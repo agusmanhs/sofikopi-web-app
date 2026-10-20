@@ -24,6 +24,12 @@ class EnsureMitraUser
             abort(403, 'Halaman ini hanya untuk pengguna mitra.');
         }
 
+        // Mitra yang dinonaktifkan admin tidak boleh lagi memakai POS.
+        $mitra = Auth::user()->mitra;
+        if (! $mitra || ! $mitra->is_active) {
+            abort(403, 'Akun mitra Anda sedang dinonaktifkan. Hubungi admin Sofikopi.');
+        }
+
         app(MitraContext::class)->set(Auth::user()->mitra_id);
 
         return $next($request);

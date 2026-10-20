@@ -55,7 +55,8 @@ Route::middleware('guest')->group(function () {
 });
 Route::post('logout', [AuthController::class, 'logout'])->name('logout');
 
-Route::middleware(['auth', 'check.pegawai.status'])->group(function () {
+// 'not.mitra': pengguna mitra hanya boleh memakai portal mitra-pos (routes/mitra.php).
+Route::middleware(['auth', 'check.pegawai.status', 'not.mitra'])->group(function () {
     // Dashboard as home page
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 

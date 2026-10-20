@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Route;
 // Auth Routes
 Route::post('/login', [AuthApiController::class, 'login']);
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'not.mitra'])->group(function () {
     Route::get('/me', [AuthApiController::class, 'me']);
     Route::post('/logout', [AuthApiController::class, 'logout']);
     
@@ -35,7 +35,7 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // User API Routes
-Route::prefix('users')->middleware('auth:sanctum')->group(function () {
+Route::prefix('users')->middleware(['auth:sanctum', 'not.mitra'])->group(function () {
     Route::get('/', [UserApiController::class, 'index']);
     Route::get('/{id}', [UserApiController::class, 'show']);
 });

@@ -6,9 +6,12 @@ use App\Helpers\ResponseHelper;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\MitraPos\PosCheckoutRequest;
 use App\Models\Mitra;
+use App\Models\MitraPosSetting;
 use App\Services\MitraPos\MitraContext;
 use App\Services\MitraPos\MitraProductService;
 use App\Services\MitraPos\PosTransactionService;
+use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class PosController extends Controller
 {
@@ -57,7 +60,16 @@ class PosController extends Controller
         $products = $this->productService->listActiveForPos($mitraId);
         $routes = $this->routesFor($mitra);
 
-        return view('pages.mitra-pos.pos.index', compact('products', 'mitra', 'routes'));
+        $setting = MitraPosSetting::forMitra($mitraId)->first();
+        $charges = [
+            'service_charge_percent' => (float) ($setting?->service_charge_percent ?? 0),
+            'tax_percent' => (float) ($setting?->tax_percent ?? 0),
+            'qris_fee_percent' => (float) ($setting?->qris_fee_percent ?? 0),
+            'transfer_fee_percent' => (float) ($setting?->transfer_fee_percent ?? 0),
+            'edc_fee_percent' => (float) ($setting?->edc_fee_percent ?? 0),
+        ];
+
+        return view('pages.mitra-pos.pos.index', compact('products', 'mitra', 'routes', 'charges'));
     }
 
     /**
@@ -115,14 +127,25 @@ class PosController extends Controller
                 discount: (float) ($data['discount'] ?? 0),
                 salesMode: $data['sales_mode'],
                 paymentMethod: $data['payment_method'],
+                clientToken: $data['client_token'] ?? null,
             );
 
             return ResponseHelper::success([
                 'transaction' => $result['transaction'],
                 'stock_warnings' => $result['stock_warnings'],
             ], 'Transaksi berhasil');
+        } catch (\InvalidArgumentException|NotFoundHttpException $e) {
+            return ResponseHelper::error($e->getMessage(), 422);
         } catch (\Throwable $e) {
-            return ResponseHelper::error('Checkout gagal: '.$e->getMessage(), 422);
+            Log::error('POS checkout gagal', [
+                'mitra_id' => $mitraId,
+                'user_id' => auth()->id(),
+                'payment_method' => $data['payment_method'] ?? null,
+                'item_count' => count($data['items'] ?? []),
+                'exception' => $e,
+            ]);
+
+            return ResponseHelper::error('Checkout gagal karena kesalahan sistem. Transaksi belum tersimpan. Silakan coba lagi atau hubungi admin.', 422);
         }
     }
 

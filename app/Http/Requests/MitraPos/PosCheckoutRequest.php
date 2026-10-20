@@ -15,6 +15,17 @@ class PosCheckoutRequest extends BaseRequest
             'discount' => 'nullable|numeric|min:0',
             'sales_mode' => 'required|in:dine_in,take_away,online',
             'payment_method' => 'required|in:cash,qris,transfer,edc',
+            'client_token' => 'nullable|string|max:64',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'items.required' => 'Keranjang masih kosong. Tambahkan minimal 1 produk.',
+            'items.*.qty.min' => 'Jumlah produk minimal 1.',
+            'discount.numeric' => 'Diskon harus berupa angka.',
+            'discount.min' => 'Diskon tidak boleh negatif.',
         ];
     }
 }

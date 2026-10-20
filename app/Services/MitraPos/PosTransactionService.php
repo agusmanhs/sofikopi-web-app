@@ -2,6 +2,7 @@
 
 namespace App\Services\MitraPos;
 
+use App\Models\AkuntansiJournalEntry;
 use App\Models\Mitra;
 use App\Models\MitraMaterial;
 use App\Models\MitraPosSetting;
@@ -9,8 +10,10 @@ use App\Models\MitraProduct;
 use App\Models\MitraStockMovement;
 use App\Models\PosTransaction;
 use App\Models\PosTransactionItem;
+use App\Models\User;
 use App\Repositories\MitraPos\PosTransactionRepository;
 use App\Services\BaseService;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -25,12 +28,59 @@ class PosTransactionService extends BaseService
         parent::__construct($repository);
     }
 
-    public function forMitra(int $mitraId, int $perPage = 15)
+    public function forMitra(int $mitraId, int $perPage = 15, array $filters = [])
     {
-        return PosTransaction::forMitra($mitraId)
+        $query = PosTransaction::forMitra($mitraId)
             ->with('user')
-            ->orderBy('transacted_at', 'desc')
-            ->paginate($perPage);
+            ->orderBy('transacted_at', 'desc');
+
+        if (! empty($filters['q'])) {
+            $query->where('transaction_no', 'like', '%'.trim($filters['q']).'%');
+        }
+        if (! empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+        if (! empty($filters['user_id'])) {
+            $query->where('user_id', $filters['user_id']);
+        }
+        if (! empty($filters['from'])) {
+            $query->whereDate('transacted_at', '>=', $filters['from']);
+        }
+        if (! empty($filters['to'])) {
+            $query->whereDate('transacted_at', '<=', $filters['to']);
+        }
+
+        return $query->paginate($perPage)->appends($filters);
+    }
+
+    public function cashiersForMitra(int $mitraId)
+    {
+        return User::whereIn('id', PosTransaction::forMitra($mitraId)->select('user_id')->distinct())
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
+    /**
+     * Stock rows that actually left stock when this sale was rung up (from
+     * the ledger, so they stay correct even after the recipe is edited).
+     */
+    public function stockOutFor(PosTransaction $transaction)
+    {
+        return MitraStockMovement::forMitra($transaction->mitra_id)
+            ->with('material')
+            ->where('reference_type', $transaction->getMorphClass())
+            ->where('reference_id', $transaction->id)
+            ->where('type', 'out')
+            ->get();
+    }
+
+    public function journalEntriesFor(PosTransaction $transaction)
+    {
+        return AkuntansiJournalEntry::forMitra($transaction->mitra_id)
+            ->where('reference_type', $transaction->getMorphClass())
+            ->where('reference_id', $transaction->id)
+            ->orderBy('id')
+            ->get(['id', 'entry_no', 'source_type']);
     }
 
     /**
@@ -41,7 +91,7 @@ class PosTransactionService extends BaseService
     public function findForMitra(int $mitraId, string $transactionNo): PosTransaction
     {
         $transaction = PosTransaction::forMitra($mitraId)
-            ->with('items.product', 'user')
+            ->with('items.product.ingredients.material', 'user')
             ->where('transaction_no', $transactionNo)
             ->first();
 
@@ -68,9 +118,56 @@ class PosTransactionService extends BaseService
         array $items,
         float $discount,
         string $salesMode,
-        string $paymentMethod
+        string $paymentMethod,
+        ?string $clientToken = null
     ): array {
-        return DB::transaction(function () use ($mitraId, $userId, $items, $discount, $salesMode, $paymentMethod) {
+        if ($clientToken !== null) {
+            $existing = $this->findByClientToken($mitraId, $clientToken);
+            if ($existing) {
+                return $this->duplicateResult($existing);
+            }
+        }
+
+        try {
+            return $this->performCheckout($mitraId, $userId, $items, $discount, $salesMode, $paymentMethod, $clientToken);
+        } catch (QueryException $e) {
+            // Two simultaneous requests with the same token: the loser hits the unique index.
+            $existing = $clientToken !== null ? $this->findByClientToken($mitraId, $clientToken) : null;
+            if (! $existing) {
+                throw $e;
+            }
+
+            return $this->duplicateResult($existing);
+        }
+    }
+
+    private function findByClientToken(int $mitraId, string $clientToken): ?PosTransaction
+    {
+        return PosTransaction::forMitra($mitraId)
+            ->where('client_token', $clientToken)
+            ->with('items')
+            ->first();
+    }
+
+    private function duplicateResult(PosTransaction $transaction): array
+    {
+        return [
+            'transaction' => $transaction,
+            'stock_warnings' => [],
+            'duplicate' => true,
+        ];
+    }
+
+    private function performCheckout(
+        int $mitraId,
+        int $userId,
+        array $items,
+        float $discount,
+        string $salesMode,
+        string $paymentMethod,
+        ?string $clientToken
+    ): array {
+        return DB::transaction(function () use ($mitraId, $userId, $items, $discount, $salesMode, $paymentMethod, $clientToken) {
             // 1. Load requested products, scoped to this mitra, with BOM eager loaded.
             $productIds = collect($items)->pluck('mitra_product_id')->unique()->all();
 
@@ -134,6 +231,7 @@ class PosTransactionService extends BaseService
                     $stockWarnings[] = [
                         'material_id' => $material->id,
                         'material_name' => $material->name,
+                        'unit' => $material->unit,
                         'required' => $requiredQty,
                         'available' => (float) $material->current_stock,
                     ];
@@ -150,6 +248,14 @@ class PosTransactionService extends BaseService
             // for reporting only; it is never added to what the customer
             // owes (see the pos_transactions.admin_fee migration comment).
             $settings = MitraPosSetting::forMitra($mitraId)->first();
+
+            if ($discount - $subtotal > 0.005) {
+                throw new \InvalidArgumentException(sprintf(
+                    'Diskon Rp%s lebih besar dari subtotal Rp%s. Kecilkan diskon lalu coba lagi.',
+                    number_format($discount, 0, ',', '.'),
+                    number_format($subtotal, 0, ',', '.')
+                ));
+            }
 
             $base = max(0, $subtotal - $discount);
             $serviceCharge = round($base * ((float) ($settings?->service_charge_percent ?? 0)) / 100, 2);
@@ -175,6 +281,10 @@ class PosTransactionService extends BaseService
                 'user_id' => $userId,
                 'transacted_at' => now(),
             ]);
+
+            if ($clientToken !== null) {
+                $transaction->forceFill(['client_token' => $clientToken])->save();
+            }
 
             $totalHpp = 0;
             $totalCogs = 0;
@@ -248,7 +358,7 @@ class PosTransactionService extends BaseService
             }
 
             if ($transaction->status !== 'completed') {
-                throw new RuntimeException('Hanya transaksi berstatus completed yang bisa dibatalkan.');
+                throw new RuntimeException('Transaksi ini sudah dibatalkan sebelumnya, tidak bisa dibatalkan lagi.');
             }
 
             $outMovements = MitraStockMovement::forMitra($mitraId)

@@ -36,6 +36,25 @@ class MitraMaterialService extends BaseService
         return $query->paginate($perPage)->withQueryString();
     }
 
+    /**
+     * Totals over ALL of the mitra's materials (never just one page of the
+     * list): active inventory value mirrors MitraMaterial::getStockValueAttribute().
+     *
+     * @return array{inventory_value: float, inactive_count: int}
+     */
+    public function inventorySummaryForMitra(int $mitraId): array
+    {
+        $row = MitraMaterial::forMitra($mitraId)
+            ->selectRaw('COALESCE(SUM(CASE WHEN is_active = ? AND netto > 0 THEN current_stock * price_per_pack / netto ELSE 0 END), 0) as inventory_value', [true])
+            ->selectRaw('COALESCE(SUM(CASE WHEN is_active = ? THEN 0 ELSE 1 END), 0) as inactive_count', [true])
+            ->first();
+
+        return [
+            'inventory_value' => (float) $row->inventory_value,
+            'inactive_count' => (int) $row->inactive_count,
+        ];
+    }
+
     public function categoriesForMitra(int $mitraId)
     {
         return MitraMaterial::forMitra($mitraId)

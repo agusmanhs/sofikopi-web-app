@@ -2,6 +2,18 @@
 
 @section('title', 'Riwayat Mutasi Stok')
 
+@section('vendor-style')
+@vite([
+  'resources/assets/vendor/libs/select2/select2.scss'
+])
+@endsection
+
+@section('vendor-script')
+@vite([
+  'resources/assets/vendor/libs/select2/select2.js'
+])
+@endsection
+
 @section('content')
 @php
     $fmtQty = fn ($qty) => rtrim(rtrim(number_format($qty, 3, ',', '.'), '0'), ',');
@@ -18,14 +30,14 @@
 
     <div class="card mb-4">
         <div class="card-body">
-            <form method="GET" class="row g-3 align-items-end">
+            <form method="GET" action="{{ $routes['movements'] }}" class="row g-3 align-items-end" data-live-filter>
                 <div class="col-md-2">
                     <label class="form-label">Cari</label>
-                    <input type="text" name="q" class="form-control" value="{{ $filters['q'] ?? '' }}" placeholder="Nama bahan atau catatan">
+                    <input type="search" name="q" class="form-control" value="{{ $filters['q'] ?? '' }}" placeholder="Nama bahan atau catatan">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Material</label>
-                    <select name="material_id" class="form-select">
+                    <select name="material_id" class="form-select js-select2" data-placeholder="Semua material" data-allow-clear>
                         <option value="">Semua material</option>
                         @foreach ($materials as $material)
                         <option value="{{ $material->id }}" {{ ($filters['material_id'] ?? null) == $material->id ? 'selected' : '' }}>
@@ -51,19 +63,21 @@
                     <label class="form-label">Sampai Tanggal</label>
                     <input type="date" name="to" class="form-control" value="{{ $filters['to'] ?? '' }}">
                 </div>
-                <div class="col-md-2 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="ri-filter-3-line me-1"></i> Tampilkan
-                    </button>
-                    @if (collect($filters)->filter()->isNotEmpty())
-                    <a href="{{ $routes['movements'] }}" class="btn btn-outline-secondary">Reset</a>
-                    @endif
-                </div>
             </form>
         </div>
     </div>
 
+    <div id="live-results">
     <div class="card">
+        <div class="card-body pb-0">
+            <p class="text-muted mb-3">
+                @if ($movements->total() > 0)
+                Menampilkan {{ $movements->firstItem() }}-{{ $movements->lastItem() }} dari {{ $movements->total() }} mutasi
+                @else
+                Menampilkan 0 mutasi
+                @endif
+            </p>
+        </div>
         <div class="table-responsive">
             <table class="table table-bordered mb-0">
                 <thead>
@@ -148,5 +162,10 @@
             </div>
         @endif
     </div>
+    </div>
 </div>
+@endsection
+
+@section('page-script')
+@include('pages.mitra-pos._form-safety')
 @endsection

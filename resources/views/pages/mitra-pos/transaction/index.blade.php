@@ -2,16 +2,28 @@
 
 @section('title', 'Riwayat Transaksi POS')
 
+@section('vendor-style')
+@vite([
+  'resources/assets/vendor/libs/select2/select2.scss'
+])
+@endsection
+
+@section('vendor-script')
+@vite([
+  'resources/assets/vendor/libs/select2/select2.js'
+])
+@endsection
+
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
     <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Mitra POS /</span> Riwayat Transaksi</h4>
 
     <div class="card mb-4">
         <div class="card-body">
-            <form method="GET" action="{{ $routes['index'] }}" class="row g-3 align-items-end">
+            <form method="GET" action="{{ $routes['index'] }}" class="row g-3 align-items-end" data-live-filter>
                 <div class="col-md-3">
                     <label class="form-label">No. Transaksi</label>
-                    <input type="text" name="q" class="form-control" value="{{ $filters['q'] ?? '' }}" placeholder="Contoh: 0012">
+                    <input type="search" name="q" class="form-control" value="{{ $filters['q'] ?? '' }}" placeholder="Contoh: 0012" autocomplete="off">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Status</label>
@@ -23,7 +35,7 @@
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Kasir</label>
-                    <select name="user_id" class="form-select">
+                    <select name="user_id" class="form-select js-select2" data-placeholder="Semua kasir" data-allow-clear>
                         <option value="">Semua kasir</option>
                         @foreach ($cashiers as $cashier)
                         <option value="{{ $cashier->id }}" {{ (string) ($filters['user_id'] ?? '') === (string) $cashier->id ? 'selected' : '' }}>{{ $cashier->name }}</option>
@@ -38,19 +50,14 @@
                     <label class="form-label">Sampai Tanggal</label>
                     <input type="date" name="to" class="form-control" value="{{ $filters['to'] ?? '' }}">
                 </div>
-                <div class="col-md-1 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary" title="Tampilkan"><i class="ri-search-line"></i></button>
-                    @if (!empty($filters))
-                    <a href="{{ $routes['index'] }}" class="btn btn-outline-secondary" title="Hapus semua filter"><i class="ri-close-line"></i></a>
-                    @endif
-                </div>
             </form>
-            @if ($errors->any())
-            <div class="text-danger small mt-2">{{ $errors->first() }}</div>
-            @endif
         </div>
     </div>
 
+    <div id="live-results">
+    @if ($errors->any())
+    <div class="text-danger small mb-2">{{ $errors->first() }}</div>
+    @endif
     <div class="card">
         <div class="card-datatable table-responsive">
             <table class="datatables-basic table table-bordered">
@@ -115,5 +122,10 @@
             </div>
         @endif
     </div>
+    </div>
 </div>
+@endsection
+
+@section('page-script')
+@include('pages.mitra-pos._form-safety')
 @endsection

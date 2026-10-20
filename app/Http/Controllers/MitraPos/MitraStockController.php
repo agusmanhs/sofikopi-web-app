@@ -11,7 +11,6 @@ use App\Services\MitraPos\MitraMaterialService;
 use App\Services\MitraPos\MitraStockService;
 use App\Traits\LogsActivity;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class MitraStockController extends Controller
 {
@@ -153,17 +152,11 @@ class MitraStockController extends Controller
     private function renderIndex(Request $request, int $mitraId, ?Mitra $mitra)
     {
         $search = trim((string) $request->query('q', ''));
-        $materials = $this->materialService->forMitra($mitraId);
-
-        if ($search !== '') {
-            $materials = $materials->filter(
-                fn ($material) => Str::contains(Str::lower($material->name.' '.$material->sku), Str::lower($search))
-            )->values();
-        }
-
+        $materials = $this->materialService->paginateForMitra($mitraId, 15, $search);
+        $summary = $this->materialService->inventorySummaryForMitra($mitraId);
         $routes = $this->routesFor($mitra);
 
-        return view('pages.mitra-pos.stock.index', compact('materials', 'mitra', 'routes', 'search'));
+        return view('pages.mitra-pos.stock.index', compact('materials', 'mitra', 'routes', 'search', 'summary'));
     }
 
     private function renderMovements(Request $request, int $mitraId, ?Mitra $mitra)

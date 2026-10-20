@@ -20,8 +20,7 @@
     // (kasir doesn't). Admin context adjusts via the Material page instead.
     $canAdjust = !isset($mitra) && auth()->user()->can('access', ['mitra-stock.index', 'update']);
     $fmtQty = fn ($qty) => rtrim(rtrim(number_format($qty, 3, ',', '.'), '0'), ',');
-    $activeMaterials = $materials->where('is_active', true);
-    $inactiveCount = $materials->count() - $activeMaterials->count();
+    $inactiveCount = $summary['inactive_count'];
 @endphp
 <div class="container-xxl flex-grow-1 container-p-y">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -62,22 +61,26 @@
 
     <div class="card mb-4">
         <div class="card-body">
-            <form method="GET" action="{{ $routes['index'] }}" class="row g-3 align-items-end">
+            <form method="GET" action="{{ $routes['index'] }}" class="row g-3 align-items-end" data-live-filter>
                 <div class="col-md-6">
                     <label class="form-label">Cari bahan</label>
-                    <input type="text" name="q" class="form-control" value="{{ $search ?? '' }}" placeholder="Ketik nama atau kode (SKU) bahan">
-                </div>
-                <div class="col-md-4 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary"><i class="ri-search-line me-1"></i> Cari</button>
-                    @if (!empty($search))
-                    <a href="{{ $routes['index'] }}" class="btn btn-outline-secondary">Hapus pencarian</a>
-                    @endif
+                    <input type="search" name="q" class="form-control" value="{{ $search ?? '' }}" placeholder="Ketik nama atau kode (SKU) bahan">
                 </div>
             </form>
         </div>
     </div>
 
+    <div id="live-results">
     <div class="card">
+        <div class="card-body pb-0">
+            <p class="text-muted mb-3">
+                @if ($materials->total() > 0)
+                Menampilkan {{ $materials->firstItem() }}-{{ $materials->lastItem() }} dari {{ $materials->total() }} material
+                @else
+                Menampilkan 0 material
+                @endif
+            </p>
+        </div>
         <div class="card-datatable table-responsive">
             <table class="datatables-basic table table-bordered">
                 <thead>
@@ -98,9 +101,9 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($materials as $index => $material)
+                    @forelse($materials as $material)
                     <tr class="{{ $material->is_active ? '' : 'text-muted' }}">
-                        <td>{{ $index + 1 }}</td>
+                        <td>{{ $materials->firstItem() + $loop->index }}</td>
                         <td>{{ $material->sku }}</td>
                         <td>{{ $material->name }}</td>
                         <td>{{ $material->category ?? '-' }}</td>
@@ -159,22 +162,28 @@
                     </tr>
                     @endforelse
                 </tbody>
-                @if ($materials->isNotEmpty())
+                @if ($summary['inventory_value'] > 0 || $materials->isNotEmpty())
                 <tfoot>
                     <tr class="fw-bold">
                         <td colspan="7" class="text-end">
-                            Total Nilai Inventory (bahan aktif)
+                            Total Nilai Inventory (semua bahan aktif, bukan hanya halaman ini)
                             @if ($inactiveCount > 0)
                             <div class="small fw-normal text-muted">{{ $inactiveCount }} bahan non-aktif tidak dihitung</div>
                             @endif
                         </td>
-                        <td>Rp {{ number_format($activeMaterials->sum('stock_value'), 0, ',', '.') }}</td>
+                        <td>Rp {{ number_format($summary['inventory_value'], 0, ',', '.') }}</td>
                         <td colspan="{{ $canAdjust ? 3 : 2 }}"></td>
                     </tr>
                 </tfoot>
                 @endif
             </table>
         </div>
+        @if ($materials->hasPages())
+        <div class="card-footer d-flex justify-content-end">
+            {{ $materials->links() }}
+        </div>
+        @endif
+    </div>
     </div>
     @if(!isset($mitra) && !$canAdjust)
     @cannot('access', ['mitra-material.index', 'read'])
@@ -231,9 +240,9 @@
 </div>
 @endsection
 
-@if($canAdjust ?? false)
 @section('page-script')
 @include('pages.mitra-pos._form-safety')
+@if($canAdjust ?? false)
 <script>
     (function () {
         var REASONS = {
@@ -303,8 +312,10 @@
             }
         };
 
-        document.querySelectorAll('.btn-adjust-stock').forEach(function (btn) {
-            btn.addEventListener('click', function () {
+        document.addEventListener('click', function (event) {
+            var btn = event.target.closest('.btn-adjust-stock');
+            if (!btn) return;
+            {
                 state.direction = parseInt(btn.dataset.direction, 10);
                 state.stock = parseFloat(btn.dataset.stockRaw) || 0;
                 state.unit = btn.dataset.unit;
@@ -330,7 +341,7 @@
                 detailInput.value = '';
                 MitraForm.unlock(form);
                 refresh();
-            });
+            }
         });
 
         [qtyInput, reasonSelect, detailInput].forEach(function (el) {
@@ -339,5 +350,5 @@
         });
     })();
 </script>
-@endsection
 @endif
+@endsection

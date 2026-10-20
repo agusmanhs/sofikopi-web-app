@@ -35,12 +35,20 @@ class MitraPosManageController extends Controller
      * Only mitras enrolled in POS — not every active mitra in the master
      * table.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $mitras = Mitra::whereHas('posSetting')->orderBy('name')->get();
+        $search = trim((string) $request->query('q', ''));
+        $mitras = Mitra::whereHas('posSetting')
+            ->when($search !== '', function ($query) use ($search) {
+                $term = '%'.$search.'%';
+                $query->where(fn ($inner) => $inner->where('name', 'like', $term)->orWhere('code', 'like', $term));
+            })
+            ->orderBy('name')
+            ->paginate(12)
+            ->withQueryString();
         $availableMitras = Mitra::aktif()->whereDoesntHave('posSetting')->orderBy('name')->get();
 
-        return view('pages.mitra-pos.manage-picker', compact('mitras', 'availableMitras'));
+        return view('pages.mitra-pos.manage-picker', compact('mitras', 'availableMitras', 'search'));
     }
 
     /**

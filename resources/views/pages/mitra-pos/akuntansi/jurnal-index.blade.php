@@ -2,6 +2,18 @@
 
 @section('title', 'Jurnal Akuntansi' . (isset($mitra) ? ' - ' . $mitra->name : ''))
 
+@section('vendor-style')
+@vite([
+  'resources/assets/vendor/libs/select2/select2.scss'
+])
+@endsection
+
+@section('vendor-script')
+@vite([
+  'resources/assets/vendor/libs/select2/select2.js'
+])
+@endsection
+
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
     <div class="d-flex justify-content-between align-items-center py-3 mb-4">
@@ -36,10 +48,7 @@
 
     <div class="card mb-4">
         <div class="card-body">
-            <form method="GET" action="{{ $routes['index'] }}" class="row g-3 align-items-end">
-                @if (! empty($filters['transaction']))
-                <input type="hidden" name="transaction" value="{{ $filters['transaction'] }}">
-                @endif
+            <form method="GET" action="{{ $routes['index'] }}" class="row g-3 align-items-end" data-live-filter>
                 <div class="col-md-2">
                     <label class="form-label" for="filter-from">Dari Tanggal</label>
                     <input type="date" id="filter-from" name="from" class="form-control" value="{{ $filters['from'] ?? '' }}">
@@ -48,29 +57,28 @@
                     <label class="form-label" for="filter-to">Sampai Tanggal</label>
                     <input type="date" id="filter-to" name="to" class="form-control" value="{{ $filters['to'] ?? '' }}">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label" for="filter-q">Cari keterangan / no. jurnal</label>
-                    <input type="text" id="filter-q" name="q" class="form-control" maxlength="100" value="{{ $filters['q'] ?? '' }}" placeholder="Contoh: listrik">
+                    <input type="search" id="filter-q" name="q" class="form-control" maxlength="100" value="{{ $filters['q'] ?? '' }}" placeholder="Contoh: listrik" autocomplete="off">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
+                    <label class="form-label" for="filter-transaction">No. transaksi</label>
+                    <input type="search" id="filter-transaction" name="transaction" class="form-control" maxlength="100" value="{{ $filters['transaction'] ?? '' }}" placeholder="Contoh: 0012" autocomplete="off">
+                </div>
+                <div class="col-md-4">
                     <label class="form-label" for="filter-account">Akun (opsional)</label>
-                    <select id="filter-account" name="account_id" class="form-select">
+                    <select id="filter-account" name="account_id" class="form-select js-select2" data-placeholder="Semua akun" data-allow-clear>
                         <option value="">Semua akun</option>
                         @foreach ($filterAccounts as $account)
                         <option value="{{ $account->id }}" @selected((int) ($filters['account_id'] ?? 0) === $account->id)>{{ $account->code }} - {{ $account->name }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-2 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary">Tampilkan</button>
-                    @if ($hasFilter)
-                    <a href="{{ $routes['index'] }}" class="btn btn-outline-secondary">Reset</a>
-                    @endif
-                </div>
             </form>
         </div>
     </div>
 
+    <div id="live-results">
     <p class="text-muted mb-2">
         @if ($hasFilter)
             Ditemukan <strong>{{ number_format($entries->total(), 0, ',', '.') }}</strong> jurnal sesuai filter
@@ -231,5 +239,10 @@
             {{ $entries->withQueryString()->links() }}
         </div>
     </div>
+    </div>
 </div>
+@endsection
+
+@section('page-script')
+@include('pages.mitra-pos._form-safety')
 @endsection

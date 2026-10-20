@@ -24,7 +24,7 @@
             @can('access', ['mitra-pos-manage.index', 'delete'])
             <div class="form-check me-2">
                 <input type="checkbox" class="form-check-input" id="selectAllMitras">
-                <label class="form-check-label" for="selectAllMitras">Pilih Semua</label>
+                <label class="form-check-label" for="selectAllMitras">Pilih semua di halaman ini</label>
             </div>
             <button type="button" class="btn btn-outline-danger" id="btnBulkDelete" disabled>
                 <i class="ri-delete-bin-line me-1"></i> Hapus Terpilih (<span id="bulkSelectedCount">0</span>)
@@ -56,6 +56,26 @@
     </div>
     @endif
 
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ route('mitra-pos-manage.index') }}" class="row g-3 align-items-end" data-live-filter>
+                <div class="col-md-6">
+                    <label class="form-label" for="mitraSearch">Cari mitra</label>
+                    <input type="search" id="mitraSearch" name="q" class="form-control" value="{{ $search ?? '' }}" placeholder="Ketik nama atau kode mitra">
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="mitraListWrap">
+    <div id="live-results">
+    <p class="text-muted mb-3">
+        @if ($mitras->total() > 0)
+        Menampilkan {{ $mitras->firstItem() }}-{{ $mitras->lastItem() }} dari {{ $mitras->total() }} mitra
+        @else
+        Menampilkan 0 mitra
+        @endif
+    </p>
     <div class="row g-4">
         @forelse($mitras as $mitra)
         <div class="col-md-6 col-xl-4">
@@ -132,13 +152,24 @@
         @empty
         <div class="col-12">
             <div class="alert alert-info mb-0">
+                @if (!empty($search))
+                Tidak ada mitra yang cocok dengan pencarian "{{ $search }}".
+                @else
                 Belum ada mitra yang ditambahkan ke sistem POS.
                 @can('access', ['mitra-pos-manage.index', 'create'])
                 Klik <b>"Tambah Mitra ke POS"</b> untuk mulai.
                 @endcan
+                @endif
             </div>
         </div>
         @endforelse
+    </div>
+    @if ($mitras->hasPages())
+    <div class="d-flex justify-content-end mt-4">
+        {{ $mitras->links() }}
+    </div>
+    @endif
+    </div>
     </div>
 
     @can('access', ['mitra-pos-manage.index', 'delete'])
@@ -184,6 +215,7 @@
 @endsection
 
 @section('page-script')
+@include('pages.mitra-pos._form-safety')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const jq = window.$ || window.jQuery;
@@ -197,7 +229,7 @@
                 });
             });
 
-            jq('.form-remove-mitra').on('submit', function(e) {
+            jq(document).on('submit', '.form-remove-mitra', function(e) {
                 e.preventDefault();
                 const form = this;
                 const code = form.dataset.code;
@@ -244,9 +276,19 @@
                 updateBulkDeleteState();
             });
 
-            jq('.mitra-select-checkbox').on('change', function() {
+            jq(document).on('change', '.mitra-select-checkbox', function() {
+                const boxes = jq('.mitra-select-checkbox');
+                jq('#selectAllMitras').prop('checked', boxes.length > 0 && boxes.filter(':checked').length === boxes.length);
                 updateBulkDeleteState();
             });
+
+            const listWrap = document.getElementById('mitraListWrap');
+            if (listWrap) {
+                new MutationObserver(function() {
+                    jq('#selectAllMitras').prop('checked', false);
+                    updateBulkDeleteState();
+                }).observe(listWrap, { childList: true, subtree: true });
+            }
 
             jq('#btnBulkDelete').on('click', function(e) {
                 e.preventDefault();

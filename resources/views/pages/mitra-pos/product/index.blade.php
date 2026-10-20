@@ -54,19 +54,14 @@
 
     <div class="card">
         <div class="card-body border-bottom">
-            <form method="GET" action="{{ route('mitra-product.index', $mitra) }}" class="row g-2 align-items-end">
+            <form method="GET" action="{{ route('mitra-product.index', $mitra) }}" class="row g-2 align-items-end" data-live-filter>
                 <div class="col-md-6">
                     <label class="form-label mb-1">Cari produk</label>
-                    <input type="text" name="q" value="{{ request('q') }}" class="form-control" placeholder="Ketik nama atau SKU produk">
-                </div>
-                <div class="col-md-4 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary"><i class="ri-search-line me-1"></i> Cari</button>
-                    @if(request()->filled('q'))
-                    <a href="{{ route('mitra-product.index', $mitra) }}" class="btn btn-outline-secondary">Reset</a>
-                    @endif
+                    <input type="search" name="q" value="{{ request('q') }}" class="form-control" placeholder="Ketik nama atau SKU produk" autocomplete="off">
                 </div>
             </form>
         </div>
+        <div id="live-results">
         <div class="card-datatable table-responsive">
             <table class="table table-bordered">
                 <thead>
@@ -202,6 +197,7 @@
             {{ $products->links() }}
             @endif
         </div>
+        </div>
     </div>
 </div>
 @endsection
@@ -209,12 +205,10 @@
 @section('page-script')
 @include('pages.mitra-pos._form-safety')
 <script>
-    document.querySelectorAll('tr[data-bs-toggle="collapse"]').forEach(function(row) {
-        row.addEventListener('click', function(event) {
-            if (event.target.closest('a, button, form')) {
-                event.stopPropagation();
-            }
-        }, true);
-    });
+    document.getElementById('live-results').addEventListener('click', function(event) {
+        if (event.target.closest('tr[data-bs-toggle="collapse"]') && event.target.closest('a, button, form')) {
+            event.stopPropagation();
+        }
+    }, true);
 </script>
 @endsection

@@ -4,13 +4,15 @@
 
 @section('vendor-style')
 @vite([
-  'resources/assets/vendor/libs/sweetalert2/sweetalert2.scss'
+  'resources/assets/vendor/libs/sweetalert2/sweetalert2.scss',
+  'resources/assets/vendor/libs/select2/select2.scss'
 ])
 @endsection
 
 @section('vendor-script')
 @vite([
-  'resources/assets/vendor/libs/sweetalert2/sweetalert2.js'
+  'resources/assets/vendor/libs/sweetalert2/sweetalert2.js',
+  'resources/assets/vendor/libs/select2/select2.js'
 ])
 @endsection
 
@@ -70,15 +72,15 @@
 
     <div class="card">
         <div class="card-body border-bottom">
-            <form method="GET" action="{{ route('mitra-material.index', $mitra) }}" class="row g-2 align-items-end">
-                <div class="col-md-5">
+            <form method="GET" action="{{ route('mitra-material.index', $mitra) }}" class="row g-2 align-items-end" data-live-filter>
+                <div class="col-md-6">
                     <label class="form-label mb-1">Cari material</label>
-                    <input type="text" name="q" value="{{ request('q') }}" class="form-control" placeholder="Ketik nama atau SKU material">
+                    <input type="search" name="q" value="{{ request('q') }}" class="form-control" placeholder="Ketik nama atau SKU material" autocomplete="off">
                 </div>
                 @if($categories->isNotEmpty())
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label mb-1">Kategori</label>
-                    <select name="category" class="form-select">
+                    <select name="category" class="form-select js-select2" data-placeholder="Semua kategori" data-allow-clear>
                         <option value="">Semua kategori</option>
                         @foreach($categories as $categoryOption)
                         <option value="{{ $categoryOption }}" {{ request('category') === $categoryOption ? 'selected' : '' }}>{{ $categoryOption }}</option>
@@ -86,14 +88,9 @@
                     </select>
                 </div>
                 @endif
-                <div class="col-md-4 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary"><i class="ri-search-line me-1"></i> Cari</button>
-                    @if(request()->filled('q') || request()->filled('category'))
-                    <a href="{{ route('mitra-material.index', $mitra) }}" class="btn btn-outline-secondary">Reset</a>
-                    @endif
-                </div>
             </form>
         </div>
+        <div id="live-results">
         <div class="card-datatable table-responsive">
             <table class="table table-bordered">
                 <thead>
@@ -197,6 +194,7 @@
             {{ $materials->links() }}
             @endif
         </div>
+        </div>
     </div>
 </div>
 
@@ -262,8 +260,8 @@
             <div class="modal-body">
                 <div class="mb-3">
                     <label class="form-label">Material <span class="text-danger">*</span></label>
-                    <select name="material_id" id="purchase_material_id" class="form-select" required>
-                        <option value="">-- Pilih Material --</option>
+                    <select name="material_id" id="purchase_material_id" class="form-select js-select2" data-placeholder="-- Pilih material --" required>
+                        <option value="">-- Pilih material --</option>
                         @foreach($allMaterials as $m)
                         <option value="{{ $m->id }}" data-unit="{{ $m->unit }}" data-price="{{ (float) $m->harga_satuan }}">
                             {{ $m->name }} ({{ $m->sku }}) - harga standar Rp {{ rtrim(rtrim(number_format($m->harga_satuan, 2, ',', '.'), '0'), ',') }}/{{ $m->unit }}
@@ -341,8 +339,9 @@
             preview.classList.toggle('text-muted', !tooMuch);
         };
 
-        document.querySelectorAll('.btn-adjust-stock').forEach(function(button) {
-            button.addEventListener('click', function() {
+        document.addEventListener('click', function(event) {
+            const button = event.target.closest ? event.target.closest('.btn-adjust-stock') : null;
+            if (button) {
                 adjustState.stock = parseFloat(button.dataset.stock) || 0;
                 adjustState.unit = button.dataset.unit;
                 adjustState.direction = parseInt(button.dataset.direction, 10) || -1;
@@ -360,7 +359,7 @@
                 refreshAdjust();
 
                 new bootstrap.Modal(byId('modalAdjustStock')).show();
-            });
+            }
         });
 
         byId('adjust_qty').addEventListener('input', refreshAdjust);
@@ -428,11 +427,13 @@
         };
 
         purchaseSelect.addEventListener('change', refreshPurchase);
+        if (window.jQuery) window.jQuery(purchaseSelect).on('change', refreshPurchase);
         byId('purchase_qty').addEventListener('input', refreshPurchase);
         byId('purchase_unit_price').addEventListener('input', refreshPurchase);
 
         byId('modalPurchaseStock').addEventListener('hidden.bs.modal', function() {
             byId('formPurchaseStock').reset();
+            if (window.jQuery) window.jQuery(purchaseSelect).trigger('change');
             MitraForm.unlock(byId('formPurchaseStock'));
             refreshPurchase();
         });

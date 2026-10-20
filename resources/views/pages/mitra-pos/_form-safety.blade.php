@@ -7,6 +7,16 @@
     Perilakunya aktif lewat atribut, jadi form yang tidak memakainya tidak berubah:
       - input.rupiah-input        : topeng ribuan "15.000.000" (tanpa sen)
           data-decimals="2"       : izinkan koma desimal "18.500,5" (harga per gram, dsb.)
+      - form[data-live-filter]    : filter daftar langsung jalan tanpa tombol Cari/Reset
+          data-live-target="#live-results"  (elemen yang diganti; bawaan #live-results)
+          data-live-delay="350"             (jeda ketik dalam ms)
+          Kotak hasil (tabel + ringkasan + paginasi) harus dibungkus elemen target.
+          Tautan paginasi di dalam target ikut dimuat tanpa reload layar penuh.
+      - select.js-select2         : dropdown yang bisa dicari (Select2) untuk pilihan dari database
+          data-placeholder="-- Pilih bahan --"
+          data-allow-clear        : tampilkan tombol hapus pilihan (butuh <option value=""> kosong)
+          Halaman wajib memuat select2.js/select2.scss di vendor-script/vendor-style.
+          Select di dalam .modal otomatis memakai modal sebagai dropdownParent.
       - form[data-lock-submit]    : tombol simpan dikunci setelah diklik (cegah klik ganda)
       - form[data-confirm-title]  : tampilkan dialog konfirmasi sebelum form dikirim
           data-confirm-text="baris 1|baris 2"  (pisahkan baris dengan "|")
@@ -189,7 +199,28 @@
             });
         };
 
+        const initSelect2 = function(root) {
+            const jq = window.jQuery || window.$;
+            if (!jq || !jq.fn || !jq.fn.select2) return;
+            jq(root || document).find('select.js-select2').each(function() {
+                const $select = jq(this);
+                if ($select.data('select2')) return;
+                const $modal = $select.closest('.modal');
+                $select.select2({
+                    width: '100%',
+                    placeholder: $select.attr('data-placeholder') || 'Pilih...',
+                    allowClear: $select.is('[data-allow-clear]'),
+                    dropdownParent: $modal.length ? $modal : jq(document.body),
+                    language: {
+                        noResults: function() { return 'Tidak ditemukan'; },
+                        searching: function() { return 'Mencari...'; },
+                    },
+                });
+            });
+        };
+
         window.MitraForm = {
+            initSelect2: initSelect2,
             escapeHtml: escapeHtml,
             toRupiahNumber: toRupiahNumber,
             toDecimalNumber: toDecimalNumber,
@@ -201,10 +232,150 @@
             initRupiahInputs: initRupiahInputs,
         };
 
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function() { initRupiahInputs(); });
-        } else {
+        // Satu listener klik untuk semua blok hasil (bukan satu per form), supaya
+        // paginasi satu blok tidak dibajak form lain di halaman yang sama.
+        const liveRegions = [];
+        let liveClickBound = false;
+
+        const bindLiveClicks = function() {
+            if (liveClickBound) return;
+            liveClickBound = true;
+            document.addEventListener('click', function(event) {
+                if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey) return;
+                const link = event.target.closest ? event.target.closest('a.page-link') : null;
+                if (!link || !link.href || link.target || link.hasAttribute('download')) return;
+                for (let i = 0; i < liveRegions.length; i++) {
+                    const region = liveRegions[i];
+                    if (link.closest(region.selector)) {
+                        event.preventDefault();
+                        region.load(link.href, { scroll: true });
+                        return;
+                    }
+                }
+            });
+        };
+
+        const initLiveFilters = function() {
+            document.querySelectorAll('form[data-live-filter]').forEach(function(form) {
+                if (form.dataset.liveReady) return;
+                form.dataset.liveReady = '1';
+
+                const targetSelector = form.getAttribute('data-live-target') || '#live-results';
+                const delay = parseInt(form.getAttribute('data-live-delay') || '350', 10);
+                let timer = null;
+                let controller = null;
+                let lastUrl = null;
+                let lastAt = 0;
+
+                const buildUrl = function() {
+                    const params = new URLSearchParams();
+                    new FormData(form).forEach(function(value, key) {
+                        if (typeof value === 'string' && value.trim() !== '') {
+                            params.append(key, value.trim());
+                        }
+                    });
+                    const base = form.getAttribute('action') || window.location.pathname;
+                    const query = params.toString();
+                    return query ? base + (base.indexOf('?') === -1 ? '?' : '&') + query : base;
+                };
+
+                const load = function(url, options) {
+                    const box = document.querySelector(targetSelector);
+                    if (!box) {
+                        window.location.href = url;
+                        return;
+                    }
+                    if (controller) controller.abort();
+                    const mine = new AbortController();
+                    controller = mine;
+                    box.style.opacity = '0.5';
+                    box.setAttribute('aria-busy', 'true');
+
+                    fetch(url, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' },
+                        credentials: 'same-origin',
+                        signal: mine.signal,
+                    }).then(function(response) {
+                        // Redirect berarti server menolak/mengalihkan (validasi gagal, sesi
+                        // habis). Hasilnya bukan untuk URL ini — buka halaman penuh supaya
+                        // pesan error tampil dan alamat sesuai isi layar.
+                        if (response.redirected) throw new Error('redirect');
+                        if (!response.ok) throw new Error('HTTP ' + response.status);
+                        return response.text();
+                    }).then(function(html) {
+                        const fresh = new DOMParser().parseFromString(html, 'text/html').querySelector(targetSelector);
+                        if (!fresh) throw new Error('target tidak ada');
+                        box.innerHTML = fresh.innerHTML;
+                        window.history.replaceState(null, '', url);
+                        initSelect2(box);
+                        initRupiahInputs(box);
+                        if (options && options.scroll) {
+                            box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                    }).catch(function(error) {
+                        if (error && error.name === 'AbortError') return;
+                        window.location.href = url;
+                    }).finally(function() {
+                        // Permintaan yang dibatalkan tidak boleh mematikan indikator
+                        // permintaan yang menggantikannya.
+                        if (controller === mine) {
+                            box.style.opacity = '';
+                            box.removeAttribute('aria-busy');
+                        }
+                    });
+                };
+
+                liveRegions.push({ selector: targetSelector, load: load });
+                bindLiveClicks();
+
+                const run = function() {
+                    clearTimeout(timer);
+                    const url = buildUrl();
+                    // Select2 memicu change lebih dari sekali; abaikan pemicu kembar.
+                    if (url === lastUrl && Date.now() - lastAt < 150) return;
+                    lastUrl = url;
+                    lastAt = Date.now();
+                    load(url);
+                };
+
+                form.addEventListener('submit', function(event) {
+                    event.preventDefault();
+                    run();
+                });
+
+                form.addEventListener('input', function(event) {
+                    if (event.target.matches('input[type="text"], input[type="search"], input:not([type])')) {
+                        clearTimeout(timer);
+                        timer = setTimeout(run, delay);
+                    }
+                });
+
+                form.addEventListener('change', function(event) {
+                    if (event.target.matches('select, input[type="date"], input[type="checkbox"], input[type="radio"]')) {
+                        run();
+                    }
+                });
+
+                const jq = window.jQuery || window.$;
+                if (jq) {
+                    jq(form).on('change', 'select', run);
+                }
+
+            });
+        };
+
+        window.MitraForm.initLiveFilters = initLiveFilters;
+
+        const initAll = function() {
             initRupiahInputs();
+            initSelect2();
+            initLiveFilters();
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initAll);
+        } else {
+            initAll();
         }
     })();
 </script>

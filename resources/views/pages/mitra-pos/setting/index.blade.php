@@ -2,6 +2,18 @@
 
 @section('title', 'Pengaturan Mitra POS')
 
+@section('vendor-style')
+@vite([
+  'resources/assets/vendor/libs/sweetalert2/sweetalert2.scss'
+])
+@endsection
+
+@section('vendor-script')
+@vite([
+  'resources/assets/vendor/libs/sweetalert2/sweetalert2.js'
+])
+@endsection
+
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
     <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Mitra POS /</span> Pengaturan @if(isset($mitra)) <span class="text-muted fw-light">— {{ $mitra->name }}</span> @endif</h4>
@@ -24,7 +36,7 @@
     <div class="row">
         <div class="col-12 col-lg-8">
             <div class="card">
-                <form action="{{ $routes['update'] }}" method="POST" enctype="multipart/form-data">
+                <form action="{{ $routes['update'] }}" method="POST" enctype="multipart/form-data" id="formPengaturan" data-lock-submit>
                     @csrf
                     @method('PUT')
                     <div class="card-header">
@@ -44,7 +56,7 @@
                                 </div>
                                 @endif
                                 <input type="file" name="mitra_logo" class="form-control" accept="image/png,image/jpeg">
-                                <small class="text-muted">JPG/PNG, maks 2MB. Logo utama mitra — tampil di halaman profil/identitas mitra.</small>
+                                <small class="text-muted">JPG/PNG, maks 2MB. Logo utama mitra — tampil di halaman profil/identitas mitra. Logo baru atau penghapusan logo baru berlaku setelah tombol Simpan ditekan.</small>
                             </div>
                         </div>
                     </div>
@@ -57,7 +69,8 @@
                             <div class="col-md-6">
                                 <label class="form-label">Target Omzet Bulanan (Rp)</label>
                                 <input type="text" inputmode="numeric" name="monthly_revenue_target" class="form-control rupiah-input"
-                                    value="{{ old('monthly_revenue_target', $setting->monthly_revenue_target) }}" placeholder="Contoh: 15.000.000">
+                                    value="{{ old('monthly_revenue_target', $setting->monthly_revenue_target !== null ? number_format((float) $setting->monthly_revenue_target, 0, ',', '.') : '') }}" placeholder="Contoh: 15.000.000">
+                                <small class="text-muted">Dipakai untuk membandingkan omzet bulan ini di dashboard. Tidak memengaruhi harga atau pembukuan.</small>
                             </div>
                         </div>
                         <div class="row mb-3">
@@ -86,7 +99,9 @@
 
                     <div class="card-header border-top">
                         <h5 class="mb-0">Biaya Layanan &amp; Pajak</h5>
-                        <small class="text-muted">Dihitung otomatis dari subtotal setiap transaksi kasir. Kosongkan/isi 0 jika tidak dipakai.</small>
+                        <small class="text-muted">Dihitung otomatis dari subtotal setiap transaksi kasir. Kosongkan/isi 0 jika tidak dipakai.
+                            Contoh: belanja Rp 100.000, service charge 5%, pajak 11% → service charge Rp 5.000, pajak Rp 11.550 (11% dari 105.000), pelanggan membayar Rp 116.550.
+                            Pajak dihitung <strong>di atas</strong> harga produk (ditambahkan), bukan sudah termasuk di harga.</small>
                     </div>
                     <div class="card-body">
                         <div class="row mb-3">
@@ -138,16 +153,26 @@
 @endsection
 
 @section('page-script')
+@include('pages.mitra-pos._form-safety')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('.rupiah-input').forEach(function(el) {
-            const format = function() {
-                const digits = el.value.replace(/[^\d]/g, '');
-                el.value = digits ? Number(digits).toLocaleString('id-ID') : '';
-            };
-            el.addEventListener('input', format);
-            format();
-        });
+        const form = document.getElementById('formPengaturan');
+        const removeBoxes = form.querySelectorAll('input[name="remove_logo"], input[name="remove_mitra_logo"]');
+        const syncConfirm = function() {
+            const anyChecked = Array.from(removeBoxes).some(function(box) { return box.checked; });
+            if (anyChecked) {
+                form.setAttribute('data-confirm-title', 'Hapus logo?');
+                form.setAttribute('data-confirm-text', 'Logo yang Anda centang akan dihapus saat pengaturan disimpan.|Pengaturan lain di halaman ini ikut tersimpan.');
+                form.setAttribute('data-confirm-button', 'Ya, simpan dan hapus logo');
+                form.setAttribute('data-confirm-danger', '');
+            } else {
+                ['data-confirm-title', 'data-confirm-text', 'data-confirm-button', 'data-confirm-danger'].forEach(function(attr) {
+                    form.removeAttribute(attr);
+                });
+            }
+        };
+        removeBoxes.forEach(function(box) { box.addEventListener('change', syncConfirm); });
+        syncConfirm();
     });
 </script>
 @endsection

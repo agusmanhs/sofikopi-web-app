@@ -3,13 +3,15 @@
 namespace App\Http\Requests\MitraPos;
 
 use App\Http\Requests\BaseRequest;
+use App\Http\Requests\MitraPos\Concerns\NormalizesRupiah;
 
 class MitraSettingRequest extends BaseRequest
 {
+    use NormalizesRupiah;
+
     /**
      * monthly_revenue_target arrives Indonesian-formatted from the
-     * rupiah-input JS ("15.000.000") — same normalization as
-     * MitraMaterialRequest::prepareForValidation().
+     * rupiah-input JS ("15.000.000").
      */
     protected function prepareForValidation()
     {
@@ -17,7 +19,7 @@ class MitraSettingRequest extends BaseRequest
 
         if (is_string($target) && $target !== '') {
             $this->merge([
-                'monthly_revenue_target' => str_replace(',', '.', str_replace('.', '', $target)),
+                'monthly_revenue_target' => $this->normalizeRupiah($target),
             ]);
         }
     }

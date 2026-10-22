@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Helpers\LocationHelper;
 use App\Models\Absensi;
+use App\Models\ActivityLog;
 use App\Models\HariLibur;
 use App\Models\Izin;
 use App\Models\Pegawai;
@@ -241,6 +242,25 @@ class AbsensiService extends BaseService
 
         $absensi = $this->create($absensiData);
 
+        $lokasi = $validasiLokasi['kantor_nama'] ?? '-';
+        $this->catatLog(
+            'absen_masuk',
+            $pegawai,
+            $absensi,
+            "{$pegawai->nama_lengkap} absen masuk {$absensiData['jam_masuk']} ({$status}), shift {$shift->nama}, lokasi {$lokasi}",
+            [
+                'tanggal' => today()->toDateString(),
+                'shift' => $shift->nama,
+                'jam' => $absensiData['jam_masuk'],
+                'status' => $status,
+                'lokasi' => $lokasi,
+                'jarak_meter' => isset($validasiLokasi['distance']) ? round($validasiLokasi['distance']) : null,
+                'latitude' => $data['latitude'],
+                'longitude' => $data['longitude'],
+                'device' => $absensiData['device_masuk'],
+            ]
+        );
+
         // Notify Telegram
         $this->telegramService->notifyAbsenMasuk($absensi);
 
@@ -352,10 +372,55 @@ class AbsensiService extends BaseService
 
         $absensi = $existing->fresh();
 
+        $lokasi = $validasiLokasi['kantor_nama'] ?? '-';
+        $jamPulangAbsen = now()->format('H:i:s');
+        $namaShift = $absensi->shift?->nama ?? '-';
+        $this->catatLog(
+            'absen_pulang',
+            $pegawai,
+            $absensi,
+            "{$pegawai->nama_lengkap} absen pulang {$jamPulangAbsen}, shift {$namaShift}, lokasi {$lokasi}",
+            [
+                'tanggal' => $absensi->tanggal->toDateString(),
+                'shift' => $namaShift,
+                'jam' => $jamPulangAbsen,
+                'jam_masuk' => $absensi->jam_masuk?->format('H:i:s'),
+                'lokasi' => $lokasi,
+                'jarak_meter' => isset($validasiLokasi['distance']) ? round($validasiLokasi['distance']) : null,
+                'latitude' => $data['latitude'],
+                'longitude' => $data['longitude'],
+                'keterangan' => $data['keterangan'] ?? null,
+                'device' => $data['device'] ?? request()->header('User-Agent'),
+            ]
+        );
+
         // Notify Telegram
         $this->telegramService->notifyAbsenPulang($absensi);
 
         return $absensi;
+    }
+
+    /**
+     * Catat absen ke activity log; kegagalan mencatat tidak boleh menggagalkan absen
+     */
+    protected function catatLog(string $action, Pegawai $pegawai, Absensi $absensi, string $deskripsi, array $properties): void
+    {
+        try {
+            ActivityLog::create([
+                'user_id' => $pegawai->user_id,
+                'user_name' => $pegawai->nama_lengkap,
+                'action' => $action,
+                'module' => 'absensi',
+                'description' => $deskripsi,
+                'subject_type' => Absensi::class,
+                'subject_id' => $absensi->id,
+                'properties' => $properties,
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /**

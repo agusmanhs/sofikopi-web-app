@@ -49,9 +49,24 @@ class AuthController extends Controller
             return redirect()->intended('/');
         }
 
+        $this->reportFailedLogin($request);
+
         return back()->withErrors([
             'email' => 'Email atau password salah.',
         ])->onlyInput('email');
+    }
+
+    protected function reportFailedLogin(Request $request): void
+    {
+        \Sentry\withScope(function (\Sentry\State\Scope $scope) use ($request) {
+            $scope->setTag('event', 'login_failed');
+            $scope->setContext('login', [
+                'email' => $request->input('email'),
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+            \Sentry\captureMessage('Login gagal', \Sentry\Severity::warning());
+        });
     }
 
     public function logout(Request $request)

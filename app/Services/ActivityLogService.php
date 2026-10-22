@@ -24,10 +24,15 @@ class ActivityLogService
         ?Model $subject = null,
         ?array $properties = null,
         ?array $oldValues = null,
-        ?array $newValues = null
+        ?array $newValues = null,
+        ?string $module = null
     ): ActivityLog {
+        $user = Auth::user();
+
         return ActivityLog::create([
-            'user_id' => Auth::id(),
+            'user_id' => $user?->id,
+            'user_name' => $user?->pegawai?->nama_lengkap ?? $user?->name,
+            'module' => $module,
             'action' => $action,
             'description' => $description,
             'subject_type' => $subject ? get_class($subject) : null,
@@ -49,7 +54,8 @@ class ActivityLogService
         return $this->log(
             'login',
             "User '{$user->name}' berhasil login",
-            $user
+            $user,
+            module: 'auth'
         );
     }
 
@@ -62,7 +68,8 @@ class ActivityLogService
         return $this->log(
             'logout',
             "User '{$user->name}' logout",
-            $user
+            $user,
+            module: 'auth'
         );
     }
 
@@ -99,6 +106,11 @@ class ActivityLogService
             $query->where('user_id', $filters['user_id']);
         }
 
+        // Filter by module
+        if (!empty($filters['module'])) {
+            $query->where('module', $filters['module']);
+        }
+
         // Filter by subject type (model class)
         if (!empty($filters['subject_type'])) {
             $query->where('subject_type', $filters['subject_type']);
@@ -114,7 +126,10 @@ class ActivityLogService
 
         // Search in description
         if (!empty($filters['search'])) {
-            $query->where('description', 'like', "%{$filters['search']}%");
+            $query->where(function ($q) use ($filters) {
+                $q->where('description', 'like', "%{$filters['search']}%")
+                    ->orWhere('user_name', 'like', "%{$filters['search']}%");
+            });
         }
 
         return $query;
@@ -151,6 +166,18 @@ class ActivityLogService
         return ActivityLog::select('action')
             ->distinct()
             ->pluck('action')
+            ->toArray();
+    }
+
+    /**
+     * Get available modules for filter dropdown
+     */
+    public function getAvailableModules(): array
+    {
+        return ActivityLog::whereNotNull('module')
+            ->distinct()
+            ->orderBy('module')
+            ->pluck('module')
             ->toArray();
     }
 

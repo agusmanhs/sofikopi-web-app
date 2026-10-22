@@ -16,13 +16,14 @@ class ActivityLogController extends Controller
      */
     public function index(Request $request)
     {
-        $filters = $request->only(['action', 'user_id', 'subject_type', 'start_date', 'end_date', 'search']);
-        
-        $logs = $this->activityLogService->getAll($filters);
-        $actions = $this->activityLogService->getAvailableActions();
-        $users = \App\Models\User::select('id', 'name')->get();
+        $filters = $request->only(['action', 'module', 'user_id', 'subject_type', 'start_date', 'end_date', 'search']);
 
-        return view('pages.activity-log.index', compact('logs', 'actions', 'users', 'filters'));
+        $logs = $this->activityLogService->getPaginated(25, $filters)->withQueryString();
+        $actions = $this->activityLogService->getAvailableActions();
+        $modules = $this->activityLogService->getAvailableModules();
+        $users = \App\Models\User::select('id', 'name')->orderBy('name')->get();
+
+        return view('pages.activity-log.index', compact('logs', 'actions', 'modules', 'users', 'filters'));
     }
 
     /**
@@ -30,7 +31,7 @@ class ActivityLogController extends Controller
      */
     public function getData(Request $request)
     {
-        $filters = $request->only(['action', 'user_id', 'subject_type', 'start_date', 'end_date', 'search']);
+        $filters = $request->only(['action', 'module', 'user_id', 'subject_type', 'start_date', 'end_date', 'search']);
         $logs = $this->activityLogService->getPaginated($request->get('per_page', 15), $filters);
 
         return response()->json([

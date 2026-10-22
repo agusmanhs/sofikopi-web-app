@@ -7,6 +7,7 @@
 @extends('layouts/layoutMaster')
 
 @section('title', 'Login Basic - Pages')
+@section('no-swal-flash', '1')
 
 @section('vendor-style')
    @vite(['resources/assets/vendor/libs/@form-validation/form-validation.scss'])

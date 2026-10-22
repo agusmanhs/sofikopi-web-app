@@ -24,6 +24,8 @@
 @yield('page-script')
 <!-- END: Page JS-->
 <!-- Global Alert Handler Integration -->
+@hasSection('no-swal-flash')
+@else
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     const showMessage = () => {
@@ -56,3 +58,4 @@
     showMessage();
   });
 </script>
+@endif

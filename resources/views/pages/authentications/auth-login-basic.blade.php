@@ -68,7 +68,8 @@
                      @csrf
                      <div class="form-floating form-floating-outline mb-5">
                         <input type="text" class="form-control" id="email" name="email"
-                           placeholder="Enter your email" autofocus>
+                           value="{{ old('email') }}" placeholder="Enter your email"
+                           {{ old('email') ? '' : 'autofocus' }}>
                         <label for="email">Email</label>
                      </div>
                      <div class="mb-5">
@@ -77,7 +78,7 @@
                               <div class="form-floating form-floating-outline">
                                  <input type="password" id="password" class="form-control" name="password"
                                     placeholder="&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;"
-                                    aria-describedby="password" />
+                                    aria-describedby="password" {{ old('email') ? 'autofocus' : '' }} />
                                  <label for="password">Password</label>
                               </div>
                               <span class="input-group-text cursor-pointer"><i class="ri-eye-off-line"></i></span>

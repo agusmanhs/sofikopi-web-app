@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\RoleAccessCache;
 use Illuminate\Database\Eloquent\Model;
 
 class Role extends Model
@@ -10,6 +11,14 @@ class Role extends Model
         'name',
         'slug',
     ];
+
+    protected static function booted(): void
+    {
+        $flush = fn () => app(RoleAccessCache::class)->flush();
+
+        static::saved($flush);
+        static::deleted($flush);
+    }
 
     public function users()
     {

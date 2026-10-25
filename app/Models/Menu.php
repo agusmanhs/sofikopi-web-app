@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\RoleAccessCache;
 use Illuminate\Database\Eloquent\Model;
 
 class Menu extends Model
@@ -15,6 +16,14 @@ class Menu extends Model
         'order_no',
         'is_active',
     ];
+
+    protected static function booted(): void
+    {
+        $flush = fn () => app(RoleAccessCache::class)->flush();
+
+        static::saved($flush);
+        static::deleted($flush);
+    }
 
     public function roles()
     {

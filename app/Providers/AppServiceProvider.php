@@ -66,6 +66,7 @@ use App\Repositories\SettingRepository;
 use App\Repositories\ShiftRepository;
 use App\Repositories\UserRepository;
 use App\Services\MitraPos\MitraContext;
+use App\Services\RoleAccessCache;
 use Google\Client;
 use Google\Service\Drive;
 use Illuminate\Filesystem\FilesystemAdapter;
@@ -216,6 +217,7 @@ class AppServiceProvider extends ServiceProvider
             AkuntansiJournalEntryRepository::class
         );
         $this->app->scoped(MitraContext::class);
+        $this->app->scoped(RoleAccessCache::class);
     }
 
     /**
@@ -243,8 +245,14 @@ class AppServiceProvider extends ServiceProvider
             class_alias(ViewConfigHelper::class, 'Helper');
         }
 
-        // Share menu data with all views
+        // Placeholder yang dibaca navbar (isset); tanpa query, aman untuk semua view
         View::composer('*', function ($view) {
+            $view->with('menuHorizontal', [[]]);
+        });
+
+        // Menu sidebar hanya dibutuhkan satu partial, jadi query (dan cache per role)
+        // dijalankan sekali per halaman, bukan sekali per view yang dirender
+        View::composer('layouts.sections.menu.verticalMenu', function ($view) {
             $menus = collect();
 
             if (auth()->check()) {
@@ -256,21 +264,7 @@ class AppServiceProvider extends ServiceProvider
             }
 
             if ($role) {
-                $menus = $role->menus()
-                    ->whereNull('parent_id')
-                    ->where('is_active', true)
-                    ->wherePivot('can_read', true)
-                    ->with(['children' => function ($q) use ($role) {
-                        $q->where('is_active', true)->whereHas('roles', function ($rq) use ($role) {
-                            $rq->where('roles.id', $role->id)->where('can_read', true);
-                        })->with(['children' => function ($sq) use ($role) {
-                            $sq->where('is_active', true)->whereHas('roles', function ($srq) use ($role) {
-                                $srq->where('roles.id', $role->id)->where('can_read', true);
-                            })->orderBy('order_no');
-                        }])->orderBy('order_no');
-                    }])
-                    ->orderBy('order_no')
-                    ->get();
+                $menus = app(RoleAccessCache::class)->menuTree($role);
             }
 
             // Fallback to JSON if no menus found in DB
@@ -280,7 +274,6 @@ class AppServiceProvider extends ServiceProvider
             }
 
             $view->with('menuData', [$menus]);
-            $view->with('menuHorizontal', [[]]); // Placeholder
         });
 
         // Share template variables config

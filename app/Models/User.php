@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Services\RoleAccessCache;
 use App\Traits\LogsActivity;
 use Illuminate\Notifications\Notifiable;
 
@@ -68,12 +69,7 @@ class User extends Authenticatable
 
     public function hasPermission($menuSlug, $action)
     {
-        if (!$this->role) return false;
-
-        $menu = $this->role->menus()->where('menus.slug', $menuSlug)->first();
-        if (!$menu) return false;
-
-        return (bool) $menu->pivot->{"can_{$action}"};
+        return app(RoleAccessCache::class)->can($this->role, $menuSlug, $action);
     }
 
     public function pegawai()

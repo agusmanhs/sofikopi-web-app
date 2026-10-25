@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Role;
 use App\Models\Menu;
+use App\Services\RoleAccessCache;
 use Illuminate\Http\Request;
 
 class PermissionController extends Controller
@@ -54,6 +55,8 @@ class PermissionController extends Controller
                 $role->menus()->sync($formattedData);
             }
         }
+
+        app(RoleAccessCache::class)->flush();
 
         return redirect()->back()->with('success', 'Hak akses berhasil diperbarui');
     }

@@ -13,6 +13,7 @@ use App\Models\Shift;
 use App\Repositories\AbsensiRepository;
 use Carbon\Carbon;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -25,6 +26,9 @@ class AbsensiService extends BaseService
     protected JadwalKerjaService $jadwalKerjaService;
 
     protected SettingService $settingService;
+
+    /** @var array<string, Collection> */
+    protected array $hariLiburMemo = [];
 
     public function __construct(
         AbsensiRepository $repository,
@@ -619,17 +623,18 @@ class AbsensiService extends BaseService
     /**
      * Get statistik absensi
      */
-    public function getStatistik(?string $tanggal = null)
+    public function getStatistik(?string $tanggal = null, ?Collection $absensis = null, ?int $belumAbsen = null)
     {
         $tanggal = $tanggal ?? today()->toDateString();
         $totalPegawai = Pegawai::aktif()->count();
 
-        $absensis = Absensi::onDate($tanggal)->get();
+        // Dashboard sudah memuat absensi hari itu dan daftar belum absen; pakai ulang, jangan query lagi
+        $absensis ??= Absensi::onDate($tanggal)->get();
 
         return [
             'total_pegawai' => $totalPegawai,
             'sudah_absen' => $absensis->whereNotNull('jam_masuk')->unique('pegawai_id')->count(),
-            'belum_absen' => $this->repository->getBelumAbsenHariIni($tanggal)->count(),
+            'belum_absen' => $belumAbsen ?? $this->repository->getBelumAbsenHariIni($tanggal)->count(),
             'hadir' => $absensis->where('status', 'Tepat Waktu')->whereNotNull('jam_pulang')->unique('pegawai_id')->count(),
             'terlambat' => $absensis->where('status', 'Terlambat')->unique('pegawai_id')->count(),
             'izin' => $absensis->whereIn('status', ['Izin', 'Cuti', 'Sakit'])->count(),
@@ -639,12 +644,16 @@ class AbsensiService extends BaseService
     /**
      * Get statistik absensi untuk satu pegawai dalam satu bulan
      */
-    public function getStatistikPegawai($pegawaiId, $bulan, $tahun)
+    public function getStatistikPegawai($pegawaiId, $bulan, $tahun, ?Pegawai $pegawai = null, ?Collection $absensis = null)
     {
-        $pegawai = Pegawai::with('shift')->find($pegawaiId);
+        // Rekap/export sudah memuat pegawai (+shift) dan absensi bulan itu sekali untuk semua
+        // pegawai; kirim di sini agar tidak ada query per pegawai. Absensi harus memuat relasi shift.
+        $pegawai ??= Pegawai::with('shift')->find($pegawaiId);
         $shift = $pegawai ? $pegawai->shift : null;
 
-        $absensis = $this->repository->getByPegawaiBulan($pegawaiId, $bulan, $tahun);
+        $absensis = $absensis !== null
+            ? $absensis->sortByDesc('tanggal')->values()
+            : $this->repository->getByPegawaiBulan($pegawaiId, $bulan, $tahun);
 
         // Toleransi pulang (jam) dibaca sekali, dipakai semua closure rekap di bawah
         // agar penentuan Alpha/Hadir konsisten dengan validasi di absenPulang().
@@ -879,6 +888,20 @@ class AbsensiService extends BaseService
     }
 
     /**
+     * Hari libur dalam rentang, dibaca sekali per request untuk rentang yang sama
+     * (rekap menghitung hari kerja untuk setiap pegawai).
+     */
+    protected function hariLiburAntara(Carbon $start, Carbon $end): Collection
+    {
+        $key = $start->format('Y-m-d').'|'.$end->format('Y-m-d');
+
+        return $this->hariLiburMemo[$key] ??= HariLibur::whereBetween('tanggal', [
+            $start->format('Y-m-d'),
+            $end->format('Y-m-d'),
+        ])->get();
+    }
+
+    /**
      * Hitung hari kerja efektif (tidak termasuk sabtu, minggu, dan hari libur)
      */
     public function getHariKerjaEfektif($bulan, $tahun, $excludeSundays = false)
@@ -895,10 +918,7 @@ class AbsensiService extends BaseService
             $end = now();
         }
 
-        $holidays = HariLibur::whereBetween('tanggal', [
-            $start->format('Y-m-d'),
-            $end->format('Y-m-d'),
-        ])->get();
+        $holidays = $this->hariLiburAntara($start, $end);
 
         $details = [
             'total' => 0,
@@ -945,12 +965,12 @@ class AbsensiService extends BaseService
         }
 
         $shift = $pegawai ? $pegawai->shift : null;
-        $hariKerjaSesuaiShift = $shift ? $shift->hari_kerja : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        // Shift tanpa hari_kerja (null) diperlakukan seperti pegawai tanpa shift: Senin-Sabtu
+        $hariKerjaSesuaiShift = $shift && is_array($shift->hari_kerja)
+            ? $shift->hari_kerja
+            : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-        $holidays = HariLibur::whereBetween('tanggal', [
-            $start->format('Y-m-d'),
-            $end->format('Y-m-d'),
-        ])->get();
+        $holidays = $this->hariLiburAntara($start, $end);
 
         $details = [
             'total' => 0,

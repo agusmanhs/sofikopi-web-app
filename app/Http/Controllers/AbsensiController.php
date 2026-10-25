@@ -295,10 +295,10 @@ class AbsensiController extends Controller
     {
         $tanggal = $request->get('tanggal', today()->toDateString());
 
-        $statistik = $this->service->getStatistik($tanggal);
-        $rekapDivisi = $this->service->getRekapPerDivisi($tanggal);
         $belumAbsen = $this->service->getBelumAbsenHariIni($tanggal);
         $sudahAbsen = $this->service->getAbsensiHariIni($tanggal);
+        $statistik = $this->service->getStatistik($tanggal, $sudahAbsen, $belumAbsen->count());
+        $rekapDivisi = $this->service->getRekapPerDivisi($tanggal);
 
         return view('pages.absensi.dashboard', compact(
             'statistik',
@@ -321,7 +321,7 @@ class AbsensiController extends Controller
 
         // Compute statistics for each employee using service
         $data->getCollection()->transform(function ($pegawai) use ($bulan, $tahun) {
-            $pegawai->statistik = $this->service->getStatistikPegawai($pegawai->id, $bulan, $tahun);
+            $pegawai->statistik = $this->service->getStatistikPegawai($pegawai->id, $bulan, $tahun, $pegawai, $pegawai->absensis);
 
             return $pegawai;
         });
@@ -346,7 +346,7 @@ class AbsensiController extends Controller
 
         $data = $this->pegawaiService->rekapAll($bulan, $tahun);
         $data->transform(function ($pegawai) use ($bulan, $tahun) {
-            $pegawai->statistik = $this->service->getStatistikPegawai($pegawai->id, $bulan, $tahun);
+            $pegawai->statistik = $this->service->getStatistikPegawai($pegawai->id, $bulan, $tahun, $pegawai, $pegawai->absensis);
 
             return $pegawai;
         });
@@ -386,7 +386,7 @@ class AbsensiController extends Controller
 
         $data = $this->pegawaiService->rekapAll($bulan, $tahun);
         $data->transform(function ($pegawai) use ($bulan, $tahun) {
-            $pegawai->statistik = $this->service->getStatistikPegawai($pegawai->id, $bulan, $tahun);
+            $pegawai->statistik = $this->service->getStatistikPegawai($pegawai->id, $bulan, $tahun, $pegawai, $pegawai->absensis);
 
             return $pegawai;
         });

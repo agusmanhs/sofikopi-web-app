@@ -88,12 +88,14 @@ class DashboardController extends Controller
             return view('pages.dashboard.unregistered');
         }
 
-        $absensiHariIni = $pegawai->absensiHariIni();
         $bulan = now()->month;
         $tahun = now()->year;
 
+        // Absensi bulan ini dimuat sekali (lengkap dengan shift) lalu dipakai ulang untuk
+        // sesi hari ini dan statistik, bukan tiga query terpisah.
         $historyAbsensi = $this->absensiService->getByPegawaiBulan($pegawai->id, $bulan, $tahun);
-        $statistik = $this->absensiService->getStatistikPegawai($pegawai->id, $bulan, $tahun);
+        $absensiHariIni = $historyAbsensi->filter(fn ($absen) => $absen->tanggal->isToday())->sortBy('id')->first();
+        $statistik = $this->absensiService->getStatistikPegawai($pegawai->id, $bulan, $tahun, $pegawai, $historyAbsensi);
         $informasis = $this->informasiService->getLatest(5);
 
         // Jadwal Absen: resolusi jadwal (override/pola mingguan) pegawai untuk hari ini.

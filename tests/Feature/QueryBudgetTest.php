@@ -36,6 +36,7 @@ class QueryBudgetTest extends TestCase
         'absensi_index' => 15,
         'absen_masuk' => 18,
         'validate_location' => 4,
+        'dashboard_pegawai' => 22,
     ];
 
     private User $user;
@@ -52,6 +53,7 @@ class QueryBudgetTest extends TestCase
         $this->mock(TelegramService::class, function ($mock) {
             $mock->shouldReceive('notifyAbsenMasuk')->andReturnNull();
             $mock->shouldReceive('notifyAbsenPulang')->andReturnNull();
+            $mock->shouldReceive('notify')->andReturnNull();
         });
 
         $this->seed(SettingSeeder::class);
@@ -185,6 +187,16 @@ class QueryBudgetTest extends TestCase
             ->assertOk());
 
         $this->assertWithinBudget('absen_masuk', $count);
+    }
+
+    public function test_dashboard_pegawai(): void
+    {
+        $count = $this->measure('dashboard_pegawai', fn () => $this->actingAs($this->user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Pegawai Uji'));
+
+        $this->assertWithinBudget('dashboard_pegawai', $count);
     }
 
     public function test_validate_location(): void

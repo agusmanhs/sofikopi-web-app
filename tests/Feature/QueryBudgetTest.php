@@ -33,9 +33,9 @@ class QueryBudgetTest extends TestCase
 
     private const BUDGET = [
         'login_guest' => 2,
-        'absensi_index' => 20,
-        'absen_masuk' => 22,
-        'validate_location' => 8,
+        'absensi_index' => 15,
+        'absen_masuk' => 18,
+        'validate_location' => 4,
     ];
 
     private User $user;
@@ -142,8 +142,8 @@ class QueryBudgetTest extends TestCase
         arsort($counts);
 
         $out = sprintf("== %s: %d query\n", $label, count($log));
-        foreach (array_slice($counts, 0, 6, true) as $sql => $n) {
-            $out .= sprintf("   %3dx %s\n", $n, mb_substr(preg_replace('/\s+/', ' ', $sql), 0, 130));
+        foreach (array_slice($counts, 0, 40, true) as $sql => $n) {
+            $out .= sprintf("   %3dx %s\n", $n, mb_substr(preg_replace('/\s+/', ' ', $sql), 0, 150));
         }
         file_put_contents($path, $out, FILE_APPEND);
     }

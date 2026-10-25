@@ -33,7 +33,7 @@ class AbsensiController extends Controller
      */
     public function index(Request $request)
     {
-        $pegawai = $this->pegawaiService->getByUserId(auth()->id());
+        $pegawai = auth()->user()->pegawai?->loadMissing(['divisi', 'kantor']);
 
         if (! $pegawai) {
             return redirect()->route('dashboard')
@@ -119,7 +119,7 @@ class AbsensiController extends Controller
     public function absenMasuk(AbsensiRequest $request)
     {
         try {
-            $pegawai = $this->pegawaiService->getByUserId(auth()->id());
+            $pegawai = auth()->user()->pegawai;
 
             if (! $pegawai) {
                 return ResponseHelper::error('Anda belum terdaftar sebagai pegawai.', 403);
@@ -150,7 +150,7 @@ class AbsensiController extends Controller
     public function absenPulang(AbsensiRequest $request)
     {
         try {
-            $pegawai = $this->pegawaiService->getByUserId(auth()->id());
+            $pegawai = auth()->user()->pegawai;
 
             if (! $pegawai) {
                 return ResponseHelper::error('Anda belum terdaftar sebagai pegawai.', 403);
@@ -185,7 +185,7 @@ class AbsensiController extends Controller
         ]);
 
         try {
-            $pegawai = $this->pegawaiService->getByUserId(auth()->id());
+            $pegawai = auth()->user()->pegawai;
 
             if (! $pegawai) {
                 return ResponseHelper::error('Anda belum terdaftar sebagai pegawai.', 403);

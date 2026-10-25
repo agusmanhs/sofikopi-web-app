@@ -67,6 +67,7 @@ use App\Repositories\ShiftRepository;
 use App\Repositories\UserRepository;
 use App\Services\MitraPos\MitraContext;
 use App\Services\RoleAccessCache;
+use App\Services\SettingService;
 use Google\Client;
 use Google\Service\Drive;
 use Illuminate\Filesystem\FilesystemAdapter;
@@ -218,6 +219,7 @@ class AppServiceProvider extends ServiceProvider
         );
         $this->app->scoped(MitraContext::class);
         $this->app->scoped(RoleAccessCache::class);
+        $this->app->scoped(SettingService::class);
     }
 
     /**

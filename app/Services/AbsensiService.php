@@ -152,20 +152,8 @@ class AbsensiService extends BaseService
             }
         }
 
-        // Check apakah ada sesi yang masih "MENGGANTUNG" (sudah masuk tapi belum pulang) secara global
-        $activeSession = Absensi::where('pegawai_id', $pegawai->id)
-            ->whereNotNull('jam_masuk')
-            ->whereNull('jam_pulang')
-            ->first();
-
-        // Check apakah masih ada sesi aktif di shift mana pun
-        // REVISI USER: Perbolehkan masuk shift baru meskipun shift sebelumnya belum pulang (irisan)
-        /*
-        if ($activeSession) {
-             $shiftName = $activeSession->shift ? $activeSession->shift->nama : 'sebelumnya';
-             throw new \Exception("Anda masih memiliki sesi aktif di {$shiftName}. Silakan absen pulang terlebih dahulu.");
-        }
-        */
+        // REVISI USER: Perbolehkan masuk shift baru meskipun shift sebelumnya belum pulang (irisan),
+        // jadi sesi yang masih "menggantung" tidak dicek.
 
         // Check apakah sudah absen masuk untuk shift ini (untuk mencegah double entry di shift yang sama)
         // REVISI: Hanya cek sesi hari ini. Sesi kemarin yang lupa checkout dianggap hangus/alpha.
@@ -278,6 +266,9 @@ class AbsensiService extends BaseService
 
             throw $e;
         }
+
+        // Relasi sudah di tangan: log dan notifikasi tidak perlu memuatnya lagi
+        $absensi->setRelation('pegawai', $pegawai)->setRelation('shift', $shift);
 
         $lokasi = $validasiLokasi['kantor_nama'] ?? '-';
         $this->catatLog(
@@ -415,6 +406,7 @@ class AbsensiService extends BaseService
         ]);
 
         $absensi = $existing->fresh();
+        $absensi->setRelation('shift', $existing->shift)->setRelation('pegawai', $pegawai);
 
         $lokasi = $validasiLokasi['kantor_nama'] ?? '-';
         $jamPulangAbsen = now()->format('H:i:s');

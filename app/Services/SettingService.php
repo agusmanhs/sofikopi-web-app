@@ -14,6 +14,9 @@ class SettingService extends BaseService
 
     protected const CACHE_TTL = 3600;
 
+    /** Peta setting yang sudah dibaca pada request ini (cache database = satu query per baca). */
+    protected ?array $mapMemo = null;
+
     /**
      * Nilai cadangan bila tabel/baris setting belum ada (fresh install,
      * migration belum jalan). Menjaga absensi tetap berfungsi.
@@ -92,6 +95,7 @@ class SettingService extends BaseService
     public function flush(): void
     {
         Cache::forget(self::CACHE_KEY);
+        $this->mapMemo = null;
     }
 
     /**
@@ -101,7 +105,7 @@ class SettingService extends BaseService
      */
     protected function map(): array
     {
-        return Cache::remember(self::CACHE_KEY, self::CACHE_TTL, function () {
+        return $this->mapMemo ??= Cache::remember(self::CACHE_KEY, self::CACHE_TTL, function () {
             if (! $this->tableExists()) {
                 return [];
             }

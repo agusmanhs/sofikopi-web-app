@@ -159,7 +159,7 @@ class AbsensiService extends BaseService
         // REVISI: Hanya cek sesi hari ini. Sesi kemarin yang lupa checkout dianggap hangus/alpha.
         $existing = Absensi::where('pegawai_id', $pegawai->id)
             ->where('shift_id', $shiftId)
-            ->whereDate('tanggal', today()) // Pastikan hanya cek tanggal hari ini
+            ->onDate(today()) // Pastikan hanya cek tanggal hari ini
             ->first();
 
         if ($existing) {
@@ -624,7 +624,7 @@ class AbsensiService extends BaseService
         $tanggal = $tanggal ?? today()->toDateString();
         $totalPegawai = Pegawai::aktif()->count();
 
-        $absensis = Absensi::whereDate('tanggal', $tanggal)->get();
+        $absensis = Absensi::onDate($tanggal)->get();
 
         return [
             'total_pegawai' => $totalPegawai,

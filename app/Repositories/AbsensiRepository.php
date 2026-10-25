@@ -22,7 +22,7 @@ class AbsensiRepository extends BaseRepository implements AbsensiRepositoryInter
     public function getByPegawaiTanggal($pegawaiId, string $tanggal)
     {
         return $this->model->where('pegawai_id', $pegawaiId)
-            ->whereDate('tanggal', $tanggal)
+            ->onDate($tanggal)
             ->first();
     }
 
@@ -30,8 +30,7 @@ class AbsensiRepository extends BaseRepository implements AbsensiRepositoryInter
     {
         return $this->model->with('shift')
             ->where('pegawai_id', $pegawaiId)
-            ->whereMonth('tanggal', $bulan)
-            ->whereYear('tanggal', $tahun)
+            ->inMonth($bulan, $tahun)
             ->orderBy('tanggal', 'desc')
             ->get();
     }
@@ -41,14 +40,14 @@ class AbsensiRepository extends BaseRepository implements AbsensiRepositoryInter
         $tanggal = $tanggal ?: today()->toDateString();
 
         return $this->model->with(['pegawai', 'shift'])
-            ->whereDate('tanggal', $tanggal)
+            ->onDate($tanggal)
             ->get();
     }
 
     public function getBelumAbsenHariIni($tanggal = null)
     {
         $tanggal = $tanggal ?: today()->toDateString();
-        $sudahAbsen = $this->model->whereDate('tanggal', $tanggal)
+        $sudahAbsen = $this->model->onDate($tanggal)
             ->pluck('pegawai_id');
         $sedangIzin = Izin::approvedOn($tanggal)->pluck('pegawai_id');
         $excludeIds = $sudahAbsen->merge($sedangIzin)->unique();

@@ -107,9 +107,11 @@ class Izin extends Model
      */
     public function scopeApprovedOn($query, $date)
     {
+        $day = \Carbon\Carbon::parse($date)->startOfDay();
+
         return $query->where('status_approval', self::STATUS_APPROVED)
-            ->whereDate('tgl_mulai', '<=', $date)
-            ->whereDate('tgl_selesai', '>=', $date);
+            ->where('tgl_mulai', '<', $day->copy()->addDay()->toDateString())
+            ->where('tgl_selesai', '>=', $day->toDateString());
     }
 
     /**

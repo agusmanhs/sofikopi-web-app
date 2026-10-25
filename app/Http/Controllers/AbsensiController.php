@@ -77,7 +77,7 @@ class AbsensiController extends Controller
             if (! $absensiHariIni) {
                 $absensiHariIni = Absensi::where('pegawai_id', $pegawai->id)
                     ->where('shift_id', $shiftId)
-                    ->whereDate('tanggal', today())
+                    ->onDate(today())
                     ->first();
             }
         } else {

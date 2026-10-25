@@ -92,7 +92,30 @@ class Absensi extends Model
      */
     public function scopeTanggal($query, $tanggal)
     {
-        return $query->whereDate('tanggal', $tanggal);
+        return $query->onDate($tanggal);
+    }
+
+    /**
+     * Satu hari penuh sebagai rentang, bukan DATE(tanggal) = ?, agar index kolom
+     * tanggal terpakai. Berlaku untuk kolom date (MariaDB) maupun string datetime.
+     */
+    public function scopeOnDate($query, $date)
+    {
+        $day = \Carbon\Carbon::parse($date)->startOfDay();
+
+        return $query->where('tanggal', '>=', $day->toDateString())
+            ->where('tanggal', '<', $day->copy()->addDay()->toDateString());
+    }
+
+    /**
+     * Satu bulan penuh sebagai rentang tanggal (pengganti whereMonth + whereYear).
+     */
+    public function scopeInMonth($query, $bulan, $tahun)
+    {
+        $start = \Carbon\Carbon::create((int) $tahun, (int) $bulan, 1)->startOfDay();
+
+        return $query->where('tanggal', '>=', $start->toDateString())
+            ->where('tanggal', '<', $start->copy()->addMonth()->toDateString());
     }
 
     /**
@@ -108,7 +131,7 @@ class Absensi extends Model
      */
     public function scopeHariIni($query)
     {
-        return $query->whereDate('tanggal', today());
+        return $query->onDate(today());
     }
 
     /**
@@ -116,8 +139,7 @@ class Absensi extends Model
      */
     public function scopeBulanIni($query)
     {
-        return $query->whereMonth('tanggal', now()->month)
-                     ->whereYear('tanggal', now()->year);
+        return $query->inMonth(now()->month, now()->year);
     }
 
     /**

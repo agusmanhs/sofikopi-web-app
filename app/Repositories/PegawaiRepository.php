@@ -59,7 +59,7 @@ class PegawaiRepository extends BaseRepository implements PegawaiRepositoryInter
     {
         return $this->model->aktif()
             ->with(['divisi', 'shift', 'absensis' => function ($q) use ($bulan, $tahun) {
-                $q->whereMonth('tanggal', $bulan)->whereYear('tanggal', $tahun);
+                $q->inMonth($bulan, $tahun);
             }])
             ->get();
     }
@@ -68,7 +68,7 @@ class PegawaiRepository extends BaseRepository implements PegawaiRepositoryInter
     {
         return $this->model->aktif()
             ->with(['divisi', 'shift', 'absensis' => function ($q) use ($bulan, $tahun) {
-                $q->whereMonth('tanggal', $bulan)->whereYear('tanggal', $tahun);
+                $q->inMonth($bulan, $tahun);
             }])
             ->paginate($perPage);
     }

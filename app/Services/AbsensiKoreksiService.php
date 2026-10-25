@@ -76,7 +76,7 @@ class AbsensiKoreksiService
             $this->assertTidakSedangIzin($pegawai->id, $tanggal);
 
             $exists = Absensi::where('pegawai_id', $pegawai->id)
-                ->whereDate('tanggal', $tanggal)
+                ->onDate($tanggal)
                 ->where(fn ($q) => $q->where('shift_id', $shift->id)->orWhereNull('shift_id'))
                 ->exists();
             if ($exists) {

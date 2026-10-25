@@ -140,7 +140,7 @@ class Pegawai extends Model
      */
     public function absensiHariIni()
     {
-        return $this->absensis()->whereDate('tanggal', today())->first();
+        return $this->absensis()->onDate(today())->first();
     }
 
     /**

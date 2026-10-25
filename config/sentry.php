@@ -42,7 +42,7 @@ return [
     'enable_logs' => env('SENTRY_ENABLE_LOGS', false),
 
     // @see: https://docs.sentry.io/platforms/php/guides/laravel/configuration/options/#enable_metrics
-    'enable_metrics' => env('SENTRY_ENABLE_METRICS', true),
+    'enable_metrics' => env('SENTRY_ENABLE_METRICS', false),
 
     // @see: https://docs.sentry.io/platforms/php/guides/laravel/configuration/options/#log_flush_threshold
     'log_flush_threshold' => env('SENTRY_LOG_FLUSH_THRESHOLD') === null ? null : (int) env('SENTRY_LOG_FLUSH_THRESHOLD'),
@@ -68,7 +68,7 @@ return [
         'logs' => env('SENTRY_BREADCRUMBS_LOGS_ENABLED', true),
 
         // Capture Laravel cache events (hits, writes etc.) as breadcrumbs
-        'cache' => env('SENTRY_BREADCRUMBS_CACHE_ENABLED', true),
+        'cache' => env('SENTRY_BREADCRUMBS_CACHE_ENABLED', false),
 
         // Capture Livewire components like routes as breadcrumbs
         'livewire' => env('SENTRY_BREADCRUMBS_LIVEWIRE_ENABLED', true),
@@ -113,7 +113,7 @@ return [
         'sql_origin_threshold_ms' => env('SENTRY_TRACE_SQL_ORIGIN_THRESHOLD_MS', 100),
 
         // Capture views rendered as spans
-        'views' => env('SENTRY_TRACE_VIEWS_ENABLED', true),
+        'views' => env('SENTRY_TRACE_VIEWS_ENABLED', false),
 
         // Capture Livewire components as spans
         'livewire' => env('SENTRY_TRACE_LIVEWIRE_ENABLED', true),
@@ -122,7 +122,7 @@ return [
         'http_client_requests' => env('SENTRY_TRACE_HTTP_CLIENT_REQUESTS_ENABLED', true),
 
         // Capture Laravel cache events (hits, writes etc.) as spans
-        'cache' => env('SENTRY_TRACE_CACHE_ENABLED', true),
+        'cache' => env('SENTRY_TRACE_CACHE_ENABLED', false),
 
         // Capture Redis operations as spans (this enables Redis events in Laravel)
         'redis_commands' => env('SENTRY_TRACE_REDIS_COMMANDS', false),

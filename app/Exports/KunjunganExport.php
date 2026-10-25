@@ -3,14 +3,15 @@
 namespace App\Exports;
 
 use App\Models\Kunjungan;
-use Maatwebsite\Excel\Concerns\FromCollection;
+use Carbon\Carbon;
+use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class KunjunganExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize, WithStyles
+class KunjunganExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize, WithStyles
 {
     protected $filters;
 
@@ -19,16 +20,22 @@ class KunjunganExport implements FromCollection, WithHeadings, WithMapping, Shou
         $this->filters = $filters;
     }
 
-    public function collection()
+    /**
+     * FromQuery: Excel membaca per potongan (chunk), tidak memuat seluruh baris sebagai
+     * model Eloquent sekaligus seperti FromCollection + get().
+     */
+    public function query()
     {
-        $query = Kunjungan::with(['user.pegawai', 'mitra'])->orderBy('tanggal_kunjungan', 'desc');
+        $query = Kunjungan::with(['user.pegawai', 'mitra'])
+            ->orderBy('tanggal_kunjungan', 'desc')
+            ->orderBy('id', 'desc');
 
         if (!empty($this->filters['start_date'])) {
-            $query->whereDate('tanggal_kunjungan', '>=', $this->filters['start_date']);
+            $query->where('tanggal_kunjungan', '>=', Carbon::parse($this->filters['start_date'])->toDateString());
         }
 
         if (!empty($this->filters['end_date'])) {
-            $query->whereDate('tanggal_kunjungan', '<=', $this->filters['end_date']);
+            $query->where('tanggal_kunjungan', '<', Carbon::parse($this->filters['end_date'])->addDay()->toDateString());
         }
 
         if (!empty($this->filters['user_id'])) {
@@ -39,7 +46,7 @@ class KunjunganExport implements FromCollection, WithHeadings, WithMapping, Shou
             $query->where('mitra_id', $this->filters['mitra_id']);
         }
 
-        return $query->get();
+        return $query;
     }
 
     public function headings(): array

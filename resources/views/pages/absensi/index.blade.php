@@ -599,6 +599,9 @@
          let currentLatitude = null;
          let currentLongitude = null;
          let locationValid = false;
+         let lastLocationAt = 0;
+         let sedangKirim = false;
+         const LOCATION_STALE_MS = 120000;
 
          // Update clock
          function updateClock() {
@@ -624,6 +627,7 @@
                (position) => {
                   currentLatitude = position.coords.latitude;
                   currentLongitude = position.coords.longitude;
+                  lastLocationAt = Date.now();
                   document.getElementById('input-latitude').value = currentLatitude;
                   document.getElementById('input-longitude').value = currentLongitude;
 
@@ -748,6 +752,38 @@
                return;
             }
 
+            if (sedangKirim) return;
+            sedangKirim = true;
+
+            refreshLocationIfStale().then(() => kirimAbsensi(type, keterangan));
+         }
+
+         // Koordinat dikirim ke server saat absen; segarkan hanya bila sudah basi
+         function refreshLocationIfStale() {
+            if (!navigator.geolocation || Date.now() - lastLocationAt < LOCATION_STALE_MS) {
+               return Promise.resolve();
+            }
+
+            return new Promise((resolve) => {
+               navigator.geolocation.getCurrentPosition(
+                  (position) => {
+                     currentLatitude = position.coords.latitude;
+                     currentLongitude = position.coords.longitude;
+                     lastLocationAt = Date.now();
+                     document.getElementById('input-latitude').value = currentLatitude;
+                     document.getElementById('input-longitude').value = currentLongitude;
+                     resolve();
+                  },
+                  () => resolve(), {
+                     enableHighAccuracy: true,
+                     timeout: 8000,
+                     maximumAge: 30000
+                  }
+               );
+            });
+         }
+
+         function kirimAbsensi(type, keterangan) {
             const formData = new FormData();
             formData.append('foto', capturedBlob, 'foto.jpg');
             formData.append('latitude', currentLatitude);
@@ -779,6 +815,7 @@
                   if (data.success) {
                      setTimeout(() => window.location.reload(), 1500);
                   } else {
+                     sedangKirim = false;
                      btn.disabled = false;
                      btn.innerHTML = type === 'masuk' ? '<i class="ri-login-box-line me-2"></i>Absen Masuk' :
                         '<i class="ri-logout-box-line me-2"></i>Absen Pulang';
@@ -786,6 +823,7 @@
                })
                .catch(error => {
                   window.AlertHandler.showError('Terjadi kesalahan. Silakan coba lagi.');
+                  sedangKirim = false;
                   btn.disabled = false;
                });
          }
@@ -827,8 +865,17 @@
          // Initialize
          getLocation();
 
-         // Refresh location every 30 seconds
-         setInterval(getLocation, 30000);
+         // Segarkan lokasi hanya saat tab kembali aktif dan data sudah basi (bukan polling)
+         document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && Date.now() - lastLocationAt > LOCATION_STALE_MS) {
+               getLocation();
+            }
+         });
+
+         // Ketuk status lokasi untuk memperbarui secara manual
+         locationStatus.addEventListener('click', getLocation);
+         locationStatus.style.cursor = 'pointer';
+         locationStatus.title = 'Ketuk untuk memperbarui lokasi';
       });
    </script>
 @endsection

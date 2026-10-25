@@ -12,7 +12,9 @@ use App\Models\Setting;
 use App\Models\Shift;
 use App\Repositories\AbsensiRepository;
 use Carbon\Carbon;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class AbsensiService extends BaseService
 {
@@ -90,6 +92,33 @@ class AbsensiService extends BaseService
     }
 
     public function absenMasuk(Pegawai $pegawai, array $data)
+    {
+        $absensi = $this->denganKunciPegawai($pegawai, fn () => $this->prosesAbsenMasuk($pegawai, $data));
+
+        // Notify Telegram (setelah commit supaya job tidak jalan sebelum data tersimpan)
+        $this->telegramService->notifyAbsenMasuk($absensi);
+
+        return $absensi;
+    }
+
+    /**
+     * Serialisasi absen per pegawai: kirim ganda (double tap, retry jaringan) menunggu
+     * request pertama selesai, lalu ditolak sebelum foto diproses.
+     */
+    protected function denganKunciPegawai(Pegawai $pegawai, callable $callback)
+    {
+        try {
+            return DB::transaction(function () use ($pegawai, $callback) {
+                Pegawai::whereKey($pegawai->id)->lockForUpdate()->first();
+
+                return $callback();
+            });
+        } catch (UniqueConstraintViolationException $e) {
+            throw new \Exception('Absen Anda sudah tercatat. Silakan muat ulang halaman.');
+        }
+    }
+
+    protected function prosesAbsenMasuk(Pegawai $pegawai, array $data)
     {
         $this->assertTidakSedangIzin($pegawai);
 
@@ -240,7 +269,15 @@ class AbsensiService extends BaseService
             'status' => $status,
         ];
 
-        $absensi = $this->create($absensiData);
+        try {
+            $absensi = $this->create($absensiData);
+        } catch (\Throwable $e) {
+            if ($fotoPath) {
+                Storage::disk('public')->delete($fotoPath);
+            }
+
+            throw $e;
+        }
 
         $lokasi = $validasiLokasi['kantor_nama'] ?? '-';
         $this->catatLog(
@@ -261,9 +298,6 @@ class AbsensiService extends BaseService
             ]
         );
 
-        // Notify Telegram
-        $this->telegramService->notifyAbsenMasuk($absensi);
-
         return $absensi;
     }
 
@@ -271,6 +305,16 @@ class AbsensiService extends BaseService
      * Proses absen pulang
      */
     public function absenPulang(Pegawai $pegawai, array $data)
+    {
+        $absensi = $this->denganKunciPegawai($pegawai, fn () => $this->prosesAbsenPulang($pegawai, $data));
+
+        // Notify Telegram (setelah commit)
+        $this->telegramService->notifyAbsenPulang($absensi);
+
+        return $absensi;
+    }
+
+    protected function prosesAbsenPulang(Pegawai $pegawai, array $data)
     {
         $this->assertTidakSedangIzin($pegawai);
 
@@ -393,9 +437,6 @@ class AbsensiService extends BaseService
                 'device' => $data['device'] ?? request()->header('User-Agent'),
             ]
         );
-
-        // Notify Telegram
-        $this->telegramService->notifyAbsenPulang($absensi);
 
         return $absensi;
     }

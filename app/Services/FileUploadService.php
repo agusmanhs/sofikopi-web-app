@@ -77,7 +77,7 @@ class FileUploadService
     protected function generateFilename(string $originalName, string $extension): string
     {
         $name = pathinfo($originalName, PATHINFO_FILENAME);
-        return Str::slug($name) . '-' . time() . '.' . $extension;
+        return Str::slug($name) . '-' . time() . '-' . Str::lower(Str::random(8)) . '.' . $extension;
     }
 
     /**

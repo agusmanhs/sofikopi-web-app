@@ -12,8 +12,8 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Session\TokenMismatchException;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Validation\ValidationException;
 use Sentry\Laravel\Integration;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
@@ -53,9 +53,16 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (Throwable $e, $request) {
             // Jika request meminta JSON (API), berikan response JSON
             if ($request->is('api/*') || $request->expectsJson()) {
-                Log::error($e);
+                if ($e instanceof ValidationException) {
+                    return ResponseHelper::validationError($e->errors(), $e->getMessage());
+                }
 
-                $code = $e instanceof HttpExceptionInterface ? $e->getStatusCode() : 500;
+                $code = match (true) {
+                    $e instanceof AuthenticationException => 401,
+                    $e instanceof TokenMismatchException => 419,
+                    $e instanceof HttpExceptionInterface => $e->getStatusCode(),
+                    default => 500,
+                };
 
                 return ResponseHelper::error(
                     $e->getMessage() ?: 'Internal Server Error',

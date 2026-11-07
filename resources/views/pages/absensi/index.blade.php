@@ -648,6 +648,15 @@
             );
          }
 
+         function tanganiSesiBerakhir(response) {
+            if (response.status !== 401 && response.status !== 419) {
+               return false;
+            }
+            window.AlertHandler.showError('Sesi Anda berakhir. Halaman akan dialihkan ke login.');
+            setTimeout(() => window.location.href = '{{ route('login') }}', 2000);
+            return true;
+         }
+
          function validateLocation() {
             fetch('{{ route('absensi.validate-location') }}', {
                   method: 'POST',
@@ -661,8 +670,9 @@
                      longitude: currentLongitude
                   })
                })
-               .then(response => response.json())
+               .then(response => tanganiSesiBerakhir(response) ? null : response.json())
                .then(data => {
+                  if (!data) return;
                   if (data.success && data.data.valid) {
                      locationValid = true;
                      updateLocationStatus('valid',
@@ -809,8 +819,9 @@
                      'Accept': 'application/json'
                   }
                })
-               .then(response => response.json())
+               .then(response => tanganiSesiBerakhir(response) ? null : response.json())
                .then(data => {
+                  if (!data) return;
                   window.AlertHandler.handle(data);
                   if (data.success) {
                      setTimeout(() => window.location.reload(), 1500);

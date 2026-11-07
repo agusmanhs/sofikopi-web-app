@@ -88,7 +88,7 @@
                      </div>
                      <div class="mb-5 d-flex justify-content-between mt-5">
                         <div class="form-check mt-2">
-                           <input class="form-check-input" type="checkbox" id="remember-me" name="remember">
+                           <input class="form-check-input" type="checkbox" id="remember-me" name="remember" {{ old('email') && !old('remember') ? '' : 'checked' }}>
                            <label class="form-check-label" for="remember-me">
                               Remember Me
                            </label>

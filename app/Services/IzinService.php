@@ -178,10 +178,19 @@ class IzinService extends BaseService
             return null;
         }
 
+        // Sudah absen masuk hari ini -> acuan adalah shift yang benar-benar dipakai saat absen.
+        $absenShift = Absensi::with('shift')
+            ->where('pegawai_id', $pegawaiId)
+            ->whereDate('tanggal', today())
+            ->whereNotNull('jam_masuk')
+            ->first()?->shift;
+
         $jadwal = $this->jadwalKerjaService->resolveShiftFor($pegawai, today());
 
         // Terjadwal libur hari ini (shift null) -> tidak ada batas jam yang relevan.
-        if ($jadwal['scheduled']) {
+        if ($absenShift) {
+            $shift = $absenShift;
+        } elseif ($jadwal['scheduled']) {
             $shift = $jadwal['shift'];
         } else {
             $shift = $pegawai->shift;

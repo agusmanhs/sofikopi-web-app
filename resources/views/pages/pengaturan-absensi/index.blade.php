@@ -47,7 +47,7 @@
                               <div class="input-group">
                                  <input type="number" class="form-control @error($errorKey) is-invalid @enderror"
                                     id="{{ $setting->key }}" name="{{ $inputName }}"
-                                    value="{{ old($errorKey, $setting->value) }}" min="1" max="24" required>
+                                    value="{{ old($errorKey, $setting->value) }}" min="{{ $setting->key === \App\Models\Setting::KEY_BATAS_IZIN_JAM ? 0 : 1 }}" max="24" required>
                                  <span class="input-group-text">jam</span>
                                  @error($errorKey)
                                     <div class="invalid-feedback">{{ $message }}</div>

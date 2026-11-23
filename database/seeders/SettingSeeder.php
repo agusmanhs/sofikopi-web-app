@@ -40,7 +40,7 @@ class SettingSeeder extends Seeder
                 'group' => Setting::GROUP_ABSENSI,
                 'label' => 'Batas Pengajuan Izin/Sakit Hari Ini (jam setelah shift)',
                 'type' => 'integer',
-                'keterangan' => 'Batas waktu mengajukan izin untuk hari ini, dihitung dari jam shift mulai. Berlaku untuk semua jenis izin. Contoh: diisi 1, shift mulai jam 08:00, maka lewat jam 09:00 izin untuk hari ini tidak bisa diajukan lagi. Izin untuk besok dan seterusnya tidak dibatasi.',
+                'keterangan' => 'Batas waktu mengajukan izin untuk hari ini, dihitung dari jam shift mulai. Berlaku untuk semua jenis izin. Contoh: diisi 1, shift mulai jam 08:00, maka lewat jam 09:00 izin untuk hari ini tidak bisa diajukan lagi. Isi 0 agar izin untuk hari ini hanya bisa diajukan sebelum shift mulai (mencegah izin dipakai untuk menghindari status terlambat/alpha). Izin untuk besok dan seterusnya tidak dibatasi.',
             ],
         ];
 

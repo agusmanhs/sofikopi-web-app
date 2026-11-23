@@ -35,14 +35,18 @@ class SettingSeeder extends Seeder
                 'keterangan' => 'Pegawai masih boleh absen pulang sampai berapa jam setelah shift selesai. Contoh: diisi 2, shift selesai jam 16:00, maka lewat jam 18:00 absen pulang tidak bisa lagi dan hari itu dianggap Alpha.',
             ],
             [
-                'key' => Setting::KEY_BATAS_IZIN_JAM,
-                'value' => 1,
+                'key' => Setting::KEY_IZIN_TUTUP_MENIT,
+                'value' => 10,
                 'group' => Setting::GROUP_ABSENSI,
-                'label' => 'Batas Pengajuan Izin/Sakit Hari Ini (jam setelah shift)',
+                'label' => 'Izin Hari Ini Ditutup Sebelum Shift (menit)',
                 'type' => 'integer',
-                'keterangan' => 'Batas waktu mengajukan izin untuk hari ini, dihitung dari jam shift mulai. Berlaku untuk semua jenis izin. Contoh: diisi 1, shift mulai jam 08:00, maka lewat jam 09:00 izin untuk hari ini tidak bisa diajukan lagi. Izin untuk besok dan seterusnya tidak dibatasi.',
+                'keterangan' => 'Izin untuk hari ini hanya bisa diajukan sampai sekian menit sebelum shift mulai, agar tidak dipakai di detik-detik terakhir. Contoh: diisi 10, shift mulai jam 08:00, maka lewat jam 07:50 pegawai harus absen masuk dulu baru bisa mengajukan izin (izin pulang cepat). Isi 0 untuk menutup tepat saat shift mulai. Izin untuk besok dan seterusnya tidak dibatasi.',
             ],
         ];
+
+        // Pengaturan lama (batas izin dalam jam setelah shift) sudah digantikan aturan
+        // "izin ditutup N menit sebelum shift"; hapus agar tidak tampil membingungkan.
+        Setting::where('key', 'batas_izin_jam')->delete();
 
         foreach ($settings as $setting) {
             $existing = Setting::where('key', $setting['key'])->first();

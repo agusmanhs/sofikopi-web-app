@@ -133,9 +133,10 @@ class IzinService extends BaseService
     /**
      * Tolak pengajuan izin (semua jenis) yang diajukan terlambat untuk HARI INI.
      *
-     * Batas = jam masuk shift pegawai hari ini + N jam (setting global
-     * `batas_izin_jam`). Pengajuan untuk tanggal besok atau setelahnya tidak
-     * dibatasi, jadi pegawai tetap bisa mengajukan kapan saja untuk hari depan.
+     * Pegawai yang belum absen masuk: izin hari ini ditutup N menit sebelum jam masuk
+     * shift (setting `izin_tutup_menit_sebelum_shift`); setelah itu wajib absen dulu.
+     * Pegawai yang sudah absen masuk: boleh (izin pulang cepat). Pengajuan untuk
+     * tanggal besok atau setelahnya tidak dibatasi.
      *
      * @throws \Exception
      */
@@ -143,6 +144,21 @@ class IzinService extends BaseService
     {
         // Hanya berlaku untuk pengajuan yang mulai hari ini.
         if (! $tglMulai->isSameDay(today())) {
+            return;
+        }
+
+        // Sudah absen masuk hari ini -> izin pulang cepat, tidak dibatasi jam shift.
+        // Absen masuk dan status Terlambat tidak ditimpa saat izin disetujui.
+        $absenHariIni = Absensi::where('pegawai_id', $pegawaiId)
+            ->whereDate('tanggal', today())
+            ->whereNotNull('jam_masuk')
+            ->first();
+
+        if ($absenHariIni) {
+            if ($absenHariIni->jam_pulang) {
+                throw new \Exception('Anda sudah absen pulang hari ini, pengajuan '.$jenisIzin->nama.' untuk hari ini tidak diperlukan.');
+            }
+
             return;
         }
 
@@ -154,13 +170,14 @@ class IzinService extends BaseService
             return;
         }
 
-        $batasJam = $this->settingService->getJam(Setting::KEY_BATAS_IZIN_JAM);
-        $batasAkhir = $jamMasukShift->copy()->addHours($batasJam);
+        $menit = $this->settingService->getMenit(Setting::KEY_IZIN_TUTUP_MENIT);
+        $batasAkhir = $jamMasukShift->copy()->subMinutes($menit);
 
         if (now()->gt($batasAkhir)) {
             throw new \Exception(
                 "Pengajuan {$jenisIzin->nama} untuk hari ini sudah ditutup (Batas: "
-                .$batasAkhir->format('H:i').'). Silakan hubungi atasan Anda.'
+                .$batasAkhir->format('H:i').', '.$menit.' menit sebelum shift mulai). '
+                .'Silakan absen masuk terlebih dahulu, lalu ajukan izin.'
             );
         }
     }
@@ -178,19 +195,10 @@ class IzinService extends BaseService
             return null;
         }
 
-        // Sudah absen masuk hari ini -> acuan adalah shift yang benar-benar dipakai saat absen.
-        $absenShift = Absensi::with('shift')
-            ->where('pegawai_id', $pegawaiId)
-            ->whereDate('tanggal', today())
-            ->whereNotNull('jam_masuk')
-            ->first()?->shift;
-
         $jadwal = $this->jadwalKerjaService->resolveShiftFor($pegawai, today());
 
         // Terjadwal libur hari ini (shift null) -> tidak ada batas jam yang relevan.
-        if ($absenShift) {
-            $shift = $absenShift;
-        } elseif ($jadwal['scheduled']) {
+        if ($jadwal['scheduled']) {
             $shift = $jadwal['shift'];
         } else {
             $shift = $pegawai->shift;
@@ -238,6 +246,27 @@ class IzinService extends BaseService
     }
 
     /**
+     * Izin pulang cepat: absen masuk pada hari izin diajukan, belum absen pulang.
+     * Absen masuk dan status tidak ditimpa; jam pulang diisi dari jam pengajuan.
+     */
+    protected function isPulangCepat(Izin $izin, Absensi $absen): bool
+    {
+        if (! $absen->jam_masuk || $absen->jam_pulang) {
+            return false;
+        }
+
+        if ($absen->tanggal->toDateString() !== $izin->created_at->toDateString()) {
+            return false;
+        }
+
+        // Izin harus diajukan SETELAH absen masuk; bila diajukan sebelumnya lalu pegawai
+        // absen, itu konflik (bukan pulang cepat) dan tetap ditolak saat approve.
+        $waktuAbsenMasuk = $absen->tanggal->copy()->setTimeFromTimeString($absen->jam_masuk->format('H:i:s'));
+
+        return $izin->created_at->greaterThanOrEqualTo($waktuAbsenMasuk);
+    }
+
+    /**
      * @throws \Exception
      */
     protected function assertTidakAdaAbsensiMasuk(Izin $izin): void
@@ -249,6 +278,8 @@ class IzinService extends BaseService
                 $query->whereNotNull('jam_masuk')->orWhereNotNull('jam_pulang');
             })
             ->orderBy('tanggal')
+            ->get()
+            ->reject(fn (Absensi $absen) => $this->isPulangCepat($izin, $absen))
             ->pluck('tanggal')
             ->map(fn ($date) => Carbon::parse($date)->format('d M Y'))
             ->unique()
@@ -332,6 +363,19 @@ class IzinService extends BaseService
                 ->first();
 
             $logKeterangan = "Izin: {$jenisIzin->nama} - {$izin->alasan}";
+
+            if ($existing && $this->isPulangCepat($izin, $existing)) {
+                $jamPengajuan = $izin->created_at->format('H:i:s');
+                $existing->update([
+                    'jam_pulang' => $jamPengajuan,
+                    'keterangan' => trim(($existing->keterangan ? $existing->keterangan.' | ' : '')
+                        ."Pulang cepat: {$jenisIzin->nama} - {$izin->alasan} (jam pulang = jam pengajuan izin {$izin->created_at->format('H:i')})"),
+                ]);
+
+                $current->addDay();
+
+                continue;
+            }
 
             if ($existing && ($existing->jam_masuk || $existing->jam_pulang)) {
                 $origMasuk = $existing->jam_masuk ? $existing->jam_masuk->format('H:i') : '-';

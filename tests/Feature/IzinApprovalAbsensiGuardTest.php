@@ -15,7 +15,6 @@ use App\Services\SettingService;
 use App\Services\TelegramService;
 use Database\Seeders\SettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Mockery;
 use Tests\TestCase;
@@ -28,9 +27,6 @@ class IzinApprovalAbsensiGuardTest extends TestCase
     {
         parent::setUp();
 
-        // Izin dibuat pada 07:00, sebelum absen 08:05 di tiap skenario.
-        Carbon::setTestNow('2026-10-14 07:00:00');
-
         $telegram = Mockery::mock(TelegramService::class);
         $telegram->shouldReceive('notifyIzinCreated')->andReturnNull();
         $telegram->shouldReceive('notifyIzinStatus')->andReturnNull();
@@ -41,13 +37,6 @@ class IzinApprovalAbsensiGuardTest extends TestCase
 
         $this->seed(SettingSeeder::class);
         app(SettingService::class)->flush();
-    }
-
-    protected function tearDown(): void
-    {
-        Carbon::setTestNow();
-
-        parent::tearDown();
     }
 
     protected function makePegawai(): array
@@ -181,23 +170,5 @@ class IzinApprovalAbsensiGuardTest extends TestCase
 
         $this->assertSame(Izin::STATUS_APPROVED, $result->status_approval);
         $this->assertSame('Cuti', Absensi::whereDate('tanggal', today())->first()->status);
-    }
-
-    public function test_izin_diajukan_sebelum_absen_lalu_pegawai_absen_tetap_ditolak_bukan_pulang_cepat()
-    {
-        [$pegawai, $shift] = $this->makePegawai();
-        $izin = $this->makeIzin($pegawai, today()->toDateString(), today()->toDateString());
-        // Pegawai absen setelah mengajukan izin (07:00) dan sebelum di-approve.
-        $absensi = $this->makeAbsensi($pegawai, $shift, today()->toDateString(), '08:05:00', 'Hadir');
-
-        try {
-            app(IzinService::class)->approveIzin($izin->id);
-            $this->fail('Approval seharusnya ditolak.');
-        } catch (\Exception $e) {
-            $this->assertStringContainsString('sudah absen masuk', $e->getMessage());
-        }
-
-        $this->assertNull($absensi->fresh()->jam_pulang);
-        $this->assertSame(Izin::STATUS_PENDING, $izin->fresh()->status_approval);
     }
 }

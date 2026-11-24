@@ -31,9 +31,7 @@ class PengaturanAbsensiController extends Controller
 
         $rules = [];
         foreach ($allowedKeys as $key) {
-            $rules['settings.'.$key] = $key === Setting::KEY_IZIN_TUTUP_MENIT
-                ? 'required|integer|min:0|max:120'
-                : 'required|integer|min:1|max:24';
+            $rules['settings.'.$key] = 'required|integer|min:1|max:24';
         }
 
         $validated = $request->validate($rules, [], $this->attributeNames($allowedKeys));

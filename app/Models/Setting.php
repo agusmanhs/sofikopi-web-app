@@ -28,7 +28,7 @@ class Setting extends Model
 
     public const KEY_BATAS_ABSEN_PULANG_JAM = 'batas_absen_pulang_jam';
 
-    public const KEY_IZIN_TUTUP_MENIT = 'izin_tutup_menit_sebelum_shift';
+    public const KEY_BATAS_IZIN_JAM = 'batas_izin_jam';
 
     public function scopeGroup($query, string $group)
     {

@@ -24,8 +24,7 @@ use Tests\TestCase;
 
 /**
  * Simulasi skenario nyata batas pengajuan izin/sakit untuk HARI INI.
- * Waktu dibekukan pada 12:00. Aturan: pegawai yang belum absen hanya bisa mengajukan izin
- * sampai 10 menit sebelum shift mulai (bawaan); yang sudah absen boleh (izin pulang cepat).
+ * Waktu dibekukan pada 12:00; batas bawaan 1 jam setelah jam masuk shift.
  */
 class SimulasiBatasIzinTest extends TestCase
 {
@@ -160,27 +159,27 @@ class SimulasiBatasIzinTest extends TestCase
         $this->assertDiterima($this->pegawai($this->shift(2)));
     }
 
-    public function test_tepat_pada_batas_diterima_sedetik_setelahnya_ditolak()
+    public function test_tepat_pada_batas_diterima_semenit_setelahnya_ditolak()
     {
-        // Shift mulai 12:10, izin ditutup 12:00. Sekarang 12:00 -> masih boleh.
-        $pegawai = $this->pegawai($this->shift(0, 10));
+        // Shift mulai 11:00, batas 1 jam = 12:00. Sekarang 12:00 -> masih boleh.
+        $pegawai = $this->pegawai($this->shift(-1));
         $this->assertDiterima($pegawai);
 
         Izin::query()->delete();
 
-        Carbon::setTestNow('2026-10-14 12:00:01');
+        Carbon::setTestNow('2026-10-14 12:01:00');
         $this->assertDitolak($pegawai);
     }
 
     // ---------- Sudah absen ----------
 
-    public function test_sudah_absen_lalu_sakit_walau_shift_sudah_lama_mulai_diterima()
+    public function test_sudah_absen_lalu_sakit_lewat_batas_ditolak()
     {
         $shift = $this->shift(-3);
         $pegawai = $this->pegawai($shift);
         $this->sudahAbsen($pegawai, $shift);
 
-        $this->assertDiterima($pegawai);
+        $this->assertDitolak($pegawai);
     }
 
     public function test_sudah_absen_lalu_sakit_dalam_batas_diterima()
@@ -192,14 +191,14 @@ class SimulasiBatasIzinTest extends TestCase
         $this->assertDiterima($pegawai);
     }
 
-    public function test_sudah_absen_dengan_shift_berbeda_tetap_boleh_izin_pulang_cepat()
+    public function test_sudah_absen_dengan_shift_berbeda_memakai_shift_absen()
     {
         $default = $this->shift(3);
         $dipakai = $this->shift(-3);
         $pegawai = $this->pegawai($default);
         $this->sudahAbsen($pegawai, $dipakai);
 
-        $this->assertDiterima($pegawai);
+        $this->assertDitolak($pegawai);
     }
 
     public function test_baris_absen_tanpa_jam_masuk_tidak_dianggap_sudah_absen()
@@ -252,7 +251,7 @@ class SimulasiBatasIzinTest extends TestCase
         $this->assertDiterima($pegawai);
     }
 
-    public function test_libur_terjadwal_tetapi_sudah_absen_tetap_boleh_izin_pulang_cepat()
+    public function test_libur_terjadwal_tetapi_sudah_absen_memakai_shift_absen()
     {
         $shift = $this->shift(-3);
         $pegawai = $this->pegawai($shift);
@@ -263,7 +262,7 @@ class SimulasiBatasIzinTest extends TestCase
         ]);
         $this->sudahAbsen($pegawai, $shift);
 
-        $this->assertDiterima($pegawai);
+        $this->assertDitolak($pegawai);
     }
 
     public function test_tanpa_shift_sama_sekali_tidak_diblokir()
@@ -275,19 +274,20 @@ class SimulasiBatasIzinTest extends TestCase
 
     public function test_batas_mengikuti_setting_admin_baik_naik_maupun_turun()
     {
-        // Shift mulai 13:00: bawaan 10 menit -> tutup 12:50 (boleh); 90 menit -> tutup 11:30 (ditolak); 0 -> tutup 13:00 (boleh).
-        $pegawai = $this->pegawai($this->shift(1));
+        $shift = $this->shift(-3);
+        $pegawai = $this->pegawai($shift);
+        $this->sudahAbsen($pegawai, $shift);
         $settings = app(SettingService::class);
 
+        $this->assertDitolak($pegawai);               // batas 1 jam: shift 09:00 -> tutup 10:00
+
+        $settings->setMany([Setting::KEY_BATAS_IZIN_JAM => 4]);   // tutup 13:00
         $this->assertDiterima($pegawai);
 
         Izin::query()->delete();
 
-        $settings->setMany([Setting::KEY_IZIN_TUTUP_MENIT => 90]);
+        $settings->setMany([Setting::KEY_BATAS_IZIN_JAM => 2]);   // tutup 11:00
         $this->assertDitolak($pegawai);
-
-        $settings->setMany([Setting::KEY_IZIN_TUTUP_MENIT => 0]);
-        $this->assertDiterima($pegawai);
     }
 
     // ---------- Jenis izin dan tanggal ----------
@@ -319,7 +319,6 @@ class SimulasiBatasIzinTest extends TestCase
         $lewat = $this->shift(-4);
         $baru = $this->shift(0);
         $nanti = $this->shift(3);
-        $sebentarLagi = $this->shift(0, 5);
 
         $kasus = [];
 
@@ -327,21 +326,15 @@ class SimulasiBatasIzinTest extends TestCase
         $kasus['belum absen, shift lewat'] = [$p, false];
 
         $p = $this->pegawai($baru);
-        $kasus['belum absen, shift baru mulai'] = [$p, false];
-
-        $p = $this->pegawai($sebentarLagi);
-        $kasus['belum absen, shift 5 menit lagi (detik-detik terakhir)'] = [$p, false];
-
-        $p = $this->pegawai($nanti);
-        $kasus['belum absen, shift 3 jam lagi'] = [$p, true];
+        $kasus['belum absen, shift baru mulai'] = [$p, true];
 
         $p = $this->pegawai($lewat);
         $this->sudahAbsen($p, $lewat);
-        $kasus['sudah absen, shift lewat'] = [$p, true];
+        $kasus['sudah absen, shift lewat'] = [$p, false];
 
         $p = $this->pegawai($nanti);
         $this->sudahAbsen($p, $lewat);
-        $kasus['sudah absen shift lain yang lewat'] = [$p, true];
+        $kasus['sudah absen shift lain yang lewat'] = [$p, false];
 
         $p = $this->pegawai($lewat);
         $this->sudahAbsen($p, $baru);
@@ -379,10 +372,11 @@ class SimulasiBatasIzinTest extends TestCase
 
     // ---------- Lewat HTTP seperti pegawai sungguhan ----------
 
-    public function test_http_pegawai_belum_absen_ditolak_lewat_batas_dan_tidak_ada_data_tersimpan()
+    public function test_http_pegawai_ditolak_lewat_batas_dan_tidak_ada_data_tersimpan()
     {
         $shift = $this->shift(-3);
         $pegawai = $this->pegawai($shift);
+        $this->sudahAbsen($pegawai, $shift);
         $jenis = $this->jenis();
 
         $response = $this->actingAs($pegawai->user)->post(route('izin.store'), [
@@ -397,7 +391,7 @@ class SimulasiBatasIzinTest extends TestCase
         $this->assertSame(0, Izin::count());
     }
 
-    public function test_http_pegawai_sudah_absen_diterima_sebagai_izin_pulang_cepat()
+    public function test_http_pegawai_diterima_dalam_batas()
     {
         $shift = $this->shift(0);
         $pegawai = $this->pegawai($shift);

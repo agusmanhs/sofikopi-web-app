@@ -25,7 +25,7 @@ class SettingService extends BaseService
         Setting::KEY_BATAS_ABSEN_DIBUKA_JAM => 2,
         Setting::KEY_BATAS_ABSEN_MASUK_JAM => 2,
         Setting::KEY_BATAS_ABSEN_PULANG_JAM => 2,
-        Setting::KEY_IZIN_TUTUP_MENIT => 10,
+        Setting::KEY_BATAS_IZIN_JAM => 1,
     ];
 
     public function __construct(SettingRepository $repository)
@@ -60,14 +60,6 @@ class SettingService extends BaseService
         }
 
         return $value;
-    }
-
-    /**
-     * Ambil nilai setting sebagai menit (0 boleh), jatuh ke default bila baris belum ada.
-     */
-    public function getMenit(string $key): int
-    {
-        return max(0, (int) $this->get($key));
     }
 
     /**

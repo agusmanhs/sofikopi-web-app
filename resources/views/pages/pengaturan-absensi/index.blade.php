@@ -47,9 +47,8 @@
                               <div class="input-group">
                                  <input type="number" class="form-control @error($errorKey) is-invalid @enderror"
                                     id="{{ $setting->key }}" name="{{ $inputName }}"
-                                    value="{{ old($errorKey, $setting->value) }}"
-                                    @if ($setting->key === \App\Models\Setting::KEY_IZIN_TUTUP_MENIT) min="0" max="120" @else min="1" max="24" @endif required>
-                                 <span class="input-group-text">{{ $setting->key === \App\Models\Setting::KEY_IZIN_TUTUP_MENIT ? 'menit' : 'jam' }}</span>
+                                    value="{{ old($errorKey, $setting->value) }}" min="1" max="24" required>
+                                 <span class="input-group-text">jam</span>
                                  @error($errorKey)
                                     <div class="invalid-feedback">{{ $message }}</div>
                                  @enderror

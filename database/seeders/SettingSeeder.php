@@ -44,6 +44,9 @@ class SettingSeeder extends Seeder
             ],
         ];
 
+        // Sisa aturan "izin ditutup N menit sebelum shift" yang dibatalkan.
+        Setting::where('key', 'izin_tutup_menit_sebelum_shift')->delete();
+
         foreach ($settings as $setting) {
             $existing = Setting::where('key', $setting['key'])->first();
 

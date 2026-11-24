@@ -178,8 +178,8 @@ class BatasAbsensiIzinTest extends TestCase
 
     public function test_pengajuan_izin_pribadi_hari_ini_diterima_sebelum_batas()
     {
-        // Shift baru mulai (offset 0), batas 1 jam -> masih boleh.
-        [$pegawai] = $this->makePegawai(0);
+        // Shift mulai 1 jam lagi, izin ditutup 10 menit sebelum shift -> masih boleh.
+        [$pegawai] = $this->makePegawai(1);
         $izin = $this->makeJenisIzin('izin', 'Izin Pribadi');
 
         $izinRecord = app(IzinService::class)->ajukanIzin(
@@ -239,18 +239,19 @@ class BatasAbsensiIzinTest extends TestCase
 
     public function test_batas_pengajuan_izin_mengikuti_perubahan_setting()
     {
-        // Shift mulai 3 jam lalu: ditolak pada batas 1 jam, diterima bila batas dinaikkan ke 5.
-        [$pegawai] = $this->makePegawai(-3);
+        // Shift mulai 1 jam lagi: diterima pada batas bawaan 10 menit, ditolak bila batas dinaikkan ke 90 menit.
+        [$pegawai] = $this->makePegawai(1);
         $sakit = $this->makeJenisIzin('sakit', 'Sakit');
 
-        $this->setSetting(Setting::KEY_BATAS_IZIN_JAM, 5);
+        $this->setSetting(Setting::KEY_IZIN_TUTUP_MENIT, 90);
 
-        $izinRecord = app(IzinService::class)->ajukanIzin(
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('sudah ditutup');
+
+        app(IzinService::class)->ajukanIzin(
             $pegawai->id,
             $this->izinData($sakit, today()->toDateString())
         );
-
-        $this->assertNotNull($izinRecord->id);
     }
 
     public function test_pegawai_tanpa_shift_tidak_diblokir()

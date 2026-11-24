@@ -31,8 +31,7 @@ class PengaturanAbsensiController extends Controller
 
         $rules = [];
         foreach ($allowedKeys as $key) {
-            $min = $key === Setting::KEY_BATAS_IZIN_JAM ? 0 : 1;
-            $rules['settings.'.$key] = "required|integer|min:{$min}|max:24";
+            $rules['settings.'.$key] = 'required|integer|min:1|max:24';
         }
 
         $validated = $request->validate($rules, [], $this->attributeNames($allowedKeys));

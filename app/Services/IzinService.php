@@ -154,7 +154,7 @@ class IzinService extends BaseService
             return;
         }
 
-        $batasJam = $this->settingService->getJam(Setting::KEY_BATAS_IZIN_JAM, allowZero: true);
+        $batasJam = $this->settingService->getJam(Setting::KEY_BATAS_IZIN_JAM);
         $batasAkhir = $jamMasukShift->copy()->addHours($batasJam);
 
         if (now()->gt($batasAkhir)) {

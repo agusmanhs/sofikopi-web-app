@@ -51,13 +51,9 @@ class SettingService extends BaseService
      * Ambil nilai setting sebagai integer positif, jatuh ke default bila
      * kosong/nol/negatif. Dipakai untuk batas jam absensi & izin.
      */
-    public function getJam(string $key, bool $allowZero = false): int
+    public function getJam(string $key): int
     {
         $value = (int) $this->get($key);
-
-        if ($allowZero && $value === 0 && array_key_exists($key, $this->map())) {
-            return 0;
-        }
 
         if ($value <= 0) {
             return (int) (self::DEFAULTS[$key] ?? 0);

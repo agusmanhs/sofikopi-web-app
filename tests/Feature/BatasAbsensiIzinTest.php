@@ -253,10 +253,11 @@ class BatasAbsensiIzinTest extends TestCase
         $this->assertNotNull($izinRecord->id);
     }
 
-    public function test_pegawai_tanpa_shift_tidak_diblokir()
+    public function test_pegawai_tanpa_shift_dan_divisi_tanpa_shift_aktif_tidak_diblokir()
     {
-        [$pegawai] = $this->makePegawai(-5);
+        [$pegawai, $shift] = $this->makePegawai(-5);
         $pegawai->update(['shift_id' => null]);
+        $shift->update(['is_aktif' => false]);
         $sakit = $this->makeJenisIzin('sakit', 'Sakit');
 
         $izinRecord = app(IzinService::class)->ajukanIzin(

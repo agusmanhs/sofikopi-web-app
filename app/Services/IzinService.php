@@ -7,6 +7,7 @@ use App\Models\Izin;
 use App\Models\JenisIzin;
 use App\Models\Pegawai;
 use App\Models\Setting;
+use App\Models\Shift;
 use App\Repositories\IzinRepository;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -146,6 +147,12 @@ class IzinService extends BaseService
             return;
         }
 
+        // Izin Prioritas (pernikahan, kematian keluarga inti, dll.) bersifat mendadak
+        // dan wajib surat, jadi tidak dibatasi jam.
+        if (str_contains(strtolower((string) $jenisIzin->kode), 'prioritas')) {
+            return;
+        }
+
         $jamMasukShift = $this->resolveJamMasukShiftHariIni($pegawaiId);
 
         // Tidak ada shift yang bisa dijadikan acuan (mis. pegawai belum punya
@@ -193,7 +200,7 @@ class IzinService extends BaseService
         } elseif ($jadwal['scheduled']) {
             $shift = $jadwal['shift'];
         } else {
-            $shift = $pegawai->shift;
+            $shift = $pegawai->shift ?? $this->shiftAcuanDivisi($pegawai);
         }
 
         if (! $shift || ! $shift->jam_masuk) {
@@ -201,6 +208,20 @@ class IzinService extends BaseService
         }
 
         return Carbon::parse(today()->format('Y-m-d').' '.$shift->jam_masuk->format('H:i:s'));
+    }
+
+    /**
+     * Acuan untuk pegawai yang belum punya shift terdaftar dan belum absen hari ini:
+     * shift aktif divisinya. Bila divisi punya beberapa shift, dipakai yang paling
+     * akhir mulai, sehingga pengajuan baru tertutup setelah semua shift divisi lewat
+     * batasnya (tidak salah menolak pegawai shift malam).
+     */
+    protected function shiftAcuanDivisi(Pegawai $pegawai): ?Shift
+    {
+        return Shift::where('divisi_id', $pegawai->divisi_id)
+            ->where('is_aktif', true)
+            ->orderByDesc('jam_masuk')
+            ->first();
     }
 
     /**
